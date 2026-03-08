@@ -148,7 +148,7 @@ const ClusterPopup = () => {
     const handleZoomOut = () => {
       const metersPerPixel = (156543.03392 * Math.cos((map.getCenter().lat * Math.PI) / 180)) / 2 ** map.getZoom();
       const visibleWidthKm = (map.getCanvas().width * metersPerPixel) / 1000;
-      if (visibleWidthKm > 10) {
+      if (visibleWidthKm > 739) {
         dispatch(clustersActions.hideClusterPopup());
       }
     };
