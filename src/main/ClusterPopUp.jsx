@@ -68,56 +68,45 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 const INITIAL_BOTTOM = 16;
-const INITIAL_LEFT_PERCENT = 50;
 
 const ClusterPopup = () => {
   const classes = useStyles();
   const dispatch = useDispatch();
   const paperRef = useRef(null);
-
-  const [position, setPosition] = useState({ bottom: INITIAL_BOTTOM, left: null, top: null, right: null });
   const dragging = useRef(false);
   const dragOffset = useRef({ x: 0, y: 0 });
-
+  const [position, setPosition] = useState({ bottom: INITIAL_BOTTOM, left: null, top: null });
   const { visible, devices } = useSelector((state) => state.clusters);
 
   useEffect(() => {
     if (visible) {
-      setPosition({ bottom: INITIAL_BOTTOM, left: null, top: null, right: null });
+      setPosition({ bottom: INITIAL_BOTTOM, left: null, top: null });
     }
   }, [visible]);
 
   useEffect(() => {
     if (!visible) return undefined;
 
-    const handleOutsideClick = () => {
-      dispatch(clustersActions.hideClusterPopup());
+    const hide = () => dispatch(clustersActions.hideClusterPopup());
+
+    const handleZoomOut = () => {
+      const metersPerPixel = (156543.03392 * Math.cos((map.getCenter().lat * Math.PI) / 180)) / (2 ** map.getZoom());
+      const visibleWidthKm = (map.getCanvas().width * metersPerPixel) / 1000;
+      if (visibleWidthKm > 739) hide();
     };
 
-    map.on('click', handleOutsideClick);
-    return () => map.off('click', handleOutsideClick);
+    map.on('click', hide);
+    map.on('movestart', hide);
+    map.on('zoom', handleZoomOut);
+
+    return () => {
+      map.off('click', hide);
+      map.off('movestart', hide);
+      map.off('zoom', handleZoomOut);
+    };
   }, [visible, dispatch]);
 
-  const onMouseDown = (e) => {
-    if (!paperRef.current) return;
-    dragging.current = true;
-
-    const rect = paperRef.current.getBoundingClientRect();
-    dragOffset.current = {
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
-    };
-
-    setPosition({
-      top: rect.top,
-      left: rect.left,
-      bottom: null,
-      right: null,
-    });
-
-    e.preventDefault();
-  };
-
+  // Drag listeners
   useEffect(() => {
     const onMouseMove = (e) => {
       if (!dragging.current) return;
@@ -125,37 +114,27 @@ const ClusterPopup = () => {
         top: e.clientY - dragOffset.current.y,
         left: e.clientX - dragOffset.current.x,
         bottom: null,
-        right: null,
       });
     };
 
-    const onMouseUp = () => {
-      dragging.current = false;
-    };
+    const onMouseUp = () => { dragging.current = false; };
 
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup', onMouseUp);
-
     return () => {
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
     };
   }, []);
 
-  useEffect(() => {
-    if (!visible) return undefined;
-
-    const handleZoomOut = () => {
-      const metersPerPixel = (156543.03392 * Math.cos((map.getCenter().lat * Math.PI) / 180)) / 2 ** map.getZoom();
-      const visibleWidthKm = (map.getCanvas().width * metersPerPixel) / 1000;
-      if (visibleWidthKm > 739) {
-        dispatch(clustersActions.hideClusterPopup());
-      }
-    };
-
-    map.on('zoom', handleZoomOut);
-    return () => map.off('zoom', handleZoomOut);
-  }, [visible, dispatch]);
+  const onMouseDown = (e) => {
+    if (!paperRef.current) return;
+    dragging.current = true;
+    const rect = paperRef.current.getBoundingClientRect();
+    dragOffset.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    setPosition({ top: rect.top, left: rect.left, bottom: null });
+    e.preventDefault();
+  };
 
   if (!visible || devices.length === 0) return null;
 
