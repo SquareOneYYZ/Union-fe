@@ -24,6 +24,8 @@
 
 /* Panic pulse animation on the notification icon */
 .maplibre-ctrl-notification-panic {
+  overflow: visible;  /* ADD THIS */
+  border-radius: 4px;
   animation: panicPulse 0.8s ease-in-out infinite;
 }
 
