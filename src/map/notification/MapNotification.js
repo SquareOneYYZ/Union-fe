@@ -36,11 +36,12 @@ const MapNotification = ({ enabled, onClick, panic }) => {
     return () => map.removeControl(control);
   }, [onClick]);
 
-  useEffect(() => {
-    if (!control.button) return;
-    control.button.className = statusClass(enabled ? 'on' : 'off');
-    control.button.title = enabled ? 'Notifications (active)' : 'Notifications';
-  }, [enabled, panic]);
+useEffect(() => {
+  if (!control.button) return;
+  control.button.className = statusClass(enabled ? 'on' : 'off');
+  control.button.title = enabled ? 'Notifications (active)' : 'Notifications';
+  control.button.classList.toggle('maplibre-ctrl-notification-panic', !!panic);
+}, [enabled, panic]);
 
   return null;
 };

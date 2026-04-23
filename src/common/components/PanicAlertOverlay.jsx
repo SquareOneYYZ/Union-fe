@@ -18,7 +18,7 @@ const PanicAlertOverlay = ({ panicEvent, onDismiss }) => {
         const timer = setTimeout(() => {
             setVisible(false);
             onDismiss();
-        }, 50000000);
+        }, 5000);
 
         return () => clearTimeout(timer);
     }, [panicEvent, onDismiss]);

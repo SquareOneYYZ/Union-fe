@@ -24,7 +24,7 @@ import MapZoomBar from '../map/controls/MapZoomBar';
 import MapMeasureDistance from '../map/controls/MapMeasureDistance';
 import MapGeofenceAccess from '../map/controls/MapGeofenceAccess';
 
-const MainMap = ({ filteredPositions, selectedPosition, onEventsClick, panic }) => {
+const MainMap = ({ filteredPositions, selectedPosition, onEventsClick , panic}) => {
   const theme = useTheme();
   const dispatch = useDispatch();
   const navigate = useNavigate();
