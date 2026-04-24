@@ -6,22 +6,18 @@
   -webkit-font-smoothing: antialiased;
 }
 
-/* Dark: white icon */
 .maplibre-ctrl-notification-off {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24'%3E%3Cline x1='12' y1='1' x2='12' y2='3.2' stroke='%23ffffff' stroke-width='2' stroke-linecap='round'/%3E%3Cline x1='5.8' y1='3.1' x2='7.1' y2='4.9' stroke='%23ffffff' stroke-width='2' stroke-linecap='round'/%3E%3Cline x1='18.2' y1='3.1' x2='16.9' y2='4.9' stroke='%23ffffff' stroke-width='2' stroke-linecap='round'/%3E%3Cline x1='2.2' y1='8.2' x2='4.5' y2='8.9' stroke='%23ffffff' stroke-width='2' stroke-linecap='round'/%3E%3Cline x1='21.8' y1='8.2' x2='19.5' y2='8.9' stroke='%23ffffff' stroke-width='2' stroke-linecap='round'/%3E%3Cpath d='M7.5 14.5 Q7.2 9 12 9 Q16.8 9 16.5 14.5Z' fill='%23ffffff'/%3E%3Crect x='6' y='14.5' width='12' height='2.8' rx='1.4' fill='%23ffffff'/%3E%3Crect x='8.5' y='17.3' width='7' height='1.8' rx='0.9' fill='%23ffffff'/%3E%3Crect x='7' y='19.1' width='10' height='1.4' rx='0.7' fill='%23ffffff'/%3E%3C/svg%3E");
 }
 
-/* Dark: red active icon */
 .maplibre-ctrl-notification-on {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24'%3E%3Cline x1='12' y1='1' x2='12' y2='3.2' stroke='%23f44336' stroke-width='2' stroke-linecap='round'/%3E%3Cline x1='5.8' y1='3.1' x2='7.1' y2='4.9' stroke='%23f44336' stroke-width='2' stroke-linecap='round'/%3E%3Cline x1='18.2' y1='3.1' x2='16.9' y2='4.9' stroke='%23f44336' stroke-width='2' stroke-linecap='round'/%3E%3Cline x1='2.2' y1='8.2' x2='4.5' y2='8.9' stroke='%23f44336' stroke-width='2' stroke-linecap='round'/%3E%3Cline x1='21.8' y1='8.2' x2='19.5' y2='8.9' stroke='%23f44336' stroke-width='2' stroke-linecap='round'/%3E%3Cpath d='M7.5 14.5 Q7.2 9 12 9 Q16.8 9 16.5 14.5Z' fill='%23f44336'/%3E%3Crect x='6' y='14.5' width='12' height='2.8' rx='1.4' fill='%23f44336'/%3E%3Crect x='8.5' y='17.3' width='7' height='1.8' rx='0.9' fill='%23ffffff'/%3E%3Crect x='7' y='19.1' width='10' height='1.4' rx='0.7' fill='%23ffffff'/%3E%3C/svg%3E");
 }
 
-/* Light: black icon */
 [data-theme="light"] .maplibre-ctrl-notification-off {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24'%3E%3Cline x1='12' y1='1' x2='12' y2='3.2' stroke='%23000000' stroke-width='2' stroke-linecap='round'/%3E%3Cline x1='5.8' y1='3.1' x2='7.1' y2='4.9' stroke='%23000000' stroke-width='2' stroke-linecap='round'/%3E%3Cline x1='18.2' y1='3.1' x2='16.9' y2='4.9' stroke='%23000000' stroke-width='2' stroke-linecap='round'/%3E%3Cline x1='2.2' y1='8.2' x2='4.5' y2='8.9' stroke='%23000000' stroke-width='2' stroke-linecap='round'/%3E%3Cline x1='21.8' y1='8.2' x2='19.5' y2='8.9' stroke='%23000000' stroke-width='2' stroke-linecap='round'/%3E%3Cpath d='M7.5 14.5 Q7.2 9 12 9 Q16.8 9 16.5 14.5Z' fill='%23000000'/%3E%3Crect x='6' y='14.5' width='12' height='2.8' rx='1.4' fill='%23000000'/%3E%3Crect x='8.5' y='17.3' width='7' height='1.8' rx='0.9' fill='%23000000'/%3E%3Crect x='7' y='19.1' width='10' height='1.4' rx='0.7' fill='%23000000'/%3E%3C/svg%3E");
 }
 
-/* Light: red active icon (base stays black) */
 [data-theme="light"] .maplibre-ctrl-notification-on {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24'%3E%3Cline x1='12' y1='1' x2='12' y2='3.2' stroke='%23f44336' stroke-width='2' stroke-linecap='round'/%3E%3Cline x1='5.8' y1='3.1' x2='7.1' y2='4.9' stroke='%23f44336' stroke-width='2' stroke-linecap='round'/%3E%3Cline x1='18.2' y1='3.1' x2='16.9' y2='4.9' stroke='%23f44336' stroke-width='2' stroke-linecap='round'/%3E%3Cline x1='2.2' y1='8.2' x2='4.5' y2='8.9' stroke='%23f44336' stroke-width='2' stroke-linecap='round'/%3E%3Cline x1='21.8' y1='8.2' x2='19.5' y2='8.9' stroke='%23f44336' stroke-width='2' stroke-linecap='round'/%3E%3Cpath d='M7.5 14.5 Q7.2 9 12 9 Q16.8 9 16.5 14.5Z' fill='%23f44336'/%3E%3Crect x='6' y='14.5' width='12' height='2.8' rx='1.4' fill='%23f44336'/%3E%3Crect x='8.5' y='17.3' width='7' height='1.8' rx='0.9' fill='%23000000'/%3E%3Crect x='7' y='19.1' width='10' height='1.4' rx='0.7' fill='%23000000'/%3E%3C/svg%3E");
 }

@@ -6,6 +6,8 @@ import { makeStyles } from '@mui/styles';
 import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useDispatch, useSelector } from 'react-redux';
+import usePanicMonitor from '../common/util/usePanicMonitor';
+import PanicAlertOverlay from '../common/components/PanicAlertOverlay';
 import DeviceList from './DeviceList';
 import BottomMenu from '../common/components/BottomMenu';
 import StatusCard from '../common/components/StatusCard';
@@ -67,7 +69,7 @@ const MainPage = () => {
   const classes = useStyles();
   const dispatch = useDispatch();
   const theme = useTheme();
-
+  const { panicEvent, dismiss } = usePanicMonitor();
   const desktop = useMediaQuery(theme.breakpoints.up('md'));
 
   const mapOnSelect = useAttributePreference('mapOnSelect', true);
@@ -107,6 +109,7 @@ const MainPage = () => {
           filteredPositions={filteredPositions}
           selectedPosition={selectedPosition}
           onEventsClick={onEventsClick}
+          panic={!!panicEvent}
         />
       )}
       <div className={classes.sidebar}>
@@ -132,6 +135,7 @@ const MainPage = () => {
                 filteredPositions={filteredPositions}
                 selectedPosition={selectedPosition}
                 onEventsClick={onEventsClick}
+                panic={!!panicEvent}
               />
             </div>
           )}
@@ -155,6 +159,7 @@ const MainPage = () => {
           desktopPadding={theme.dimensions.drawerWidthDesktop}
         />
       )}
+      <PanicAlertOverlay panicEvent={panicEvent} onDismiss={dismiss} />
     </div>
   );
 };

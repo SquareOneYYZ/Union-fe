@@ -24,7 +24,7 @@ import MapZoomBar from '../map/controls/MapZoomBar';
 import MapMeasureDistance from '../map/controls/MapMeasureDistance';
 import MapGeofenceAccess from '../map/controls/MapGeofenceAccess';
 
-const MainMap = ({ filteredPositions, selectedPosition, onEventsClick }) => {
+const MainMap = ({ filteredPositions, selectedPosition, onEventsClick, panic }) => {
   const theme = useTheme();
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -65,7 +65,7 @@ const MainMap = ({ filteredPositions, selectedPosition, onEventsClick }) => {
       <MapCurrentLocation />
       <MapGeocoder />
       {!features.disableEvents && (
-        <MapNotification enabled={eventsAvailable} onClick={onEventsClick} />
+        <MapNotification enabled={eventsAvailable} onClick={onEventsClick} panic={panic} />
       )}
       <MapGeofenceAccess onClick={onGeofenceAccessClick} />
       <MapMeasureDistance />
