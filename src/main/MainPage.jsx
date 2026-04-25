@@ -1,5 +1,5 @@
 import React, {
-  useState, useCallback, useEffect,
+  useState, useCallback, useEffect, useRef,
 } from 'react';
 import { Paper } from '@mui/material';
 import { makeStyles } from '@mui/styles';
@@ -71,9 +71,7 @@ const MainPage = () => {
   const theme = useTheme();
   const { panicEvent, dismiss } = usePanicMonitor();
   const desktop = useMediaQuery(theme.breakpoints.up('md'));
-
   const mapOnSelect = useAttributePreference('mapOnSelect', true);
-
   const selectedDeviceId = useSelector((state) => state.devices.selectedId);
   const positions = useSelector((state) => state.session.positions);
   const [filteredPositions, setFilteredPositions] = useState([]);
@@ -92,7 +90,7 @@ const MainPage = () => {
   const [devicesOpen, setDevicesOpen] = useState(desktop);
   const [eventsOpen, setEventsOpen] = useState(false);
 
-  const onEventsClick = useCallback(() => setEventsOpen(true), [setEventsOpen]);
+  const onEventsClick = useCallback(() => setEventsOpen(true), []);
 
   useEffect(() => {
     if (!desktop && mapOnSelect && selectedDeviceId) {
@@ -110,6 +108,7 @@ const MainPage = () => {
           selectedPosition={selectedPosition}
           onEventsClick={onEventsClick}
           panic={!!panicEvent}
+          onNotificationButtonReady={onNotificationButtonReady}
         />
       )}
       <div className={classes.sidebar}>
@@ -136,6 +135,7 @@ const MainPage = () => {
                 selectedPosition={selectedPosition}
                 onEventsClick={onEventsClick}
                 panic={!!panicEvent}
+                onNotificationButtonReady={onNotificationButtonReady}
               />
             </div>
           )}
@@ -159,7 +159,11 @@ const MainPage = () => {
           desktopPadding={theme.dimensions.drawerWidthDesktop}
         />
       )}
-      <PanicAlertOverlay panicEvent={panicEvent} onDismiss={dismiss} />
+      <PanicAlertOverlay
+        panicEvent={panicEvent}
+        onDismiss={dismiss}
+        eventsOpen={eventsOpen}
+      />
     </div>
   );
 };

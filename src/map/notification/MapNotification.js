@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo } from 'react';
 import { map } from '../core/MapView';
 import './notification.css';
+
+const statusClass = (status) => `maplibregl-ctrl-icon maplibre-ctrl-notification maplibre-ctrl-notification-${status}`;
 
 class NotificationControl {
   constructor(eventHandler) {
@@ -9,12 +11,11 @@ class NotificationControl {
 
   onAdd() {
     this.button = document.createElement('button');
-    this.button.className = 'maplibregl-ctrl-icon maplibre-ctrl-notification maplibre-ctrl-notification-off';
+    this.button.className = statusClass('off');
     this.button.type = 'button';
     this.button.title = 'Notifications';
     this.button.onclick = () => this.eventHandler(this);
 
-    // Red badge dot
     this.badge = document.createElement('span');
     this.badge.className = 'notification-panic-badge';
     this.badge.style.display = 'none';
@@ -37,25 +38,28 @@ class NotificationControl {
   }
 }
 
-const MapNotification = ({ enabled, onClick, panic }) => {
+const MapNotification = ({
+  enabled, onClick, panic, onButtonReady,
+}) => {
   const control = useMemo(() => new NotificationControl(onClick), [onClick]);
 
   useEffect(() => {
     map.addControl(control, 'top-right');
-    return () => map.removeControl(control);
+    // control.button is created synchronously inside onAdd(), called
+    // synchronously by map.addControl — no setTimeout needed.
+    onButtonReady?.(control.button);
+    return () => {
+      map.removeControl(control);
+      onButtonReady?.(null);
+    };
   }, [onClick]);
 
-useEffect(() => {
+  useEffect(() => {
     if (!control.button) return;
 
-    const status = enabled ? 'on' : 'off';
-    control.button.className = [
-      'maplibregl-ctrl-icon',
-      'maplibre-ctrl-notification',
-      `maplibre-ctrl-notification-${status}`,
-      panic ? 'maplibre-ctrl-notification-panic' : '',
-    ].filter(Boolean).join(' ');
+    control.button.className = statusClass(enabled ? 'on' : 'off');
     control.button.title = enabled ? 'Notifications (active)' : 'Notifications';
+    control.button.classList.toggle('maplibre-ctrl-notification-panic', !!panic);
 
     if (control.badge) {
       control.badge.style.display = panic ? 'block' : 'none';
