@@ -22,6 +22,12 @@ const { reducer, actions } = createSlice({
     updateTo(state, action) {
       state.to = action.payload;
     },
+    updateAutoFilter(state, action) {
+      state.autoFilter = action.payload; 
+    },
+    clearAutoFilter(state) {
+      state.autoFilter = null;
+    },
   },
 });
 

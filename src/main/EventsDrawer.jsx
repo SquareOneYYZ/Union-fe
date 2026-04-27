@@ -6,6 +6,7 @@ import {
 } from '@mui/material';
 import { makeStyles } from '@mui/styles';
 import DeleteIcon from '@mui/icons-material/Delete';
+import { reportsActions } from '../store';
 import { formatNotificationTitle, formatTime } from '../common/util/formatter';
 import { useTranslation } from '../common/components/LocalizationProvider';
 import { eventsActions } from '../store';
@@ -100,7 +101,21 @@ const EventsDrawer = ({ open, onClose }) => {
         {filteredEvents.map((event) => (
           <ListItemButton
             key={event.id}
-            onClick={() => navigate(`/event/${event.id}`)}
+            onClick={() => {
+              const eventTime = new Date(event.eventTime);
+              const from = new Date(eventTime.getTime() - 30 * 60 * 1000).toISOString();
+              const to = new Date(eventTime.getTime() + 30 * 60 * 1000).toISOString();
+
+              dispatch(reportsActions.updateAutoFilter({
+                deviceId: event.deviceId,
+                from,
+                to,
+                eventType: event.type,
+              }));
+
+              onClose();
+              navigate('/reports/event');
+            }}
             disabled={!event.id}
           >
             <ListItemText
