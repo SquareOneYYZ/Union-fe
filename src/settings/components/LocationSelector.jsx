@@ -9,7 +9,7 @@ import {
 import { snackBarDurationShortMs } from '../../common/util/duration';
 import { useTranslation } from '../../common/components/LocalizationProvider';
 
-const LOCATIONIQ_API_KEY = 'pk.8d53fbdaad1b9785ba8e39a1ac5e3533';
+const LOCATIONIQ_API_KEY = "pk.8d53fbdaad1b9785ba8e39a1ac5e3533";
 
 const LocationSelector = ({ groupId }) => {
   const t = useTranslation();
