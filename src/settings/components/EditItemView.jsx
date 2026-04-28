@@ -38,10 +38,19 @@ const EditItemView = ({
       url += `/${id}`;
     }
 
+    let savedItem = item;
+    if (item.type === 'zoneViolation' && item.attributes?.zoneTypes === 'geofence') {
+      savedItem = {
+        ...item,
+        type: 'geofence',
+        attributes: { ...item.attributes, zoneTypes: undefined },
+      };
+    }
+
     const response = await fetch(url, {
       method: !id ? 'POST' : 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(item),
+      body: JSON.stringify(savedItem),  
     });
 
     if (response.ok) {

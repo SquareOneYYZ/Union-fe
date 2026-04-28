@@ -114,7 +114,10 @@ const NotificationPage = () => {
               {item.type === 'zoneViolation' && (
                 <SelectField
                   value={getFirstValue(item.attributes?.zoneTypes || '')}
-                  onChange={(e) => setItem({ ...item, attributes: { ...item.attributes, zoneTypes: e.target.value } })}
+                  onChange={(e) => setItem({
+                    ...item,
+                    attributes: { ...item.attributes, zoneTypes: e.target.value }
+                  })}
                   data={zoneTypes}
                   keyGetter={(it) => it.key}
                   titleGetter={(it) => it.name}
@@ -164,7 +167,7 @@ const NotificationPage = () => {
                       checked={item.always}
                       onChange={(e) => setItem({ ...item, always: e.target.checked })}
                     />
-                    )}
+                  )}
                   label={t('notificationAlways')}
                 />
               </FormGroup>
