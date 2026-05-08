@@ -120,14 +120,16 @@ const WhatsNewPopup = () => {
   const [latestFeature, setLatestFeature] = useState(null);
 
   const userId = useSelector((state) => state.session.user?.id);
-  console.log(userId);
 
   useEffect(() => {
     fetch('/api/feature')
       .then((res) => res.json())
       .then((data) => {
         if (data && data.length > 0) {
-          const latest = data.reduce((max, item) => (item.versionNo > max.versionNo ? item : max), data[0]);
+          const latest = data.reduce(
+            (max, item) => (item.id > max.id ? item : max),
+            data[0]
+          );
           setFeatures(data);
           setLatestFeature(latest);
           setOpen(true);
@@ -136,18 +138,21 @@ const WhatsNewPopup = () => {
       .catch((err) => console.error('[WhatsNewPopup]', err));
   }, []);
 
-  const handleGotIt = async () => {
-    try {
-      await fetch('/api/feature/permission', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, featureId: latestFeature.id }),
-      });
-    } catch (err) {
+  const handleGotIt = () => {
+    setOpen(false);
+
+    fetch('/api/feature/permission', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        userId,
+        featureId: latestFeature?.id,
+      }),
+    }).catch((err) => {
       console.error('[WhatsNewPopup] permission post failed:', err);
-    } finally {
-      setOpen(false);
-    }
+    });
   };
 
   const handleDismiss = () => setOpen(false);
