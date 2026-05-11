@@ -689,5 +689,8 @@
 	"eventDeviceCustomToll": "Custom Toll Road Alert",
 	"notificationDeviceCustomToll": "Vehicle passed through custom toll",
 	"attributeCustomRoadEvent": "Custom Toll Roads for Alert",
-	"eventSpeedCamera": "Speed Camera Violation"
+	"eventSpeedCamera": "Speed Camera Violation",
+	"doNotShowAgain": "Do not show again",
+	"whatsNewTitle": "What's New",
+	"gotIt": "Got it!"
 }

@@ -7,10 +7,13 @@ import {
   Typography,
   Button,
   IconButton,
+  FormControlLabel,
+  Checkbox,
 } from '@mui/material';
 import makeStyles from '@mui/styles/makeStyles';
 import CloseIcon from '@mui/icons-material/Close';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import {useTranslation} from './LocalizationProvider';
 
 const useStyles = makeStyles((theme) => ({
   paper: {
@@ -99,12 +102,15 @@ const useStyles = makeStyles((theme) => ({
   },
   footer: {
     display: 'flex',
-    justifyContent: 'flex-end',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: theme.spacing(1),
     padding: theme.spacing(1, 2),
     borderTop: `1px solid ${theme.palette.divider}`,
     backgroundColor: theme.palette.background.paper,
+  },
+  checkboxLabel: {
+    fontSize: 12,
+    color: theme.palette.text.secondary,
   },
   backdrop: {
     backdropFilter: 'blur(4px)',
@@ -118,7 +124,8 @@ const WhatsNewPopup = () => {
   const [open, setOpen] = useState(false);
   const [features, setFeatures] = useState([]);
   const [latestFeature, setLatestFeature] = useState(null);
-
+  const [doNotShowAgain, setDoNotShowAgain] = useState(false);
+  const t = useTranslation();
   const userId = useSelector((state) => state.session.user?.id);
 
   useEffect(() => {
@@ -126,10 +133,8 @@ const WhatsNewPopup = () => {
       .then((res) => res.json())
       .then((data) => {
         if (data && data.length > 0) {
-          const latest = data.reduce(
-            (max, item) => (item.id > max.id ? item : max),
-            data[0]
-          );
+          // Latest = item with highest id (most recently added to DB)
+          const latest = data.reduce((max, item) => (item.id > max.id ? item : max), data[0]);
           setFeatures(data);
           setLatestFeature(latest);
           setOpen(true);
@@ -141,43 +146,39 @@ const WhatsNewPopup = () => {
   const handleGotIt = () => {
     setOpen(false);
 
-    fetch('/api/feature/permission', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        userId,
-        featureId: latestFeature?.id,
-      }),
-    }).catch((err) => {
-      console.error('[WhatsNewPopup] permission post failed:', err);
-    });
+    // Only POST permission if checkbox is checked
+    if (doNotShowAgain) {
+      fetch('/api/feature/permission', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, featured: latestFeature?.id }),
+      }).catch((err) => console.error('[WhatsNewPopup] permission post failed:', err));
+    }
   };
-
-  const handleDismiss = () => setOpen(false);
 
   return (
     <Dialog
       open={open}
-      onClose={handleDismiss}
+      onClose={() => setOpen(false)}
       maxWidth="md"
       fullWidth
       PaperProps={{ className: classes.paper }}
       BackdropProps={{ className: classes.backdrop }}
     >
+      {/* ── Header ── */}
       <div className={classes.header}>
         <div className={classes.headerLeft}>
           <AutoAwesomeIcon className={classes.headerIcon} />
           <Typography className={classes.headerTitle}>
-            Whats New
+            {t('whatsNewTitle')}
           </Typography>
         </div>
-        <IconButton size="small" onClick={handleDismiss}>
+        <IconButton size="small" onClick={() => setOpen(false)}>
           <CloseIcon fontSize="small" />
         </IconButton>
       </div>
 
+      {/* ── Feature list ── */}
       <DialogContent className={classes.content}>
         {features.map((item) => (
           <Box key={item.id} className={classes.row}>
@@ -197,12 +198,20 @@ const WhatsNewPopup = () => {
         ))}
       </DialogContent>
 
+      {/* ── Footer ── */}
       <div className={classes.footer}>
-        <Button size="small" onClick={handleDismiss} color="inherit">
-          Dismiss
-        </Button>
+        <FormControlLabel
+          control={(
+            <Checkbox
+              size="small"
+              checked={doNotShowAgain}
+              onChange={(e) => setDoNotShowAgain(e.target.checked)}
+            />
+          )}
+          label={<Typography className={classes.checkboxLabel}>{t('doNotShowAgain')}</Typography>}
+        />
         <Button size="small" variant="contained" onClick={handleGotIt} disableElevation>
-          Got it!
+          {t('gotIt')}
         </Button>
       </div>
     </Dialog>
