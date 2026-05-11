@@ -133,7 +133,6 @@ const WhatsNewPopup = () => {
       .then((res) => res.json())
       .then((data) => {
         if (data && data.length > 0) {
-          // Latest = item with highest id (most recently added to DB)
           const latest = data.reduce((max, item) => (item.id > max.id ? item : max), data[0]);
           setFeatures(data);
           setLatestFeature(latest);
@@ -146,12 +145,11 @@ const WhatsNewPopup = () => {
   const handleGotIt = () => {
     setOpen(false);
 
-    // Only POST permission if checkbox is checked
     if (doNotShowAgain) {
       fetch('/api/feature/permission', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, featured: latestFeature?.id }),
+        body: JSON.stringify({ userId, featureId: latestFeature?.id }),
       }).catch((err) => console.error('[WhatsNewPopup] permission post failed:', err));
     }
   };
