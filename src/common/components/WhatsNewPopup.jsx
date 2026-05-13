@@ -20,6 +20,7 @@ const useStyles = makeStyles((theme) => ({
     overflow: 'hidden',
     width: '100%',
     maxWidth: 680,
+    borderRadius: 0,
     margin: theme.spacing(2),
     [theme.breakpoints.down('sm')]: {
       margin: theme.spacing(1),
