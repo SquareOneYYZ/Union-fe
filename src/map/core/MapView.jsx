@@ -52,31 +52,10 @@ const initMap = async () => {
     });
   }
 };
-map.addControl(new FullScreenControl(), 'top-right');
-
-const switcher = new SwitcherControl(
-  () => updateReadyValue(false),
-  (styleId) => savePersistedState('selectedMapStyle', styleId),
-  () => {
-    map.once('styledata', () => {
-      const waiting = () => {
-        if (!map.loaded()) {
-          setTimeout(waiting, 33);
-        } else {
-          initMap();
-          updateReadyValue(true);
-        }
-      };
-      waiting();
-    });
-  },
-);
-
-map.addControl(switcher, 'top-right');
 
 const MapView = ({ children }) => {
   const containerEl = useRef(null);
-
+  const switcherRef = useRef(null);
   const [mapReady, setMapReady] = useState(false);
 
   const mapStyles = useMapStyles();
@@ -84,6 +63,42 @@ const MapView = ({ children }) => {
   const [defaultMapStyle] = usePersistedState('selectedMapStyle', usePreference('map', 'locationIqStreets'));
   const mapboxAccessToken = useAttributePreference('mapboxAccessToken');
   const maxZoom = useAttributePreference('web.maxZoom');
+
+  useEffect(() => {
+    const switcher = new SwitcherControl(
+      () => updateReadyValue(false),
+      (styleId) => savePersistedState('selectedMapStyle', styleId),
+      () => {
+        map.once('styledata', () => {
+          const waiting = () => {
+            if (!map.loaded()) {
+              setTimeout(waiting, 33);
+            } else {
+              initMap();
+              updateReadyValue(true);
+            }
+          };
+          waiting();
+        });
+      },
+    );
+    switcherRef.current = switcher;
+    map.addControl(switcher, 'top-right');
+    return () => map.removeControl(switcher);
+  }, []);
+
+  useEffect(() => {
+    if (!switcherRef.current) return;
+    const filteredStyles = mapStyles.filter((s) => s.available && activeMapStyles.includes(s.id));
+    const styles = filteredStyles.length ? filteredStyles : mapStyles.filter((s) => s.id === 'osm');
+    switcherRef.current.updateStyles(styles, defaultMapStyle);
+  }, [mapStyles, defaultMapStyle, activeMapStyles]);
+
+  useEffect(() => {
+    const fullScreenControl = new FullScreenControl();
+    map.addControl(fullScreenControl, 'top-right');
+    return () => map.removeControl(fullScreenControl);
+  }, []);
 
   useEffect(() => {
     if (maxZoom) {
@@ -94,12 +109,6 @@ const MapView = ({ children }) => {
   useEffect(() => {
     maplibregl.accessToken = mapboxAccessToken;
   }, [mapboxAccessToken]);
-
-  useEffect(() => {
-    const filteredStyles = mapStyles.filter((s) => s.available && activeMapStyles.includes(s.id));
-    const styles = filteredStyles.length ? filteredStyles : mapStyles.filter((s) => s.id === 'osm');
-    switcher.updateStyles(styles, defaultMapStyle);
-  }, [mapStyles, defaultMapStyle]);
 
   useEffect(() => {
     const listener = (ready) => setMapReady(ready);
