@@ -13,13 +13,13 @@ useEffectAsync(async () => {
   if (authenticated) {
     const listResponse = await fetch('/api/geofences/list');
     if (!listResponse.ok) throw Error(await listResponse.text());
-    const geofenceList = await listResponse.json(); // [{id, name}, ...]
+    const geofenceList = await listResponse.json();
 
     const geofenceIds = geofenceList.map((g) => g.id);
     const results = await Promise.allSettled(
       geofenceIds.map((id) =>
-        fetch(`https://iotrides.tor1.cdn.digitaloceanspaces.com/geofence/${id}/data.json`)
-          .then((r) => r.json())
+        fetch(`https://cdn.iotrides.com/geofence/${id}/data.json`)
+          .then((res) => res.json())
       )
     );
 
