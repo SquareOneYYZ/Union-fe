@@ -1,5 +1,5 @@
 import React, {
-  useState, useCallback, useEffect,
+  useState, useCallback, useEffect, lazy, Suspense,
 } from 'react';
 import { Paper } from '@mui/material';
 import { makeStyles } from '@mui/styles';
@@ -14,7 +14,7 @@ import usePersistedState from '../common/util/usePersistedState';
 import EventsDrawer from './EventsDrawer';
 import useFilter from './useFilter';
 import MainToolbar from './MainToolbar';
-import MainMap from './MainMap';
+const MainMap = lazy(() => import('./MainMap'));
 import { useAttributePreference } from '../common/util/preferences';
 import WhatsNewPopup from '../common/components/WhatsNewPopup';
 
@@ -103,12 +103,15 @@ const MainPage = () => {
   return (
     <div className={classes.root}>
       {desktop && (
-        <MainMap
-          filteredPositions={filteredPositions}
-          selectedPosition={selectedPosition}
-          onEventsClick={onEventsClick}
-        />
+        <Suspense fallback={null}>
+          <MainMap
+            filteredPositions={filteredPositions}
+            selectedPosition={selectedPosition}
+            onEventsClick={onEventsClick}
+          />
+        </Suspense>
       )}
+
       <div className={classes.sidebar}>
         <Paper square elevation={3} className={classes.header}>
           <MainToolbar
@@ -128,11 +131,13 @@ const MainPage = () => {
         <div className={classes.middle}>
           {!desktop && (
             <div className={classes.contentMap}>
-              <MainMap
-                filteredPositions={filteredPositions}
-                selectedPosition={selectedPosition}
-                onEventsClick={onEventsClick}
-              />
+              <Suspense fallback={null}>
+                <MainMap
+                  filteredPositions={filteredPositions}
+                  selectedPosition={selectedPosition}
+                  onEventsClick={onEventsClick}
+                />
+              </Suspense>
             </div>
           )}
           <Paper square className={classes.contentList} style={devicesOpen ? {} : { visibility: 'hidden' }}>
