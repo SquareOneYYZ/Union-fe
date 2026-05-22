@@ -1,7 +1,7 @@
 import { sessionActions } from './session';
 import { devicesActions } from './devices';
 
-const threshold = 3; // dispatches per second
+const threshold = 3;
 const minInterval = 1500;
 const maxInterval = 30000;
 const scaleFactor = 1000;
