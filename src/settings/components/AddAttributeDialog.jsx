@@ -3,7 +3,7 @@ import {
   Button, Dialog, DialogActions, DialogContent, FormControl, InputLabel, MenuItem, Select, TextField, Autocomplete,
 } from '@mui/material';
 
-import { createFilterOptions } from '@mui/material/useAutocomplete';
+import { createFilterOptions } from '@mui/material/Autocomplete';
 import { makeStyles } from '@mui/styles';
 import { useTranslation } from '../../common/components/LocalizationProvider';
 

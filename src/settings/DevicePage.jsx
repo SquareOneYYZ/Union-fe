@@ -11,7 +11,7 @@ import {
   Chip,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import { DropzoneArea } from 'react-mui-dropzone';
+import { MuiFileInput } from 'mui-file-input';
 import EditItemView from './components/EditItemView';
 import EditAttributesAccordion from './components/EditAttributesAccordion';
 import SelectField from '../common/components/SelectField';
@@ -33,7 +33,24 @@ const DevicePage = () => {
   const deviceAttributes = useDeviceAttributes(t);
   const query = useQuery();
   const uniqueId = query.get('uniqueId');
-
+  const [imageFile, setImageFile] = useState(null);
+  const handleFileInput = useCatch(async (newFile) => {
+    setImageFile(newFile);
+    if (newFile && item?.id) {
+      const response = await fetch(`/api/devices/${item.id}/image`, {
+        method: 'POST',
+        body: newFile,
+      });
+      if (response.ok) {
+        setItem({ ...item, attributes: { ...item.attributes, deviceImage: await response.text() } });
+      } else {
+        throw Error(await response.text());
+      }
+    } else if (!newFile) {
+      const { deviceImage, ...remainingAttributes } = item.attributes || {};
+      setItem({ ...item, attributes: remainingAttributes });
+    }
+  });
   const [item, setItem] = useState(uniqueId ? { uniqueId } : null);
   const [vinDecodedData, setVinDecodedData] = useState(null);
 
@@ -280,15 +297,12 @@ const DevicePage = () => {
                 <Typography variant="subtitle1">{t('attributeDeviceImage')}</Typography>
               </AccordionSummary>
               <AccordionDetails className={classes.details}>
-                <DropzoneArea
-                  dropzoneText={t('sharedDropzoneText')}
-                  acceptedFiles={['image/*']}
-                  filesLimit={1}
-                  onChange={handleFiles}
-                  showAlerts={false}
-                  maxFileSize={500000}
+                <MuiFileInput
+                  placeholder={t('attributeDeviceImage')}
+                  value={imageFile}
+                  onChange={handleFileInput}
                   sx={roundedFieldSx}
-
+                  slotProps={{ htmlInput: { accept: 'image/*' } }}
                 />
               </AccordionDetails>
             </Accordion>

@@ -467,18 +467,22 @@ const LocationSelector = ({ groupId }) => {
             <TextField
               {...params}
               label="Countries"
-              InputProps={{
-                ...params.InputProps,
-                endAdornment: (
-                  <>
-                    {loadingCountries ? (
-                      <CircularProgress color="inherit" size={20} />
-                    ) : null}
-                    {params.InputProps.endAdornment}
-                  </>
-                ),
-              }}
-            />
+              slotProps={{
+                ...params.slotProps,
+                input: {
+                  ...params.slotProps?.input,
+                  endAdornment: (
+                    <>
+                      {loadingCountries ? (
+                        <CircularProgress color="inherit" size={20} />
+                      ) : null}
+                      {params.InputProps.endAdornment}
+                    </>
+                  ),
+                }
+              }
+            }
+                />
           )}
         />
       </Box>
@@ -528,9 +532,11 @@ const LocationSelector = ({ groupId }) => {
             <TextField
               {...params}
               label="States"
-              InputProps={{
-                ...params.InputProps,
-                endAdornment: (
+             slotProps={{
+  ...params.slotProps,
+  input: {
+    ...params.slotProps?.input,
+    endAdornment: (
                   <>
                     {loadingStates ? (
                       <CircularProgress color="inherit" size={20} />
@@ -539,6 +545,7 @@ const LocationSelector = ({ groupId }) => {
                   </>
                 ),
               }}
+            }
             />
           )}
         />
@@ -589,17 +596,20 @@ const LocationSelector = ({ groupId }) => {
             <TextField
               {...params}
               label="Cities"
-              InputProps={{
-                ...params.InputProps,
-                endAdornment: (
-                  <>
-                    {loadingCities ? (
-                      <CircularProgress color="inherit" size={20} />
+              slotProps={{
+                ...params.slotProps,
+                input: {
+                  ...params.slotProps?.input,
+                  endAdornment: (
+                    <>
+                      {loadingCities ? (
+                        <CircularProgress color="inherit" size={20} />
                     ) : null}
                     {params.InputProps.endAdornment}
                   </>
                 ),
               }}
+            }
             />
           )}
         />

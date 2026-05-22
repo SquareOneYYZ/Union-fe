@@ -175,7 +175,7 @@ const DeviceBulkUpdateSettingsDialog = ({
               fullWidth
               size="small"
               type="date"
-              InputLabelProps={{ shrink: true }}
+              slotProps={{ inputLabel: { shrink: true } }}
               value={fields.expirationDate.value}
               onChange={(e) => handleChangeValue('expirationDate', e.target.value)}
             />

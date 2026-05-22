@@ -601,7 +601,7 @@ const GeofenceDistanceReportPage = () => {
                     type="number"
                     value={minDistance}
                     onChange={(e) => setMinDistance(e.target.value)}
-                    inputProps={{ min: 0, step: 0.1 }}
+                    slotProps={{ htmlInput: { min: 0, step: 0.1 } }}
                     sx={{ // ← ADD THIS
                       borderRadius: '13px',
                       '& .MuiOutlinedInput-notchedOutline': { borderRadius: '13px' },

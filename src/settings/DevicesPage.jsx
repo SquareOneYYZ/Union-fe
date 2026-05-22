@@ -469,7 +469,7 @@ const DevicesPage = () => {
         >
           {/* Global Search */}
           <Grid container spacing={2} alignItems="center" sx={{ mb: 2 }}>
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12 }} md={6}>
               <TextField
                 fullWidth
                 label="Global Search"
@@ -484,7 +484,7 @@ const DevicesPage = () => {
                 sx={roundedFieldSx}
               />
             </Grid>
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12 }} md={6}>
               <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
                 <FilterListIcon color="action" />
                 <Typography variant="body2" color="textSecondary">
@@ -509,7 +509,7 @@ const DevicesPage = () => {
 
           {/* Column Filters */}
           <Grid container spacing={2}>
-            <Grid item xs={12} sm={6} md={2}>
+            <Grid size={{ xs: 12 }} sm={6} md={2}>
               <FormControl fullWidth size="small" sx={roundedFieldSx}>
                 <InputLabel>Group</InputLabel>
                 <Select
@@ -528,7 +528,7 @@ const DevicesPage = () => {
               </FormControl>
             </Grid>
 
-            {/* <Grid item xs={12} sm={6} md={2}>
+            {/* <Grid size={{ xs: 12 }} sm={6} md={2}>
               <FormControl fullWidth size="small">
                 <InputLabel>Model</InputLabel>
                 <Select
@@ -546,7 +546,7 @@ const DevicesPage = () => {
               </FormControl>
             </Grid> */}
 
-            <Grid item xs={12} sm={6} md={2}>
+            <Grid size={{ xs: 12 }} sm={6} md={2}>
               <TextField
                 fullWidth
                 size="small"
@@ -557,7 +557,7 @@ const DevicesPage = () => {
               />
             </Grid>
 
-            <Grid item xs={12} sm={6} md={2}>
+            <Grid size={{ xs: 12 }} sm={6} md={2}>
               <FormControl fullWidth size="small" sx={roundedFieldSx}>
                 <InputLabel>Status</InputLabel>
                 <Select
@@ -573,7 +573,7 @@ const DevicesPage = () => {
               </FormControl>
             </Grid>
 
-            <Grid item xs={12} sm={6} md={2}>
+            <Grid size={{ xs: 12 }} sm={6} md={2}>
               <TextField
                 fullWidth
                 size="small"
@@ -584,7 +584,7 @@ const DevicesPage = () => {
               />
             </Grid>
 
-            <Grid item xs={12} sm={6} md={2}>
+            <Grid size={{ xs: 12 }} sm={6} md={2}>
               <TextField
                 fullWidth
                 size="small"
@@ -595,7 +595,7 @@ const DevicesPage = () => {
               />
             </Grid>
 
-            <Grid item xs={12} sm={6} md={2}>
+            <Grid size={{ xs: 12 }} sm={6} md={2}>
               <TextField
                 fullWidth
                 size="small"

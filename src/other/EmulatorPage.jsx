@@ -103,7 +103,7 @@ const EmulatorPage = () => {
           className={classes.drawer}
           anchor={isPhone ? 'bottom' : 'left'}
           variant="permanent"
-          classes={{ paper: classes.drawerPaper }}
+          slotProps={{ paper: { className: classes.drawerPaper } }}
         >
           <Toolbar>
             <IconButton edge="start" sx={{ mr: 2 }} onClick={() => navigate(-1)}>

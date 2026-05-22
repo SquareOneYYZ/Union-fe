@@ -43,8 +43,6 @@ const UsersPage = () => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [temporary, setTemporary] = useState(false);
-
-  // Filter states
   const [globalSearch, setGlobalSearch] = useState('');
   const [adminFilter, setAdminFilter] = useState('');
   const [disabledFilter, setDisabledFilter] = useState('');
@@ -203,7 +201,7 @@ const UsersPage = () => {
         }}
       >
         <Grid container spacing={2}>
-          <Grid item xs={12} md={3}>
+          <Grid size={{ xs: 12, md: 3 }}>
             <TextField
               fullWidth
               label="Search"
@@ -214,7 +212,7 @@ const UsersPage = () => {
               sx={roundedFieldSx}
             />
           </Grid>
-          <Grid item xs={12} md={3}>
+          <Grid size={{ xs: 12, md: 3 }}>
             <FormControl
               fullWidth
               size="small"
@@ -232,7 +230,7 @@ const UsersPage = () => {
               </Select>
             </FormControl>
           </Grid>
-          <Grid item xs={12} md={3}>
+          <Grid size={{ xs: 12, md: 3 }}>
             <FormControl
               fullWidth
               size="small"

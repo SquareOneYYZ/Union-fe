@@ -6,7 +6,7 @@ import {
   Accordion, AccordionSummary, AccordionDetails, Typography, FormControl, InputLabel, Select, MenuItem,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import { DropzoneArea } from 'react-mui-dropzone';
+import { MuiFileInput } from 'mui-file-input';
 import EditItemView from './components/EditItemView';
 import EditAttributesAccordion from './components/EditAttributesAccordion';
 import { useTranslation } from '../common/components/LocalizationProvider';
@@ -75,6 +75,7 @@ const CalendarPage = () => {
   const lines = decoded && decoded.split('\n');
 
   const rule = simple && parseRule(lines[7]);
+  const [imageFile, setImageFile] = useState(null);
 
   const roundedFieldSx = {
     '& .MuiOutlinedInput-root': {
@@ -85,7 +86,7 @@ const CalendarPage = () => {
     },
   };
 
-  const handleFiles = (files) => {
+  const handleFileInput = (files) => {
     if (files.length > 0) {
       const reader = new FileReader();
       reader.onload = (event) => {
@@ -202,11 +203,12 @@ const CalendarPage = () => {
                   )}
                 </>
               ) : (
-                <DropzoneArea
-                  dropzoneText={t('sharedDropzoneText')}
-                  filesLimit={1}
-                  onChange={handleFiles}
-                  showAlerts={false}
+                <MuiFileInput
+                  placeholder={t('attributeDeviceImage')}
+                  value={imageFile}
+                  onChange={handleFileInput}
+                  sx={roundedFieldSx}
+                  slotProps={{ htmlInput: { accept: 'image/*' } }}
                 />
               )}
             </AccordionDetails>

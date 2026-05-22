@@ -164,7 +164,7 @@ const SelectField = ({
             ...sx,
           }}
           renderOption={(props, option) => (
-            <MenuItem {...props} key={option.vin}>
+            <li {...props} key={option.vin}>
               <div>
                 <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>{option.vin}</div>
                 <div style={{ fontSize: '0.75rem', color: '#666' }}>
@@ -173,7 +173,7 @@ const SelectField = ({
                     .join(' · ')}
                 </div>
               </div>
-            </MenuItem>
+            </li>
           )}
           renderInput={(params) => (
             <TextField
@@ -188,29 +188,33 @@ const SelectField = ({
                 },
                 ...sx,
               }}
-              InputProps={{
-                ...params.InputProps,
-                endAdornment: (
-                  <>
-                    {vinLoading
-                      ? <CircularProgress color="inherit" size={20} />
-                      : (
-                        <InputAdornment position="end">
-                          <IconButton
-                            onClick={handleSearchClick}
-                            disabled={vinInputValue.length === 0}
-                            size="small"
-                            title="Search VIN"
-                          >
-                            <SearchIcon fontSize="small" />
-                          </IconButton>
-                        </InputAdornment>
-                      )}
-                    {params.InputProps.endAdornment}
-                  </>
-                ),
-              }}
-            />
+              slotProps={{
+                ...params.slotProps,
+                input: {
+                  ...params.slotProps?.input,
+                  endAdornment: (
+                    <>
+                      {vinLoading
+                        ? <CircularProgress color="inherit" size={20} />
+                        : (
+                          <InputAdornment position="end">
+                            <IconButton
+                              onClick={handleSearchClick}
+                              disabled={vinInputValue.length === 0}
+                              size="small"
+                              title="Search VIN"
+                            >
+                              <SearchIcon fontSize="small" />
+                            </IconButton>
+                          </InputAdornment>
+                        )}
+                      {params.InputProps.endAdornment}
+                    </>
+                  ),
+                }
+              }
+            }
+                />
           )}
         />
       </FormControl>
@@ -274,7 +278,7 @@ const SelectField = ({
               ...sx,
             }}
             renderOption={(props, option) => (
-              <MenuItem {...props} key={keyGetter(option)} value={keyGetter(option)}>
+              <li {...props} key={keyGetter(option)} value={keyGetter(option)}>
                 <Tooltip title={titleGetter(option)} placement="right" arrow>
                   <span style={{
                     overflow: 'hidden',
@@ -287,7 +291,7 @@ const SelectField = ({
                     {titleGetter(option)}
                   </span>
                 </Tooltip>
-              </MenuItem>
+              </li>
             )}
             isOptionEqualToValue={(option, val) => keyGetter(option) === val}
             value={value}

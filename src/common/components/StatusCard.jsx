@@ -219,7 +219,7 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
               )}
               {position && (
                 <CardContent className={classes.content}>
-                  <Table size="small" classes={{ root: classes.table }}>
+                  <Table size="small" slotProps={{ root: { className: classes.table } }}>
                     <TableBody>
                       {positionItems.split(',').filter((key) => position.hasOwnProperty(key) || position.attributes.hasOwnProperty(key)).map((key) => (
                         <StatusRow
@@ -248,7 +248,7 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
                   </Table>
                 </CardContent>
               )}
-              <CardActions classes={{ root: classes.actions }} disableSpacing>
+              <CardActions className={classes.actions} disableSpacing>
                 <Tooltip title={t('sharedConnections')}>
                   <IconButton
                     onClick={() => navigate(`/settings/device/${deviceId}/connections`)}
