@@ -29,11 +29,13 @@ const DevicePage = () => {
   const classes = useSettingsStyles();
   const t = useTranslation();
   const admin = useAdministrator();
-  const commonDeviceAttributes = useCommonDeviceAttributes(t);
-  const deviceAttributes = useDeviceAttributes(t);
   const query = useQuery();
   const uniqueId = query.get('uniqueId');
+  const [item, setItem] = useState(uniqueId ? { uniqueId } : null);
+  const commonDeviceAttributes = useCommonDeviceAttributes(t);
+  const deviceAttributes = useDeviceAttributes(t);
   const [imageFile, setImageFile] = useState(null);
+
   const handleFileInput = useCatch(async (newFile) => {
     setImageFile(newFile);
     if (newFile && item?.id) {
@@ -51,7 +53,6 @@ const DevicePage = () => {
       setItem({ ...item, attributes: remainingAttributes });
     }
   });
-  const [item, setItem] = useState(uniqueId ? { uniqueId } : null);
   const [vinDecodedData, setVinDecodedData] = useState(null);
 
   const handleFiles = useCatch(async (files) => {

@@ -67,21 +67,29 @@ const NotificationsPage = () => {
             <TableRow key={item.id}>
               <TableCell>{item.description}</TableCell>
               <TableCell>
-                {item.type === 'zoneViolation' || item.type === 'geofence'
-                  ? (() => {
-                    const zone = item.type === 'geofence'
-                      ? 'Geofence'
-                      : item.attributes?.zoneTypes
-                        ? item.attributes.zoneTypes.charAt(0).toUpperCase() + item.attributes.zoneTypes.slice(1)
-                        : null;
+                {
+                  item.type === 'zoneViolation' || item.type === 'geofence'
+                    ? (() => {
+                      let zone = null;
 
-                    const violation = item.attributes?.violationTypes
-                      ? item.attributes.violationTypes.charAt(0).toUpperCase() + item.attributes.violationTypes.slice(1)
-                      : null;
+                      if (item.type === 'geofence') {
+                        zone = 'Geofence';
+                      } else if (item.attributes?.zoneTypes) {
+                        zone = item.attributes.zoneTypes.charAt(0).toUpperCase()
+                          + item.attributes.zoneTypes.slice(1);
+                      }
 
-                    return [zone, violation].filter(Boolean).join(' ');
-                  })()
-                  : t(prefixString('event', item.type))}
+                      let violation = null;
+
+                      if (item.attributes?.violationTypes) {
+                        violation = item.attributes.violationTypes.charAt(0).toUpperCase()
+                          + item.attributes.violationTypes.slice(1);
+                      }
+
+                      return [zone, violation].filter(Boolean).join(' ');
+                    })()
+                    : t(prefixString('event', item.type))
+                }
               </TableCell>
               <TableCell>{formatBoolean(item.always, t)}</TableCell>
               <TableCell>{formatList('alarm', item.attributes.alarms)}</TableCell>

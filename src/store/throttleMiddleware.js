@@ -7,7 +7,12 @@ const maxInterval = 30000;
 const scaleFactor = 1000;
 
 const debugMode = process.env.NODE_ENV === 'development';
-const debugLog = (message) => debugMode && console.log(message);
+const debugLog = (message) => {
+  if (debugMode) {
+    // eslint-disable-next-line no-console
+    console.log(message);
+  }
+};
 
 export default () => (next) => {
   const buffer = [];
@@ -47,7 +52,7 @@ export default () => (next) => {
       currentInterval = Math.min(Math.max(totalTime * scaleFactor, minInterval), maxInterval);
     }
 
-    const shouldThrottle = (counter * 1000 / currentInterval) > threshold;
+    const shouldThrottle = ((counter * 1000) / currentInterval) > threshold;
     if (throttled !== shouldThrottle) {
       debugLog(`Throttling ${shouldThrottle}`);
       throttled = shouldThrottle;
@@ -71,7 +76,7 @@ export default () => (next) => {
       return undefined;
     }
 
-    if ((counter * 1000 / currentInterval) > threshold) {
+    if (((counter * 1000) / currentInterval) > threshold) {
       if (!throttled) debugLog('Throttling started');
       throttled = true;
     }

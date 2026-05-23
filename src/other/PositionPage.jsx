@@ -70,7 +70,7 @@ function ExcludeItems(Items) {
 }
 
 const PositionPage = () => {
-  const {classes} = useStyles();
+  const { classes } = useStyles();
   const navigate = useNavigate();
   const t = useTranslation();
 

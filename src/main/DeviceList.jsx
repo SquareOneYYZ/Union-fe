@@ -18,7 +18,7 @@ const useStyles = makeStyles()((theme) => ({
 }));
 
 const DeviceList = ({ devices }) => {
-  const { classes }   = useStyles();
+  const { classes } = useStyles();
   const dispatch = useDispatch();
   const listInnerEl = useRef(null);
 

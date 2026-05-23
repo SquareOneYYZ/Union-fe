@@ -211,10 +211,9 @@ const SelectField = ({
                       {params.InputProps.endAdornment}
                     </>
                   ),
-                }
-              }
-            }
-                />
+                },
+              }}
+            />
           )}
         />
       </FormControl>

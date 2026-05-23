@@ -479,10 +479,9 @@ const LocationSelector = ({ groupId }) => {
                       {params.InputProps.endAdornment}
                     </>
                   ),
-                }
-              }
-            }
-                />
+                },
+              }}
+            />
           )}
         />
       </Box>
@@ -532,20 +531,20 @@ const LocationSelector = ({ groupId }) => {
             <TextField
               {...params}
               label="States"
-             slotProps={{
-  ...params.slotProps,
-  input: {
-    ...params.slotProps?.input,
-    endAdornment: (
-                  <>
-                    {loadingStates ? (
-                      <CircularProgress color="inherit" size={20} />
-                    ) : null}
-                    {params.InputProps.endAdornment}
-                  </>
-                ),
+              slotProps={{
+                ...params.slotProps,
+                input: {
+                  ...params.slotProps?.input,
+                  endAdornment: (
+                    <>
+                      {loadingStates ? (
+                        <CircularProgress color="inherit" size={20} />
+                      ) : null}
+                      {params.InputProps.endAdornment}
+                    </>
+                  ),
+                },
               }}
-            }
             />
           )}
         />
@@ -604,12 +603,12 @@ const LocationSelector = ({ groupId }) => {
                     <>
                       {loadingCities ? (
                         <CircularProgress color="inherit" size={20} />
-                    ) : null}
-                    {params.InputProps.endAdornment}
-                  </>
-                ),
+                      ) : null}
+                      {params.InputProps.endAdornment}
+                    </>
+                  ),
+                },
               }}
-            }
             />
           )}
         />

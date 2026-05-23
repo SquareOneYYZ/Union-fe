@@ -18,7 +18,7 @@ const useStyles = makeStyles()((theme) => ({
 
 const SearchHeader = ({ keyword, setKeyword }) => {
   const theme = useTheme();
-  const {classes} = useStyles();
+  const { classes } = useStyles();
   const t = useTranslation();
 
   const phone = useMediaQuery(theme.breakpoints.down('sm'));

@@ -29,7 +29,7 @@ const useStyles = makeStyles()(() => ({
 }));
 
 const GeofencesList = ({ onGeofenceSelected }) => {
-  const {classes} = useStyles();
+  const { classes } = useStyles();
   const dispatch = useDispatch();
 
   const items = useSelector((state) => state.geofences.items);

@@ -17,7 +17,7 @@ const useStyles = makeStyles()((theme) => ({
 }));
 
 const CollectionFab = ({ editPath, disabled }) => {
-  const {classes} = useStyles();
+  const { classes } = useStyles();
   const navigate = useNavigate();
 
   const readonly = useRestriction('readonly');

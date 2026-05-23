@@ -20,7 +20,7 @@ const useStyles = makeStyles()((theme) => ({
 }));
 
 const LogsPage = () => {
-  const {classes} = useStyles();
+  const { classes } = useStyles();
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const t = useTranslation();

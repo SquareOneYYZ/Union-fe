@@ -88,7 +88,7 @@ const useStyles = makeStyles()((theme) => ({
 }));
 
 const EventPage = () => {
-  const {classes} = useStyles();
+  const { classes } = useStyles();
   const navigate = useNavigate();
   const t = useTranslation();
   const { id } = useParams();

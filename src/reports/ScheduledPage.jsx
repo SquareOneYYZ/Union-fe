@@ -20,7 +20,7 @@ const useStyles = makeStyles()((theme) => ({
 }));
 
 const ScheduledPage = () => {
-  const {classes} = useStyles();
+  const { classes } = useStyles();
   const t = useTranslation();
 
   const calendars = useSelector((state) => state.calendars.items);

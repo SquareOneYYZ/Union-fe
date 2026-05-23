@@ -125,7 +125,7 @@ const ReplayControl = ({
   initialSpeed = 1,
 }) => {
   const t = useTranslation();
-  const {classes} = useStyles();
+  const { classes } = useStyles();
   const timerRef = useRef();
   const animationRef = useRef();
 

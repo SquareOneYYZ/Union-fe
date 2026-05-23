@@ -104,7 +104,7 @@ const useStyles = makeStyles()((theme) => ({
 }));
 
 const StatusRow = ({ name, content }) => {
-  const {classes} = useStyles();
+  const { classes } = useStyles();
 
   return (
     <TableRow>

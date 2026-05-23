@@ -18,7 +18,7 @@ const useStyles = makeStyles()((theme) => ({
 }));
 
 const AddAttributeDialog = ({ open, onResult, definitions }) => {
-  const {classes} = useStyles();
+  const { classes } = useStyles();
   const t = useTranslation();
 
   const filter = createFilterOptions({

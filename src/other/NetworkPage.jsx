@@ -26,7 +26,7 @@ const useStyles = makeStyles()((theme) => ({
 }));
 
 const NetworkPage = () => {
-  const {classes} = useStyles();
+  const { classes } = useStyles();
   const navigate = useNavigate();
 
   const { positionId } = useParams();

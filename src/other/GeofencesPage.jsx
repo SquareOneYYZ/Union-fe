@@ -60,7 +60,7 @@ const useStyles = makeStyles()((theme) => ({
 }));
 
 const GeofencesPage = () => {
-  const {classes} = useStyles();
+  const { classes } = useStyles();
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const t = useTranslation();

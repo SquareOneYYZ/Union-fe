@@ -112,7 +112,7 @@ const useStyles = makeStyles()((theme) => ({
 
 const ReplayPage = () => {
   const t = useTranslation();
-  const {classes} = useStyles();
+  const { classes } = useStyles();
   const navigate = useNavigate();
   const timerRef = useRef();
   const defaultDeviceId = useSelector((state) => state.devices.selectedId);

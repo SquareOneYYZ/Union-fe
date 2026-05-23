@@ -22,7 +22,7 @@ const CollectionActions = ({
   itemId, editPath, endpoint, setTimestamp, customActions, readonly,
 }) => {
   const theme = useTheme();
-  const {classes} = useStyles();
+  const { classes } = useStyles();
   const navigate = useNavigate();
   const t = useTranslation();
 
