@@ -8,9 +8,9 @@ import {
   Toolbar,
   Typography,
   useMediaQuery,
-  useTheme,
 } from '@mui/material';
-import makeStyles from '@mui/styles/makeStyles';
+import { useTheme } from '@mui/material/styles';
+import { makeStyles } from 'tss-react/mui';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
@@ -18,7 +18,7 @@ import MenuIcon from '@mui/icons-material/Menu';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from './LocalizationProvider';
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   desktopRoot: {
     height: '100%',
     display: 'flex',
@@ -89,7 +89,7 @@ const PageTitle = ({ breadcrumbs }) => {
 
 const PageLayout = ({ menu, breadcrumbs, children }) => {
   const [miniVariant, setMiniVariant] = useState(false);
-  const classes = useStyles({ miniVariant });
+  const { classes } = useStyles({ miniVariant });
   const theme = useTheme();
   const navigate = useNavigate();
 

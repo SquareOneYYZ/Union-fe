@@ -19,7 +19,7 @@ import {
   Link,
   Tooltip,
 } from '@mui/material';
-import makeStyles from '@mui/styles/makeStyles';
+import { makeStyles } from 'tss-react/mui';
 import CloseIcon from '@mui/icons-material/Close';
 import ReplayIcon from '@mui/icons-material/Replay';
 import PublishIcon from '@mui/icons-material/Publish';
@@ -37,7 +37,7 @@ import { devicesActions } from '../../store';
 import { useCatch, useCatchCallback } from '../../reactHelper';
 import { useAttributePreference } from '../util/preferences';
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   card: {
     pointerEvents: 'auto',
     width: theme.dimensions.popupMaxWidth,
@@ -104,7 +104,7 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 const StatusRow = ({ name, content }) => {
-  const classes = useStyles();
+  const {classes} = useStyles();
 
   return (
     <TableRow>

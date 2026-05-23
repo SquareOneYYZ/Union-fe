@@ -5,7 +5,7 @@ import {
   IconButton, Paper, Slider, Toolbar, Typography, Box, Chip,
   Tooltip,
 } from '@mui/material';
-import makeStyles from '@mui/styles/makeStyles';
+import { makeStyles } from 'tss-react/mui';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import TuneIcon from '@mui/icons-material/Tune';
 import DownloadIcon from '@mui/icons-material/Download';
@@ -30,7 +30,7 @@ import MapScale from '../map/MapScale';
 
 const SPEED_OPTIONS = [1, 1.5, 2, 5, 10];
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   root: {
     height: '100%',
   },
@@ -112,7 +112,7 @@ const useStyles = makeStyles((theme) => ({
 
 const ReplayPage = () => {
   const t = useTranslation();
-  const classes = useStyles();
+  const {classes} = useStyles();
   const navigate = useNavigate();
   const timerRef = useRef();
   const defaultDeviceId = useSelector((state) => state.devices.selectedId);

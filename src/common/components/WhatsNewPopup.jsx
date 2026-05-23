@@ -10,12 +10,12 @@ import {
   FormControlLabel,
   Checkbox,
 } from '@mui/material';
-import makeStyles from '@mui/styles/makeStyles';
+import { makeStyles } from 'tss-react/mui';
 import CloseIcon from '@mui/icons-material/Close';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import {useTranslation} from './LocalizationProvider';
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   paper: {
     overflow: 'hidden',
     width: '100%',
@@ -121,7 +121,7 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 const WhatsNewPopup = () => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const [open, setOpen] = useState(false);
   const [features, setFeatures] = useState([]);
   const [latestFeature, setLatestFeature] = useState(null);

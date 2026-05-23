@@ -5,7 +5,7 @@ import {
   List,
   ListItem,
 } from '@mui/material';
-import makeStyles from '@mui/styles/makeStyles';
+import { makeStyles } from 'tss-react/mui';
 import { useTheme } from '@mui/material/styles';
 import Drawer from '@mui/material/Drawer';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -20,7 +20,7 @@ import MapPositions from '../map/MapPositions';
 import { useCatch } from '../reactHelper';
 import MapScale from '../map/MapScale';
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   root: {
     height: '100%',
     display: 'flex',
@@ -57,7 +57,7 @@ const useStyles = makeStyles((theme) => ({
 
 const EmulatorPage = () => {
   const theme = useTheme();
-  const classes = useStyles();
+  const { classes } = useStyles();
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const t = useTranslation();

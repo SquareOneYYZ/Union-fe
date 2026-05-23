@@ -10,7 +10,7 @@ import {
   Paper,
   Slider,
 } from '@mui/material';
-import makeStyles from '@mui/styles/makeStyles';
+import { makeStyles } from 'tss-react/mui';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import CloseIcon from '@mui/icons-material/Close';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
@@ -30,7 +30,7 @@ import { formatNotificationTitle, formatTime } from '../common/util/formatter';
 import MapScale from '../map/MapScale';
 import ReplayControl from '../reports/components/ReplayControl';
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   root: {
     height: '100%',
     display: 'flex',
@@ -88,7 +88,7 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 const EventPage = () => {
-  const classes = useStyles();
+  const {classes} = useStyles();
   const navigate = useNavigate();
   const t = useTranslation();
   const { id } = useParams();

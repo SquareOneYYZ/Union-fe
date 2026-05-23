@@ -3,7 +3,7 @@ import {
 } from 'react';
 import { useSelector } from 'react-redux';
 import { useMediaQuery } from '@mui/material';
-import { useTheme } from '@mui/styles';
+import { useTheme } from '@mui/material/styles';
 import { map } from './core/MapView';
 import { formatTime, getStatusColor } from '../common/util/formatter';
 import { mapIconKey } from './core/preloadImages';

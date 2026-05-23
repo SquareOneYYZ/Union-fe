@@ -255,14 +255,14 @@ Real-time updates via WebSocket at `/api/socket`. Messages have this structure:
 
 **Common Patterns**:
 ```javascript
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   root: {
     padding: theme.spacing(2),
   },
 }));
 
 const Component = () => {
-  const classes = useStyles();
+  const {classes} = useStyles();
   return <div className={classes.root}>Content</div>;
 };
 ```

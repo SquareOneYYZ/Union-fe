@@ -248,7 +248,7 @@ const UsersPage = () => {
               </Select>
             </FormControl>
           </Grid>
-          <Grid item xs={12} md={3}>
+         <Grid size={{ xs: 12, md: 3 }}>
             <FormControl
               fullWidth
               size="small"

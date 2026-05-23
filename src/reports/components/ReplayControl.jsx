@@ -11,7 +11,7 @@ import {
   Chip,
   Tooltip,
 } from '@mui/material';
-import makeStyles from '@mui/styles/makeStyles';
+import { makeStyles } from 'tss-react/mui';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import PauseIcon from '@mui/icons-material/Pause';
@@ -32,7 +32,7 @@ import StatusCard from '../../common/components/StatusCard';
 
 const SPEED_OPTIONS = [1, 1.5, 2, 5, 10];
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   root: {
     height: '100%',
   },
@@ -125,7 +125,7 @@ const ReplayControl = ({
   initialSpeed = 1,
 }) => {
   const t = useTranslation();
-  const classes = useStyles();
+  const {classes} = useStyles();
   const timerRef = useRef();
   const animationRef = useRef();
 

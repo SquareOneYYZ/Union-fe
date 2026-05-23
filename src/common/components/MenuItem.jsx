@@ -1,16 +1,16 @@
-import makeStyles from '@mui/styles/makeStyles';
+import { makeStyles } from 'tss-react/mui';
 import { ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { Link } from 'react-router-dom';
 import React from 'react';
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   menuItemText: {
     whiteSpace: 'nowrap',
   },
 }));
 
 const MenuItem = ({ title, link, icon, selected }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
   return (
     <ListItemButton
       key={link}

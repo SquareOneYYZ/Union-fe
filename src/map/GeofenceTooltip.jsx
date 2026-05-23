@@ -1,13 +1,13 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
-import { makeStyles } from '@mui/styles';
+import { makeStyles } from 'tss-react/mui';
 import { CircularProgress } from '@mui/material';
 
 const TOOLTIP_WIDTH = 160;
 const TOOLTIP_HEIGHT = 100;
 const OFFSET = 14;
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   root: {
     display: 'flex',
     flexDirection: 'column',
@@ -87,7 +87,7 @@ const getPosition = (x, y) => {
 const GeofenceTooltip = ({
   visible, x, y, geofenceName, entries, exits, lastVehicle, loading,
 }) => {
-  const classes = useStyles();
+  const { classes } = useStyles();
 
   if (!visible) return null;
 
