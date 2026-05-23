@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useDispatch } from 'react-redux';
-import makeStyles from 'tss-react/mui';
+import {makeStyles} from 'tss-react/mui';
 import { FixedSizeList } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
 import { devicesActions } from '../store';

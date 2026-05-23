@@ -1,7 +1,6 @@
 import { grey } from '@mui/material/colors';
-import createPalette from '@mui/material/styles/createPalette';
+import { createTheme } from '@mui/material/styles';
 import { loadImage, prepareIcon } from './mapUtil';
-
 import directionSvg from '../../resources/images/direction.svg';
 import backgroundSvg from '../../resources/images/background.svg';
 import animalSvg from '../../resources/images/icon/animal.svg';
@@ -27,6 +26,14 @@ import tramSvg from '../../resources/images/icon/tram.svg';
 import truckSvg from '../../resources/images/icon/truck.svg';
 import vanSvg from '../../resources/images/icon/van.svg';
 import eventSvg from '../../resources/images/icon/event.svg';
+
+// ✅ FIX: createPalette no longer exported directly in MUI v7/v9.
+// Use createTheme to access a palette instance instead.
+const { palette: mapPalette } = createTheme({
+  palette: {
+    neutral: { main: grey[500] },
+  },
+});
 
 export const mapIcons = {
   animal: animalSvg,
@@ -67,15 +74,11 @@ export const mapIconKey = (category) => {
     case 'trolleybus':
       return 'bus';
     default:
-      return mapIcons.hasOwnProperty(category) ? category : 'default';
+      return Object.prototype.hasOwnProperty.call(mapIcons, category) ? category : 'default';
   }
 };
 
 export const mapImages = {};
-
-const mapPalette = createPalette({
-  neutral: { main: grey[500] },
-});
 
 export default async () => {
   const background = await loadImage(backgroundSvg);
