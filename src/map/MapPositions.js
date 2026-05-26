@@ -10,6 +10,7 @@ import { mapIconKey } from './core/preloadImages';
 import { useAttributePreference } from '../common/util/preferences';
 import { useCatchCallback } from '../reactHelper';
 import { findFonts } from './core/mapUtil';
+import { lerp, easeInOutCubic, interpolateRotation } from '../common/util/useAnimation';
 
 const TELEPORT_THRESHOLD_SQ = 0.0045 * 0.0045;
 const STALE_GAP_MS = 10000;
@@ -72,20 +73,6 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
       direction: showDirection,
     };
   }, [directionType, showStatus]);
-
-  const lerp = (a, b, t) => a + (b - a) * t;
-
-  const easeInOutCubic = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
-
-  const interpolateRotation = (start, end, p) => {
-    let diff = end - start;
-    if (diff > 180) diff -= 360;
-    if (diff < -180) diff += 360;
-    let r = start + diff * p;
-    if (r < 0) r += 360;
-    if (r >= 360) r -= 360;
-    return r;
-  };
 
   const calculateAnimationDuration = useCallback((deviceId, now) => {
     if (!useAdaptiveTiming) return baseAnimationDuration;
