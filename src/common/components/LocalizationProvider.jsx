@@ -1,126 +1,126 @@
 /* eslint-disable import/no-relative-packages */
 import React, {
-  createContext, useContext, useEffect, useMemo,
+  createContext, useContext, useEffect, useMemo, useState,
 } from 'react';
 import dayjs from 'dayjs';
 import usePersistedState from '../util/usePersistedState';
 
-import af from '../../resources/l10n/af.json'; import 'dayjs/locale/af';
-import ar from '../../resources/l10n/ar.json'; import 'dayjs/locale/ar';
-import az from '../../resources/l10n/az.json'; import 'dayjs/locale/az';
-import bg from '../../resources/l10n/bg.json'; import 'dayjs/locale/bg';
-import bn from '../../resources/l10n/bn.json'; import 'dayjs/locale/bn';
-import ca from '../../resources/l10n/ca.json'; import 'dayjs/locale/ca';
-import cs from '../../resources/l10n/cs.json'; import 'dayjs/locale/cs';
-import da from '../../resources/l10n/da.json'; import 'dayjs/locale/da';
-import de from '../../resources/l10n/de.json'; import 'dayjs/locale/de';
-import el from '../../resources/l10n/el.json'; import 'dayjs/locale/el';
-import en from '../../resources/l10n/en.json'; import 'dayjs/locale/en';
-import es from '../../resources/l10n/es.json'; import 'dayjs/locale/es';
-import fa from '../../resources/l10n/fa.json'; import 'dayjs/locale/fa';
-import fi from '../../resources/l10n/fi.json'; import 'dayjs/locale/fi';
-import fr from '../../resources/l10n/fr.json'; import 'dayjs/locale/fr';
-import gl from '../../resources/l10n/gl.json'; import 'dayjs/locale/gl';
-import he from '../../resources/l10n/he.json'; import 'dayjs/locale/he';
-import hi from '../../resources/l10n/hi.json'; import 'dayjs/locale/hi';
-import hr from '../../resources/l10n/hr.json'; import 'dayjs/locale/hr';
-import hu from '../../resources/l10n/hu.json'; import 'dayjs/locale/hu';
-import id from '../../resources/l10n/id.json'; import 'dayjs/locale/id';
-import it from '../../resources/l10n/it.json'; import 'dayjs/locale/it';
-import ja from '../../resources/l10n/ja.json'; import 'dayjs/locale/ja';
-import ka from '../../resources/l10n/ka.json'; import 'dayjs/locale/ka';
-import kk from '../../resources/l10n/kk.json'; import 'dayjs/locale/kk';
-import km from '../../resources/l10n/km.json'; import 'dayjs/locale/km';
-import ko from '../../resources/l10n/ko.json'; import 'dayjs/locale/ko';
-import lo from '../../resources/l10n/lo.json'; import 'dayjs/locale/lo';
-import lt from '../../resources/l10n/lt.json'; import 'dayjs/locale/lt';
-import lv from '../../resources/l10n/lv.json'; import 'dayjs/locale/lv';
-import mk from '../../resources/l10n/mk.json'; import 'dayjs/locale/mk';
-import ml from '../../resources/l10n/ml.json'; import 'dayjs/locale/ml';
-import mn from '../../resources/l10n/mn.json'; import 'dayjs/locale/mn';
-import ms from '../../resources/l10n/ms.json'; import 'dayjs/locale/ms';
-import nb from '../../resources/l10n/nb.json'; import 'dayjs/locale/nb';
-import ne from '../../resources/l10n/ne.json'; import 'dayjs/locale/ne';
-import nl from '../../resources/l10n/nl.json'; import 'dayjs/locale/nl';
-import nn from '../../resources/l10n/nn.json'; import 'dayjs/locale/nn';
-import pl from '../../resources/l10n/pl.json'; import 'dayjs/locale/pl';
-import pt from '../../resources/l10n/pt.json'; import 'dayjs/locale/pt';
-import ptBR from '../../resources/l10n/pt_BR.json'; import 'dayjs/locale/pt-br';
-import ro from '../../resources/l10n/ro.json'; import 'dayjs/locale/ro';
-import ru from '../../resources/l10n/ru.json'; import 'dayjs/locale/ru';
-import si from '../../resources/l10n/si.json'; import 'dayjs/locale/si';
-import sk from '../../resources/l10n/sk.json'; import 'dayjs/locale/sk';
-import sl from '../../resources/l10n/sl.json'; import 'dayjs/locale/sl';
-import sq from '../../resources/l10n/sq.json'; import 'dayjs/locale/sq';
-import sr from '../../resources/l10n/sr.json'; import 'dayjs/locale/sr';
-import sv from '../../resources/l10n/sv.json'; import 'dayjs/locale/sv';
-import ta from '../../resources/l10n/ta.json'; import 'dayjs/locale/ta';
-import th from '../../resources/l10n/th.json'; import 'dayjs/locale/th';
-import tr from '../../resources/l10n/tr.json'; import 'dayjs/locale/tr';
-import uk from '../../resources/l10n/uk.json'; import 'dayjs/locale/uk';
-import uz from '../../resources/l10n/uz.json'; import 'dayjs/locale/uz';
-import vi from '../../resources/l10n/vi.json'; import 'dayjs/locale/vi';
-import zh from '../../resources/l10n/zh.json'; import 'dayjs/locale/zh';
-import zhTW from '../../resources/l10n/zh_TW.json'; import 'dayjs/locale/zh-tw';
+import 'dayjs/locale/af';
+import 'dayjs/locale/ar';
+import 'dayjs/locale/az';
+import 'dayjs/locale/bg';
+import 'dayjs/locale/bn';
+import 'dayjs/locale/ca';
+import 'dayjs/locale/cs';
+import 'dayjs/locale/da';
+import 'dayjs/locale/de';
+import 'dayjs/locale/el';
+import 'dayjs/locale/en';
+import 'dayjs/locale/es';
+import 'dayjs/locale/fa';
+import 'dayjs/locale/fi';
+import 'dayjs/locale/fr';
+import 'dayjs/locale/gl';
+import 'dayjs/locale/he';
+import 'dayjs/locale/hi';
+import 'dayjs/locale/hr';
+import 'dayjs/locale/hu';
+import 'dayjs/locale/id';
+import 'dayjs/locale/it';
+import 'dayjs/locale/ja';
+import 'dayjs/locale/ka';
+import 'dayjs/locale/kk';
+import 'dayjs/locale/km';
+import 'dayjs/locale/ko';
+import 'dayjs/locale/lo';
+import 'dayjs/locale/lt';
+import 'dayjs/locale/lv';
+import 'dayjs/locale/mk';
+import 'dayjs/locale/ml';
+import 'dayjs/locale/mn';
+import 'dayjs/locale/ms';
+import 'dayjs/locale/nb';
+import 'dayjs/locale/ne';
+import 'dayjs/locale/nl';
+import 'dayjs/locale/nn';
+import 'dayjs/locale/pl';
+import 'dayjs/locale/pt';
+import 'dayjs/locale/pt-br';
+import 'dayjs/locale/ro';
+import 'dayjs/locale/ru';
+import 'dayjs/locale/si';
+import 'dayjs/locale/sk';
+import 'dayjs/locale/sl';
+import 'dayjs/locale/sq';
+import 'dayjs/locale/sr';
+import 'dayjs/locale/sv';
+import 'dayjs/locale/ta';
+import 'dayjs/locale/th';
+import 'dayjs/locale/tr';
+import 'dayjs/locale/uk';
+import 'dayjs/locale/uz';
+import 'dayjs/locale/vi';
+import 'dayjs/locale/zh';
+import 'dayjs/locale/zh-tw';
 
 const languages = {
-  af: { data: af, country: 'ZA', name: 'Afrikaans' },
-  ar: { data: ar, country: 'AE', name: 'العربية' },
-  az: { data: az, country: 'AZ', name: 'Azərbaycanca' },
-  bg: { data: bg, country: 'BG', name: 'Български' },
-  bn: { data: bn, country: 'IN', name: 'বাংলা' },
-  ca: { data: ca, country: 'ES', name: 'Català' },
-  cs: { data: cs, country: 'CZ', name: 'Čeština' },
-  de: { data: de, country: 'DE', name: 'Deutsch' },
-  da: { data: da, country: 'DK', name: 'Dansk' },
-  el: { data: el, country: 'GR', name: 'Ελληνικά' },
-  en: { data: en, country: 'US', name: 'English' },
-  es: { data: es, country: 'ES', name: 'Español' },
-  fa: { data: fa, country: 'IR', name: 'فارسی' },
-  fi: { data: fi, country: 'FI', name: 'Suomi' },
-  fr: { data: fr, country: 'FR', name: 'Français' },
-  gl: { data: gl, country: 'ES', name: 'Galego' },
-  he: { data: he, country: 'IL', name: 'עברית' },
-  hi: { data: hi, country: 'IN', name: 'हिन्दी' },
-  hr: { data: hr, country: 'HR', name: 'Hrvatski' },
-  hu: { data: hu, country: 'HU', name: 'Magyar' },
-  id: { data: id, country: 'ID', name: 'Bahasa Indonesia' },
-  it: { data: it, country: 'IT', name: 'Italiano' },
-  ja: { data: ja, country: 'JP', name: '日本語' },
-  ka: { data: ka, country: 'GE', name: 'ქართული' },
-  kk: { data: kk, country: 'KZ', name: 'Қазақша' },
-  ko: { data: ko, country: 'KR', name: '한국어' },
-  km: { data: km, country: 'KH', name: 'ភាសាខ្មែរ' },
-  lo: { data: lo, country: 'LA', name: 'ລາວ' },
-  lt: { data: lt, country: 'LT', name: 'Lietuvių' },
-  lv: { data: lv, country: 'LV', name: 'Latviešu' },
-  mk: { data: mk, country: 'MK', name: 'Mакедонски' },
-  ml: { data: ml, country: 'IN', name: 'മലയാളം' },
-  mn: { data: mn, country: 'MN', name: 'Монгол хэл' },
-  ms: { data: ms, country: 'MY', name: 'بهاس ملايو' },
-  nb: { data: nb, country: 'NO', name: 'Norsk bokmål' },
-  ne: { data: ne, country: 'NP', name: 'नेपाली' },
-  nl: { data: nl, country: 'NL', name: 'Nederlands' },
-  nn: { data: nn, country: 'NO', name: 'Norsk nynorsk' },
-  pl: { data: pl, country: 'PL', name: 'Polski' },
-  pt: { data: pt, country: 'PT', name: 'Português' },
-  ptBR: { data: ptBR, country: 'BR', name: 'Português (Brasil)' },
-  ro: { data: ro, country: 'RO', name: 'Română' },
-  ru: { data: ru, country: 'RU', name: 'Русский' },
-  si: { data: si, country: 'LK', name: 'සිංහල' },
-  sk: { data: sk, country: 'SK', name: 'Slovenčina' },
-  sl: { data: sl, country: 'SI', name: 'Slovenščina' },
-  sq: { data: sq, country: 'AL', name: 'Shqipëria' },
-  sr: { data: sr, country: 'RS', name: 'Srpski' },
-  sv: { data: sv, country: 'SE', name: 'Svenska' },
-  ta: { data: ta, country: 'IN', name: 'தமிழ்' },
-  th: { data: th, country: 'TH', name: 'ไทย' },
-  tr: { data: tr, country: 'TR', name: 'Türkçe' },
-  uk: { data: uk, country: 'UA', name: 'Українська' },
-  uz: { data: uz, country: 'UZ', name: 'Oʻzbekcha' },
-  vi: { data: vi, country: 'VN', name: 'Tiếng Việt' },
-  zh: { data: zh, country: 'CN', name: '中文' },
-  zhTW: { data: zhTW, country: 'TW', name: '中文 (Taiwan)' },
+  af: { loader: () => import('../../resources/l10n/af.json'), country: 'ZA', name: 'Afrikaans' },
+  ar: { loader: () => import('../../resources/l10n/ar.json'), country: 'AE', name: 'العربية' },
+  az: { loader: () => import('../../resources/l10n/az.json'), country: 'AZ', name: 'Azərbaycanca' },
+  bg: { loader: () => import('../../resources/l10n/bg.json'), country: 'BG', name: 'Български' },
+  bn: { loader: () => import('../../resources/l10n/bn.json'), country: 'IN', name: 'বাংলা' },
+  ca: { loader: () => import('../../resources/l10n/ca.json'), country: 'ES', name: 'Català' },
+  cs: { loader: () => import('../../resources/l10n/cs.json'), country: 'CZ', name: 'Čeština' },
+  de: { loader: () => import('../../resources/l10n/de.json'), country: 'DE', name: 'Deutsch' },
+  da: { loader: () => import('../../resources/l10n/da.json'), country: 'DK', name: 'Dansk' },
+  el: { loader: () => import('../../resources/l10n/el.json'), country: 'GR', name: 'Ελληνικά' },
+  en: { loader: () => import('../../resources/l10n/en.json'), country: 'US', name: 'English' },
+  es: { loader: () => import('../../resources/l10n/es.json'), country: 'ES', name: 'Español' },
+  fa: { loader: () => import('../../resources/l10n/fa.json'), country: 'IR', name: 'فارسی' },
+  fi: { loader: () => import('../../resources/l10n/fi.json'), country: 'FI', name: 'Suomi' },
+  fr: { loader: () => import('../../resources/l10n/fr.json'), country: 'FR', name: 'Français' },
+  gl: { loader: () => import('../../resources/l10n/gl.json'), country: 'ES', name: 'Galego' },
+  he: { loader: () => import('../../resources/l10n/he.json'), country: 'IL', name: 'עברית' },
+  hi: { loader: () => import('../../resources/l10n/hi.json'), country: 'IN', name: 'हिन्दी' },
+  hr: { loader: () => import('../../resources/l10n/hr.json'), country: 'HR', name: 'Hrvatski' },
+  hu: { loader: () => import('../../resources/l10n/hu.json'), country: 'HU', name: 'Magyar' },
+  id: { loader: () => import('../../resources/l10n/id.json'), country: 'ID', name: 'Bahasa Indonesia' },
+  it: { loader: () => import('../../resources/l10n/it.json'), country: 'IT', name: 'Italiano' },
+  ja: { loader: () => import('../../resources/l10n/ja.json'), country: 'JP', name: '日本語' },
+  ka: { loader: () => import('../../resources/l10n/ka.json'), country: 'GE', name: 'ქართული' },
+  kk: { loader: () => import('../../resources/l10n/kk.json'), country: 'KZ', name: 'Қазақша' },
+  ko: { loader: () => import('../../resources/l10n/ko.json'), country: 'KR', name: '한국어' },
+  km: { loader: () => import('../../resources/l10n/km.json'), country: 'KH', name: 'ភាសាខ្មែរ' },
+  lo: { loader: () => import('../../resources/l10n/lo.json'), country: 'LA', name: 'ລາວ' },
+  lt: { loader: () => import('../../resources/l10n/lt.json'), country: 'LT', name: 'Lietuvių' },
+  lv: { loader: () => import('../../resources/l10n/lv.json'), country: 'LV', name: 'Latviešu' },
+  mk: { loader: () => import('../../resources/l10n/mk.json'), country: 'MK', name: 'Mакедонски' },
+  ml: { loader: () => import('../../resources/l10n/ml.json'), country: 'IN', name: 'മലയാളം' },
+  mn: { loader: () => import('../../resources/l10n/mn.json'), country: 'MN', name: 'Монгол хэл' },
+  ms: { loader: () => import('../../resources/l10n/ms.json'), country: 'MY', name: 'بهاس ملايو' },
+  nb: { loader: () => import('../../resources/l10n/nb.json'), country: 'NO', name: 'Norsk bokmål' },
+  ne: { loader: () => import('../../resources/l10n/ne.json'), country: 'NP', name: 'नेपाली' },
+  nl: { loader: () => import('../../resources/l10n/nl.json'), country: 'NL', name: 'Nederlands' },
+  nn: { loader: () => import('../../resources/l10n/nn.json'), country: 'NO', name: 'Norsk nynorsk' },
+  pl: { loader: () => import('../../resources/l10n/pl.json'), country: 'PL', name: 'Polski' },
+  pt: { loader: () => import('../../resources/l10n/pt.json'), country: 'PT', name: 'Português' },
+  ptBR: { loader: () => import('../../resources/l10n/pt_BR.json'), country: 'BR', name: 'Português (Brasil)' },
+  ro: { loader: () => import('../../resources/l10n/ro.json'), country: 'RO', name: 'Română' },
+  ru: { loader: () => import('../../resources/l10n/ru.json'), country: 'RU', name: 'Русский' },
+  si: { loader: () => import('../../resources/l10n/si.json'), country: 'LK', name: 'සිංහල' },
+  sk: { loader: () => import('../../resources/l10n/sk.json'), country: 'SK', name: 'Slovenčina' },
+  sl: { loader: () => import('../../resources/l10n/sl.json'), country: 'SI', name: 'Slovenščina' },
+  sq: { loader: () => import('../../resources/l10n/sq.json'), country: 'AL', name: 'Shqipëria' },
+  sr: { loader: () => import('../../resources/l10n/sr.json'), country: 'RS', name: 'Srpski' },
+  sv: { loader: () => import('../../resources/l10n/sv.json'), country: 'SE', name: 'Svenska' },
+  ta: { loader: () => import('../../resources/l10n/ta.json'), country: 'IN', name: 'தமிழ்' },
+  th: { loader: () => import('../../resources/l10n/th.json'), country: 'TH', name: 'ไทย' },
+  tr: { loader: () => import('../../resources/l10n/tr.json'), country: 'TR', name: 'Türkçe' },
+  uk: { loader: () => import('../../resources/l10n/uk.json'), country: 'UA', name: 'Українська' },
+  uz: { loader: () => import('../../resources/l10n/uz.json'), country: 'UZ', name: 'Oʻzbekcha' },
+  vi: { loader: () => import('../../resources/l10n/vi.json'), country: 'VN', name: 'Tiếng Việt' },
+  zh: { loader: () => import('../../resources/l10n/zh.json'), country: 'CN', name: '中文' },
+  zhTW: { loader: () => import('../../resources/l10n/zh_TW.json'), country: 'TW', name: '中文 (Taiwan)' },
 };
 
 const getDefaultLanguage = () => {
@@ -147,14 +147,27 @@ const getDefaultLanguage = () => {
 const LocalizationContext = createContext({
   languages,
   language: 'en',
-  setLanguage: () => {},
+  setLanguage: () => { },
+  data: {},
 });
 
 export const LocalizationProvider = ({ children }) => {
   const [language, setLanguage] = usePersistedState('language', getDefaultLanguage());
+  const [data, setData] = useState({});
   const direction = /^(ar|he|fa)$/.test(language) ? 'rtl' : 'ltr';
 
-  const value = useMemo(() => ({ languages, language, setLanguage, direction }), [languages, language, setLanguage, direction]);
+  const value = useMemo(
+    () => ({ languages, language, setLanguage, direction, data }),
+    [language, setLanguage, direction, data],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    languages[language].loader().then((mod) => {
+      if (!cancelled) setData(mod.default ?? mod);
+    });
+    return () => { cancelled = true; };
+  }, [language]);
 
   useEffect(() => {
     let selected;
@@ -177,13 +190,11 @@ export const LocalizationProvider = ({ children }) => {
 export const useLocalization = () => useContext(LocalizationContext);
 
 export const useTranslation = () => {
-  const context = useContext(LocalizationContext);
-  const { data } = context.languages[context.language];
+  const { data } = useContext(LocalizationContext);
   return useMemo(() => (key) => data[key], [data]);
 };
 
 export const useTranslationKeys = (predicate) => {
-  const context = useContext(LocalizationContext);
-  const { data } = context.languages[context.language];
+  const { data } = useContext(LocalizationContext);
   return Object.keys(data).filter(predicate);
 };
