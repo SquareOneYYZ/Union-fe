@@ -69,16 +69,16 @@ const NotificationsPage = () => {
               <TableCell>
                 {item.type === 'zoneViolation' || item.type === 'geofence'
                   ? (() => {
-                    const zone = item.type === 'geofence'
-                      ? 'Geofence'
-                      : item.attributes?.zoneTypes
-                        ? item.attributes.zoneTypes.charAt(0).toUpperCase() + item.attributes.zoneTypes.slice(1)
-                        : null;
-
+                    const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+                    let zone = null;
+                    if (item.type === 'geofence') {
+                      zone = 'Geofence';
+                    } else if (item.attributes?.zoneTypes) {
+                      zone = capitalize(item.attributes.zoneTypes);
+                    }
                     const violation = item.attributes?.violationTypes
-                      ? item.attributes.violationTypes.charAt(0).toUpperCase() + item.attributes.violationTypes.slice(1)
+                      ? capitalize(item.attributes.violationTypes)
                       : null;
-
                     return [zone, violation].filter(Boolean).join(' ');
                   })()
                   : t(prefixString('event', item.type))}
