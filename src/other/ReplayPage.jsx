@@ -84,8 +84,6 @@ const ReplayPage = () => {
     <div className={classes.root}>
       <MapView>
         <MapGeofence />
-
-        {/* Route line per device */}
         {deviceRoutes.map((route) => (
           <MapRouteCoordinates
             key={route.deviceId}
@@ -94,18 +92,12 @@ const ReplayPage = () => {
             deviceId={route.deviceId}
           />
         ))}
-
-        {/*
-          ALL moving markers in ONE MapPositions instance.
-          MapPositions looks up each marker's device from Redux by deviceId,
-          so it renders the correct icon, color, and label for every device.
-          Single instance = single MapLibre source = no source ID conflicts.
-        */}
         {deviceMarkers.length > 0 && (
           <MapPositions
             positions={deviceMarkers}
-            titleField="fixTime"
+            titleField="name"
             sourceId="replay-markers"
+            cluster={false}
           />
         )}
       </MapView>
@@ -113,7 +105,6 @@ const ReplayPage = () => {
       <MapScale />
       {allCoordinates.length > 0 && <MapCamera coordinates={allCoordinates} />}
 
-      {/* Bottom speed strip */}
       {!expanded && hasData && (
         <Box className={classes.speedStrip}>
           <Box className={classes.deviceLegend}>
@@ -167,7 +158,6 @@ const ReplayPage = () => {
         </Box>
       )}
 
-      {/* Sidebar */}
       <div className={`${classes.sidebar} ${titleExpanded ? 'expanded' : ''}`}>
         <Paper elevation={3} square>
           <Toolbar sx={{ alignItems: 'center', minHeight: 'unset', paddingTop: 1, paddingBottom: 1 }}>
@@ -210,7 +200,6 @@ const ReplayPage = () => {
         <Paper className={classes.content} square>
           {!expanded ? (
             <>
-              {/* Speed chips */}
               <Box className={classes.speedControl}>
                 <Box className={classes.speedChips}>
                   {SPEED_OPTIONS.map((opt) => (
@@ -227,7 +216,6 @@ const ReplayPage = () => {
                 </Box>
               </Box>
 
-              {/* Time-based slider — works across all devices */}
               <Slider
                 className={classes.slider}
                 min={0}
@@ -245,7 +233,6 @@ const ReplayPage = () => {
                 </Typography>
               </Box>
 
-              {/* Playback controls */}
               <div className={classes.controls}>
                 <Typography variant="caption" color="text.secondary" sx={{ minWidth: 56 }}>
                   {currentTime ? formatTime(new Date(currentTime).toISOString(), 'seconds') : '—'}
@@ -267,7 +254,6 @@ const ReplayPage = () => {
                 </IconButton>
               </div>
 
-              {/* Compare devices section */}
               <Box className={classes.compareSection}>
                 <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>
                   Compare Devices

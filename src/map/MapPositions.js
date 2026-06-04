@@ -11,12 +11,16 @@ import { findFonts } from './core/mapUtil';
 
 const MapPositions = ({
   positions, onClick, showStatus, selectedPosition, titleField,
-  customCategory,
+  customCategory, cluster,
 }) => {
   const id = useId();
   const clusters = `${id}-clusters`;
   const selected = `${id}-selected`;
-
+  const mapClusterPref = useAttributePreference('mapCluster', true);
+  const mapCluster =
+    cluster === undefined
+      ? mapClusterPref
+      : cluster;
   const theme = useTheme();
   const desktop = useMediaQuery(theme.breakpoints.up('md'));
   const iconScale = useAttributePreference('iconScale', desktop ? 0.75 : 1);
@@ -24,14 +28,11 @@ const MapPositions = ({
   const devices = useSelector((state) => state.devices.items);
   const selectedDeviceId = useSelector((state) => state.devices.selectedId);
 
-  const mapCluster = useAttributePreference('mapCluster', true);
   const directionType = useAttributePreference('mapDirection', 'selected');
 
   const createFeature = (devicesMap, position, selectedPositionId) => {
     const device = devicesMap[position.deviceId];
 
-    // If position has a preloaded iconKey (e.g. "event-deviceOverspeed"), use it directly
-    // Otherwise fall back to standard category-color pattern
     if (position.iconKey) {
       const [cat, ...rest] = position.iconKey.split('-');
       return {
