@@ -208,8 +208,8 @@ const MapPositions = ({
         features: positions
           .filter((it) => it.iconKey || Object.prototype.hasOwnProperty.call(devices, it.deviceId))
           .filter((it) => (source === id
-            ? it.deviceId !== selectedDeviceId
-            : it.deviceId === selectedDeviceId))
+            ? String(it.deviceId) !== String(selectedDeviceId)
+            : String(it.deviceId) === String(selectedDeviceId)))
           .map((position) => ({
             type: 'Feature',
             geometry: {

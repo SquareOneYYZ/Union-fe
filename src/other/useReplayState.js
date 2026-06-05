@@ -258,6 +258,7 @@ export function useReplayState() {
 
     return {
         from,
+        to,
         expanded,
         setExpanded,
         loading,
@@ -268,7 +269,6 @@ export function useReplayState() {
         speed,
         setSpeed,
         currentTime,
-        // derived
         hasData,
         primaryDeviceId,
         primaryName,

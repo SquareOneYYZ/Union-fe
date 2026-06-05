@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   ResponsiveContainer, ComposedChart, Area,
 } from 'recharts';
@@ -13,6 +13,8 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import PauseIcon from '@mui/icons-material/Pause';
 import FastForwardIcon from '@mui/icons-material/FastForward';
 import FastRewindIcon from '@mui/icons-material/FastRewind';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import AddIcon from '@mui/icons-material/Add';
 import CloseIcon from '@mui/icons-material/Close';
 import { useNavigate } from 'react-router-dom';
@@ -34,9 +36,11 @@ const ReplayPage = () => {
   const classes = useStyles();
   const navigate = useNavigate();
   const theme = useTheme();
+  const [devicesOpen, setDevicesOpen] = useState(false);
 
   const {
     from,
+    to,
     expanded,
     setExpanded,
     loading,
@@ -87,7 +91,7 @@ const ReplayPage = () => {
         {deviceRoutes.map((route) => (
           <MapRouteCoordinates
             key={route.deviceId}
-            name={route.name}
+            name=''
             coordinates={route.coordinates}
             deviceId={route.deviceId}
           />
@@ -226,17 +230,14 @@ const ReplayPage = () => {
               />
               <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: -1, mb: 1 }}>
                 <Typography variant="caption" color="text.secondary">
-                  {timelineStart ? formatTime(new Date(timelineStart).toISOString(), 'seconds') : '-1hr'}
+                  {from ? formatTime(from, 'seconds') : '—'}
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  {timelineEnd ? formatTime(new Date(timelineEnd).toISOString(), 'seconds') : '+1hr'}
+                  {to ? formatTime(to, 'seconds') : '—'}
                 </Typography>
               </Box>
 
               <div className={classes.controls}>
-                <Typography variant="caption" color="text.secondary" sx={{ minWidth: 56 }}>
-                  {currentTime ? formatTime(new Date(currentTime).toISOString(), 'seconds') : '—'}
-                </Typography>
                 <IconButton
                   onClick={handleStepBack}
                   disabled={playing || currentTime <= timelineStart}
@@ -255,60 +256,86 @@ const ReplayPage = () => {
               </div>
 
               <Box className={classes.compareSection}>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                  Compare Devices
-                </Typography>
 
-                {compareDeviceList.length > 0 && (
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, mt: 1, mb: 1 }}>
-                    {compareDeviceList.map((d) => (
-                      <Chip
-                        key={d.deviceId}
-                        className={classes.compareDeviceChip}
-                        size="small"
-                        label={d.name}
-                        onDelete={() => handleRemoveCompareDevice(d.deviceId)}
-                        deleteIcon={<CloseIcon />}
-                        avatar={
-                          <Avatar sx={{ bgcolor: d.color, width: 18, height: 18, fontSize: 10 }}>
-                            {d.name.charAt(0).toUpperCase()}
-                          </Avatar>
-                        }
-                      />
-                    ))}
+                {/* Header row — clickable to expand/collapse */}
+                <Box
+                  onClick={() => setDevicesOpen((prev) => !prev)}
+                  sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}
+                >
+                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                    Compare Devices {compareDeviceList.length > 0 ? `(${compareDeviceList.length})` : ''}
+                  </Typography>
+                  {devicesOpen ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
+                </Box>
+
+                {/* Collapsible section */}
+                {devicesOpen && (
+                  <Box sx={{ mt: 1, border: `1px solid ${theme.palette.divider}`, borderRadius: 1, overflow: 'hidden' }}>
+
+                    {/* Device list rows */}
+                    {compareDeviceList.length > 0 ? (
+                      compareDeviceList.map((d) => (
+                        <Box
+                          key={d.deviceId}
+                          sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            px: 1.5,
+                            py: 0.75,
+                            borderBottom: `1px solid ${theme.palette.divider}`,
+                            '&:last-child': { borderBottom: 'none' },
+                          }}
+                        >
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: d.color, flexShrink: 0 }} />
+                            <Typography variant="body2" noWrap sx={{ maxWidth: 180 }}>
+                              {d.name}
+                            </Typography>
+                          </Box>
+                          <IconButton size="small" onClick={() => handleRemoveCompareDevice(d.deviceId)}>
+                            <CloseIcon fontSize="small" />
+                          </IconButton>
+                        </Box>
+                      ))
+                    ) : (
+                      <Typography variant="caption" color="text.disabled" sx={{ display: 'block', px: 1.5, py: 1 }}>
+                        No devices added yet.
+                      </Typography>
+                    )}
+
+                    {/* Add device row inside the dropdown */}
+                    <Box sx={{ p: 1, borderTop: `1px solid ${theme.palette.divider}` }}>
+                      <Box className={classes.addRow}>
+                        <SelectField
+                          label="Add Device"
+                          fullWidth
+                          data={Object.values(devices)
+                            .filter((d) => !usedDeviceIds.has(String(d.id)))
+                            .sort((a, b) => a.name.localeCompare(b.name))}
+                          value={pendingCompareId}
+                          onChange={(e) => setPendingCompareId(e.target.value)}
+                          sx={{ flexGrow: 1, minWidth: 0, width: '100%' }}
+                        />
+                        <Tooltip title={!from ? 'Load a primary device first' : 'Add device to replay'}>
+                          <span>
+                            <IconButton
+                              color="primary"
+                              onClick={handleAddCompareDevice}
+                              disabled={!pendingCompareId || !from}
+                              size="small"
+                              sx={{ border: `1px solid ${theme.palette.divider}`, borderRadius: 1 }}
+                            >
+                              <AddIcon />
+                            </IconButton>
+                          </span>
+                        </Tooltip>
+                      </Box>
+                    </Box>
+
                   </Box>
                 )}
 
-                <Box className={classes.addRow}>
-                  <SelectField
-                    label="Add Device"
-                    data={Object.values(devices)
-                      .filter((d) => !usedDeviceIds.has(String(d.id)))
-                      .sort((a, b) => a.name.localeCompare(b.name))}
-                    value={pendingCompareId}
-                    onChange={(e) => setPendingCompareId(e.target.value)}
-                    sx={{ flexGrow: 1 }}
-                  />
-                  <Tooltip title={!from ? 'Load a primary device first' : 'Add device to replay'}>
-                    <span>
-                      <IconButton
-                        color="primary"
-                        onClick={handleAddCompareDevice}
-                        disabled={!pendingCompareId || !from}
-                        size="small"
-                        sx={{ border: `1px solid ${theme.palette.divider}`, borderRadius: 1 }}
-                      >
-                        <AddIcon />
-                      </IconButton>
-                    </span>
-                  </Tooltip>
-                </Box>
-
-                {!from && (
-                  <Typography variant="caption" color="text.disabled" sx={{ mt: 0.5, display: 'block' }}>
-                    Load a primary device first to enable comparison.
-                  </Typography>
-                )}
               </Box>
             </>
           ) : (
