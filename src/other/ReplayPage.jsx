@@ -28,7 +28,7 @@ import ReportFilter from '../reports/components/ReportFilter';
 import { useTranslation } from '../common/components/LocalizationProvider';
 import { formatTime } from '../common/util/formatter';
 import SelectField from '../common/components/SelectField';
-import { useStyles, SPEED_OPTIONS } from './replayStyles';
+import { useStyles, SPEED_OPTIONS, DEVICE_COLORS } from './replayStyles';
 import { useReplayState } from './useReplayState';
 
 const ReplayPage = () => {
@@ -57,7 +57,6 @@ const ReplayPage = () => {
     timelineEnd,
     sliderValue,
     playheadPercent,
-    chartData,
     deviceMarkers,
     deviceRoutes,
     allCoordinates,
@@ -74,6 +73,9 @@ const ReplayPage = () => {
     handleAddCompareDevice,
     handleRemoveCompareDevice,
     handleDownload,
+    allDeviceIds,
+    deviceColors,
+    chartData,
   } = useReplayState();
 
   const isAtEnd = currentTime >= timelineEnd;
@@ -132,21 +134,39 @@ const ReplayPage = () => {
                 margin={{ top: 0, right: 0, bottom: 0, left: 0 }}
               >
                 <defs>
-                  <linearGradient id="speedGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={speedGradientStops.high} stopOpacity={0.9} />
-                    <stop offset="40%" stopColor={speedGradientStops.medium} stopOpacity={0.85} />
-                    <stop offset="100%" stopColor={speedGradientStops.low} stopOpacity={0.8} />
-                  </linearGradient>
+                  {allDeviceIds.map((deviceId) => (
+                    <linearGradient
+                      key={deviceId}
+                      id={`deviceGrad_${deviceId}`}
+                      x1="0" y1="0" x2="0" y2="1"
+                    >
+                      <stop
+                        offset="0%"
+                        stopColor={deviceColors[deviceId] || DEVICE_COLORS[0]}
+                        stopOpacity={0.85}
+                      />
+                      <stop
+                        offset="100%"
+                        stopColor={deviceColors[deviceId] || DEVICE_COLORS[0]}
+                        stopOpacity={0.15}
+                      />
+                    </linearGradient>
+                  ))}
                 </defs>
-                <Area
-                  dataKey="speed"
-                  fill="url(#speedGrad)"
-                  stroke={theme.palette.divider}
-                  strokeWidth={1}
-                  dot={false}
-                  isAnimationActive={false}
-                  baseValue={0}
-                />
+
+                {allDeviceIds.map((deviceId) => (
+                  <Area
+                    key={deviceId}
+                    dataKey={`speed_${deviceId}`}
+                    fill={`url(#deviceGrad_${deviceId})`}
+                    stroke={deviceColors[deviceId] || DEVICE_COLORS[0]}
+                    strokeWidth={1.5}
+                    dot={false}
+                    isAnimationActive={false}
+                    baseValue={0}
+                    fillOpacity={0.5}
+                  />
+                ))}
               </ComposedChart>
             </ResponsiveContainer>
 
@@ -257,7 +277,6 @@ const ReplayPage = () => {
 
               <Box className={classes.compareSection}>
 
-                {/* Header row — clickable to expand/collapse */}
                 <Box
                   onClick={() => setDevicesOpen((prev) => !prev)}
                   sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}
@@ -268,11 +287,9 @@ const ReplayPage = () => {
                   {devicesOpen ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
                 </Box>
 
-                {/* Collapsible section */}
                 {devicesOpen && (
                   <Box sx={{ mt: 1, border: `1px solid ${theme.palette.divider}`, borderRadius: 1, overflow: 'hidden' }}>
 
-                    {/* Device list rows */}
                     {compareDeviceList.length > 0 ? (
                       compareDeviceList.map((d) => (
                         <Box
@@ -304,7 +321,6 @@ const ReplayPage = () => {
                       </Typography>
                     )}
 
-                    {/* Add device row inside the dropdown */}
                     <Box sx={{ p: 1, borderTop: `1px solid ${theme.palette.divider}` }}>
                       <Box className={classes.addRow}>
                         <SelectField

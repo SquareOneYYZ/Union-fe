@@ -131,11 +131,23 @@ export function useReplayState() {
         color: deviceColors[id] || DEVICE_COLORS[1],
     })), [compareDeviceIds, deviceColors, devices]);
 
-    const primaryPositions = devicePositions[primaryDeviceId] || [];
-    const chartData = useMemo(() => primaryPositions.map((pos, i) => ({
-        index: i,
-        speed: +(pos.speed ?? 0).toFixed(2),
-    })), [primaryPositions]);
+    const chartData = useMemo(() => {
+        if (!timelineDuration) return [];
+
+        const POINTS = 100;
+        const result = [];
+
+        for (let i = 0; i <= POINTS; i++) {
+            const t = timelineStart + (i / POINTS) * timelineDuration;
+            const point = { index: i };
+            allDeviceIds.forEach((deviceId) => {
+                const pos = getSmoothPositionAtTime(devicePositions[deviceId], t);
+                point[`speed_${deviceId}`] = pos ? +(pos.speed ?? 0).toFixed(2) : 0;
+            });
+            result.push(point);
+        }
+        return result;
+    }, [allDeviceIds, devicePositions, timelineStart, timelineDuration]);
 
     const playheadPercent = sliderValue;
 
@@ -276,7 +288,6 @@ export function useReplayState() {
         timelineEnd,
         sliderValue,
         playheadPercent,
-        chartData,
         deviceMarkers,
         deviceRoutes,
         allCoordinates,
@@ -293,5 +304,8 @@ export function useReplayState() {
         handleAddCompareDevice,
         handleRemoveCompareDevice,
         handleDownload,
+        allDeviceIds,
+        deviceColors,
+        chartData,
     };
 }
