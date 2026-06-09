@@ -17,6 +17,7 @@ import MainToolbar from './MainToolbar';
 import MainMap from './MainMap';
 import { useAttributePreference } from '../common/util/preferences';
 import WhatsNewPopup from '../common/components/WhatsNewPopup';
+import VinFAB from '../other/VinFab';
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -155,6 +156,7 @@ const MainPage = () => {
           desktopPadding={theme.dimensions.drawerWidthDesktop}
         />
       )}
+      <VinFAB />
     </div>
   );
 };
