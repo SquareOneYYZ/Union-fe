@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useSelector } from 'react-redux';
 import dayjs from 'dayjs';
 
@@ -6,24 +6,26 @@ export default (keyword, filter, filterSort, filterMap, positions, setFilteredDe
   const groups = useSelector((state) => state.groups.items);
   const devices = useSelector((state) => state.devices.items);
 
-  useEffect(() => {
-    const deviceGroups = (device) => {
-      const groupIds = [];
-      let { groupId } = device;
-      while (groupId) {
-        groupIds.push(groupId);
-        groupId = groups[groupId]?.groupId || 0;
-      }
-      return groupIds;
-    };
+  const deviceGroups = useMemo(() => (device) => {
+    const groupIds = [];
+    let { groupId } = device;
+    while (groupId) {
+      groupIds.push(groupId);
+      groupId = groups[groupId]?.groupId || 0;
+    }
+    return groupIds;
+  }, [groups]);
 
+  const filteredDevices = useMemo(() => {
     const filtered = Object.values(devices)
       .filter((device) => !filter.statuses.length || filter.statuses.includes(device.status))
       .filter((device) => !filter.groups.length || deviceGroups(device).some((id) => filter.groups.includes(id)))
       .filter((device) => {
         const lowerCaseKeyword = keyword.toLowerCase();
-        return [device.name, device.uniqueId, device.phone, device.model, device.contact, device.vin].some((s) => s && s.toLowerCase().includes(lowerCaseKeyword));
+        return [device.name, device.uniqueId, device.phone, device.model, device.contact, device.vin]
+          .some((s) => s && s.toLowerCase().includes(lowerCaseKeyword));
       });
+
     switch (filterSort) {
       case 'name':
         filtered.sort((device1, device2) => device1.name.localeCompare(device2.name));
@@ -38,9 +40,21 @@ export default (keyword, filter, filterSort, filterMap, positions, setFilteredDe
       default:
         break;
     }
-    setFilteredDevices(filtered);
-    setFilteredPositions(filterMap
-      ? filtered.map((device) => positions[device.id]).filter(Boolean)
-      : Object.values(positions));
-  }, [keyword, filter, filterSort, filterMap, groups, devices, positions, setFilteredDevices, setFilteredPositions]);
+
+    return filtered;
+  }, [devices, groups, keyword, filter, filterSort, deviceGroups]);
+  
+  const filteredPositions = useMemo(() => (
+    filterMap
+      ? filteredDevices.map((device) => positions[device.id]).filter(Boolean)
+      : Object.values(positions)
+  ), [filteredDevices, positions, filterMap]);
+
+  useEffect(() => {
+    setFilteredDevices(filteredDevices);
+  }, [filteredDevices, setFilteredDevices]);
+
+  useEffect(() => {
+    setFilteredPositions(filteredPositions);
+  }, [filteredPositions, setFilteredPositions]);
 };

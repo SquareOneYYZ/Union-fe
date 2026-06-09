@@ -12,6 +12,7 @@ import useFeatures from './common/util/useFeatures';
 import { useAttributePreference } from './common/util/preferences';
 
 const logoutCode = 4000;
+const BEEP_RATE_LIMIT_MS = 5000;
 
 const SocketController = () => {
   const dispatch = useDispatch();
@@ -23,6 +24,9 @@ const SocketController = () => {
   const includeLogs = useSelector((state) => state.session.includeLogs);
 
   const socketRef = useRef();
+  const reconnectAttempts = useRef(0);
+  const audioRef = useRef(new Audio(alarm));
+  const lastBeepRef = useRef(0);
 
   const [events, setEvents] = useState([]);
   const [notifications, setNotifications] = useState([]);
@@ -39,6 +43,7 @@ const SocketController = () => {
 
     socket.onopen = () => {
       dispatch(sessionActions.updateSocket(true));
+      reconnectAttempts.current = 0;
     };
 
     socket.onclose = async (event) => {
@@ -59,7 +64,10 @@ const SocketController = () => {
         } catch (error) {
           // ignore errors
         }
-        setTimeout(() => connectSocket(), 60000);
+
+        const delay = Math.min(1000 * 2 ** reconnectAttempts.current, 30000);
+        reconnectAttempts.current += 1;
+        setTimeout(() => connectSocket(), delay);
       }
     };
 
@@ -75,7 +83,7 @@ const SocketController = () => {
         if (!features.disableEvents) {
           dispatch(eventsActions.add(data.events));
         }
-        setEvents(data.events);
+        setEvents((prev) => [...prev, ...data.events]);
       }
       if (data.logs) {
         dispatch(sessionActions.updateLogs(data.logs));
@@ -107,19 +115,50 @@ const SocketController = () => {
   }, [authenticated]);
 
   useEffect(() => {
+    const handleOnline = () => {
+      if (!socketRef.current || socketRef.current.readyState === WebSocket.CLOSED) {
+        reconnectAttempts.current = 0;
+        connectSocket();
+      }
+    };
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        if (!socketRef.current || socketRef.current.readyState === WebSocket.CLOSED) {
+          reconnectAttempts.current = 0;
+          connectSocket();
+        }
+      }
+    };
+
+    window.addEventListener('online', handleOnline);
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, []);
+
+  useEffect(() => {
     setNotifications(events.map((event) => ({
       id: event.id,
       message: event.attributes.message,
       show: true,
     })));
-  }, [events, devices, t]);
+  }, [events]);
 
   useEffect(() => {
-    events.forEach((event) => {
-      if (soundEvents.includes(event.type) || (event.type === 'alarm' && soundAlarms.includes(event.attributes.alarm))) {
-        new Audio(alarm).play();
+    const shouldBeep = events.some((event) => (
+      soundEvents.includes(event.type)
+      || (event.type === 'alarm' && soundAlarms.includes(event.attributes.alarm))
+    ));
+    if (shouldBeep) {
+      const now = Date.now();
+      if (now - lastBeepRef.current > BEEP_RATE_LIMIT_MS) {
+        audioRef.current.play();
+        lastBeepRef.current = now;
       }
-    });
+    }
   }, [events, soundEvents, soundAlarms]);
 
   return (
@@ -130,7 +169,7 @@ const SocketController = () => {
           open={notification.show}
           message={notification.message}
           autoHideDuration={snackBarDurationLongMs}
-          onClose={() => setEvents(events.filter((e) => e.id !== notification.id))}
+          onClose={() => setEvents((prev) => prev.filter((e) => e.id !== notification.id))}
         />
       ))}
     </>
