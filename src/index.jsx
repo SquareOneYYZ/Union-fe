@@ -3,7 +3,6 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { Provider } from 'react-redux';
 import { CssBaseline, StyledEngineProvider } from '@mui/material';
-import Clarity from '@microsoft/clarity';
 import store from './store';
 import { LocalizationProvider } from './common/components/LocalizationProvider';
 import ErrorHandler from './common/components/ErrorHandler';
@@ -15,9 +14,6 @@ import ErrorBoundary from './ErrorBoundary';
 import AppThemeProvider from './AppThemeProvider';
 
 preloadImages();
-
-const projectId = 'qk7ivvfgua';
-Clarity.init(projectId);
 
 const root = createRoot(document.getElementById('root'));
 root.render(
@@ -40,3 +36,15 @@ root.render(
     </Provider>
   </ErrorBoundary>,
 );
+
+const loadClarity = () => {
+  import('@microsoft/clarity').then(({ default: Clarity }) => {
+    Clarity.init('qk7ivvfgua');
+  });
+};
+
+if ('requestIdleCallback' in window) {
+  requestIdleCallback(loadClarity);
+} else {
+  window.addEventListener('load', loadClarity);
+}

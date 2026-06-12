@@ -6,11 +6,13 @@ const { reducer, actions } = createSlice({
     items: {},
     selectedId: null,
     selectedIds: [],
+    loading: true,
   },
   reducers: {
     refresh(state, action) {
       state.items = {};
       action.payload.forEach((item) => state.items[item.id] = item);
+      state.loading = false;
     },
     update(state, action) {
       action.payload.forEach((item) => state.items[item.id] = item);
