@@ -74,7 +74,7 @@
 	"sharedCheckComputedAttribute": "Check Computed Attribute",
 	"sharedExpression": "Expression",
 	"sharedDevice": "Device",
-	"sharedVin": "Vin/IMEI",
+	"sharedVin": "VIN and IMEI",
 	"sharedTest": "Test",
 	"sharedTestNotification": "Send Test Notification",
 	"sharedTestNotificators": "Test Channels",
