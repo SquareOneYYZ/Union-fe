@@ -6,7 +6,7 @@ import './mapControls.css';
 class ZoomBarControl {
   onAdd() {
     this.container = createCtrlContainer('maplibre-ctrl-zoombar');
-
+     this.container.id = 'map-ctrl-zoombar'; 
     this.zoomInBtn = createCtrlButton(
       'Zoom In',
       'maplibregl-ctrl-icon maplibre-ctrl-zoom-in',

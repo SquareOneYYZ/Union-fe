@@ -7,13 +7,12 @@ export class FullScreenControl {
   onAdd(mapInstance) {
     this.map = mapInstance;
     this.isFullScreen = false;
-
     this.button = createCtrlButton(
       'Enter Full Screen',
       'maplibregl-ctrl-icon maplibre-ctrl-fullscreen maplibre-ctrl-fullscreen-off',
       () => this.toggleFullScreen(),
     );
-
+    this.button.id = 'map-ctrl-fullscreen';
     this.container = createCtrlContainer();
     this.container.appendChild(this.button);
 

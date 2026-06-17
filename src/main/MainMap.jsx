@@ -61,7 +61,7 @@ const MainMap = ({ filteredPositions, selectedPosition, onEventsClick }) => {
 
       <MapScale />
 
-      <MapFullScreen />
+      <MapFullScreen id="main-map" />
       <MapCurrentLocation />
       <MapGeocoder />
       {!features.disableEvents && (
