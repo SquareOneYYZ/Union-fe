@@ -14,7 +14,7 @@ class GeofenceAccessControl {
       'maplibregl-ctrl-icon maplibre-ctrl-geofence',
       () => this.onGeofenceClick && this.onGeofenceClick(),
     );
-
+    this.button.id = 'map-ctrl-geofence';
     this.container = createCtrlContainer();
     this.container.appendChild(this.button);
 

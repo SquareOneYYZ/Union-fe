@@ -94,7 +94,7 @@ class MeasureControl {
       'maplibregl-ctrl-icon maplibre-ctrl-measure maplibre-ctrl-measure-off',
       () => this.toggleMeasure(),
     );
-
+    this.button.id = 'map-ctrl-measure';
     this.distanceRow = document.createElement('div');
     this.distanceRow.className = 'maplibre-ctrl-measure-row';
     this.distanceRow.style.display = 'none';

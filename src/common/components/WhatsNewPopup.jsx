@@ -13,90 +13,41 @@ import {
 import makeStyles from '@mui/styles/makeStyles';
 import CloseIcon from '@mui/icons-material/Close';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
-import { useTranslation } from './LocalizationProvider';
 import { driver } from 'driver.js';
 import 'driver.js/dist/driver.css';
+import { useTranslation } from './LocalizationProvider';
+import tourRegistry from '../../tours/tourRegistry';
 
 const MOCK_FEATURES = [
   {
     id: 1,
     versionNo: '2.1.0',
-    feature: 'Full Screen Mode',
-    details: 'Expand the map to full screen for a distraction-free tracking experience. Click the icon on the top-right of the map to enter or exit full screen.',
+    feature: 'Map Controls',
+    details: 'New map control buttons added — full screen, measure distance, quick geofence access, zoom bar, and layer switcher are now available directly on the map.',
+    tourId: 'mapControls',
   },
   {
     id: 2,
     versionNo: '2.0.8',
-    feature: 'Zoom Controls',
-    details: 'Use the zoom bar on the right side of the map to quickly zoom in and out without using scroll wheel or pinch gestures.',
+    feature: 'Faster Report Generation',
+    details: 'Reports now load up to 3× faster. Export to Excel or PDF with one click from the reports page.',
+    tourId: 'reports',
   },
   {
     id: 3,
     versionNo: '2.0.5',
-    feature: 'Measure Distance',
-    details: 'Activate the measure tool and click any two or more points on the map to calculate the real-world distance between them.',
+    feature: 'Trip Export PDF',
+    details: 'Export any trip as a formatted PDF including route map, timestamps, and full trip summary.',
+    tourId: 'trips',
   },
   {
     id: 4,
     versionNo: '2.0.2',
-    feature: 'Geofence Access',
-    details: 'Quickly navigate to geofence management directly from the map using the geofence access control button.',
+    feature: 'Session Stability Fix',
+    details: 'Resolved an issue where users were occasionally logged out unexpectedly. Sessions now remain stable across multiple browser tabs.',
+    tourId: null,
   },
 ];
-
-const featureTourMap = {
-  1: 'fullscreen',
-  2: 'zoombar',
-  3: 'measure',
-  4: 'geofenceAccess',
-};
-
-const tourDefinitions = {
-  fullscreen: [
-    {
-      element: '#map-ctrl-fullscreen',
-      popover: {
-        title: '⛶ Full Screen Mode',
-        description: 'Click this button to expand the map to full screen. Press Esc or click again to exit.',
-        side: 'left',
-        align: 'start',
-      },
-    },
-  ],
-  zoombar: [
-    {
-      element: '#map-ctrl-zoombar',
-      popover: {
-        title: '🔍 Zoom Controls',
-        description: 'Use the + and – buttons or drag the slider to zoom in and out of the map.',
-        side: 'left',
-        align: 'start',
-      },
-    },
-  ],
-  measure: [
-    {
-      element: '#map-ctrl-measure',
-      popover: {
-        title: '📏 Measure Distance',
-        description: 'Activate this tool then click two or more points on the map to measure the real-world distance between them.',
-        side: 'left',
-        align: 'start',
-      },
-    },
-  ],
-  geofenceAccess: [
-    {
-      element: '#map-ctrl-geofence',
-      popover: {
-        title: '🗺️ Geofence Access',
-        description: 'Click here to quickly navigate to geofence management directly from the map.',
-        side: 'left',
-        align: 'start',
-      },
-    },
-  ],
-};
 
 const useStyles = makeStyles((theme) => ({
   paper: {
@@ -166,6 +117,7 @@ const useStyles = makeStyles((theme) => ({
   featureTitle: {
     fontWeight: 700,
     fontSize: 13,
+    flex: 1,
   },
   versionText: {
     fontSize: 11,
@@ -191,6 +143,7 @@ const useStyles = makeStyles((theme) => ({
     fontSize: 11,
     padding: theme.spacing(0.2, 1),
     textTransform: 'none',
+    borderRadius: 20,
   },
   footer: {
     display: 'flex',
@@ -218,43 +171,40 @@ const WhatsNewPopup = () => {
   const [latestFeature, setLatestFeature] = useState(null);
   const [doNotShowAgain, setDoNotShowAgain] = useState(false);
   const t = useTranslation();
+
   const userId = useSelector((state) => state.session.user?.id);
 
   useEffect(() => {
-    const enriched = MOCK_FEATURES.map((item) => ({
-      ...item,
-      tourId: featureTourMap[item.id] ?? null,
-    }));
-
-    const latest = enriched.reduce((max, item) => (item.id > max.id ? item : max), enriched[0]);
-
-    setFeatures(enriched);
+    const data = MOCK_FEATURES;
+    const latest = data.reduce((max, item) => (item.id > max.id ? item : max), data[0]);
+    setFeatures(data);
     setLatestFeature(latest);
     setOpen(true);
   }, []);
 
   const handleReadMore = (tourId) => {
-    if (!tourId || !tourDefinitions[tourId]) return;
-    setOpen(false);
+    const steps = tourRegistry[tourId];
 
+    if (!steps || steps.length === 0) {
+      console.warn(`[WhatsNewPopup] No tour found for tourId: "${tourId}"`);
+      return;
+    }
+    setOpen(false);
     setTimeout(() => {
-      const steps = tourDefinitions[tourId];
-      const firstElement = document.querySelector(steps[0].element);
-      if (!firstElement) {
-        console.warn(`[WhatsNewPopup] Tour element not found: ${steps[0].element}`);
+      const firstEl = document.querySelector(steps[0].element);
+      if (!firstEl) {
+        console.warn(`[WhatsNewPopup] Tour element not found in DOM: ${steps[0].element}`);
         return;
       }
 
-      const driverObj = driver({
+      driver({
         showProgress: true,
         smoothScroll: true,
         allowClose: true,
         overlayOpacity: 0.5,
         steps,
-      });
-
-      driverObj.drive();
-    }, 300); 
+      }).drive();
+    }, 300);
   };
 
   const handleGotIt = () => {
@@ -264,7 +214,7 @@ const WhatsNewPopup = () => {
       fetch('/api/feature/permission', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, featureId: latestFeature?.id }),
+        body: JSON.stringify({ userId, featured: latestFeature?.id }),
       }).catch((err) => console.error('[WhatsNewPopup] permission post failed:', err));
     }
   };
@@ -291,9 +241,12 @@ const WhatsNewPopup = () => {
         </IconButton>
       </div>
 
+      {/* ── Feature list ── */}
       <DialogContent className={classes.content}>
         {features.map((item) => (
           <Box key={item.id} className={classes.row}>
+
+            {/* Bullet + feature name + version pill */}
             <div className={classes.featureRow}>
               <span className={classes.bullet} />
               <Typography className={classes.featureTitle}>
@@ -303,23 +256,30 @@ const WhatsNewPopup = () => {
                 {`v${item.versionNo}`}
               </Typography>
             </div>
+
+            {/* Details */}
             <Typography className={classes.detailsText}>
               {item.details}
             </Typography>
-            {item.tourId && (
+
+            {/* Read More — only shown if tourId exists in registry */}
+            {item.tourId && tourRegistry[item.tourId] && (
               <Button
                 size="small"
                 variant="outlined"
+                color="primary"
                 className={classes.readMoreBtn}
                 onClick={() => handleReadMore(item.tourId)}
               >
                 {t('readMore') || 'Read More'}
               </Button>
             )}
+
           </Box>
         ))}
       </DialogContent>
 
+      {/* ── Footer ── */}
       <div className={classes.footer}>
         <FormControlLabel
           control={(
