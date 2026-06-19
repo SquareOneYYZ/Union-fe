@@ -33,7 +33,7 @@ const DevicePage = () => {
   const deviceAttributes = useDeviceAttributes(t);
   const query = useQuery();
   const uniqueId = query.get('uniqueId');
-
+  const expandAccordion = query.get('expandAccordion');
   const [item, setItem] = useState(uniqueId ? { uniqueId } : null);
   const [vinDecodedData, setVinDecodedData] = useState(null);
 
@@ -139,7 +139,7 @@ const DevicePage = () => {
       {item && (
         <>
           <Accordion defaultExpanded>
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+            <AccordionSummary  expandIcon={<ExpandMoreIcon />}>
               <Typography variant="subtitle1">{t('sharedRequired')}</Typography>
             </AccordionSummary>
             <AccordionDetails className={classes.details}>
@@ -161,7 +161,7 @@ const DevicePage = () => {
             </AccordionDetails>
           </Accordion>
 
-          <Accordion>
+          <Accordion defaultExpanded>
             <AccordionSummary expandIcon={<ExpandMoreIcon />}>
               <Typography variant="subtitle1">{t('sharedExtra')}</Typography>
             </AccordionSummary>
@@ -186,35 +186,61 @@ const DevicePage = () => {
                 sx={roundedFieldSx}
 
               />
-
-              <SelectField
-                value={item.vin || ''}
-                onChange={(event) => {
-                  const { value: newVin, vinData } = event.target;
-                  if (vinData) {
-                    setVinDecodedData(vinData);
-                  }
-                  setItem((prev) => ({ ...prev, vin: newVin.replace(/\*/g, '') }));
-                }}
-                label={t('deviceVinNumber')}
-                isVinField
-                vinApiEndpoint="/api/devices/Vindecoder"
-                fullWidth
-              />
-              {renderVinAutocomplete('make', 'deviceMake', vinDecodedData?.make)}
-              {renderVinAutocomplete('manufacturer', 'deviceManufacturer', vinDecodedData?.manufacturer)}
-              {renderVinAutocomplete('model', 'deviceModel', vinDecodedData?.model)}
-              {renderVinAutocomplete('modelYear', 'deviceModelYear', vinDecodedData?.modelYear)}
-              {renderVinAutocomplete('trim', 'deviceTrim', vinDecodedData?.trim)}
-              {renderVinAutocomplete('bodyClass', 'deviceBodyClass', vinDecodedData?.bodyClass)}
-              {renderVinAutocomplete('vehicleType', 'deviceVehicleType', vinDecodedData?.vehicleType)}
-              {renderVinAutocomplete('displacementL', 'deviceDisplacementL', vinDecodedData?.displacementL)}
-              {renderVinAutocomplete('engineCylinders', 'deviceEngineCylinders', vinDecodedData?.engineCylinders)}
-              {renderVinAutocomplete('engineHP', 'deviceEngineHP', vinDecodedData?.engineHP)}
-              {renderVinAutocomplete('driveType', 'deviceDriveType', vinDecodedData?.driveType)}
-              {renderVinAutocomplete('fuelTypePrimary', 'deviceFuelTypePrimary', vinDecodedData?.fuelTypePrimary)}
-              {renderVinAutocomplete('batteryType', 'deviceBatteryType', vinDecodedData?.batteryType)}
-
+              <div id="vin-field">
+                <SelectField
+                  value={item.vin || ''}
+                  onChange={(event) => {
+                    const { value: newVin, vinData } = event.target;
+                    if (vinData) {
+                      setVinDecodedData(vinData);
+                    }
+                    setItem((prev) => ({ ...prev, vin: newVin.replace(/\*/g, '') }));
+                  }}
+                  label={t('deviceVinNumber')}
+                  isVinField
+                  vinApiEndpoint="/api/devices/Vindecoder"
+                  fullWidth
+                />
+              </div>
+              <div id="vin-make">
+                {renderVinAutocomplete('make', 'deviceMake', vinDecodedData?.make)}
+              </div>
+              <div id="vin-manufacturer">
+                {renderVinAutocomplete('manufacturer', 'deviceManufacturer', vinDecodedData?.manufacturer)}
+              </div>
+              <div id="vin-model">
+                {renderVinAutocomplete('model', 'deviceModel', vinDecodedData?.model)}
+              </div>
+              <div id="vin-model-year">
+                {renderVinAutocomplete('modelYear', 'deviceModelYear', vinDecodedData?.modelYear)}
+              </div>
+              <div id="vin-trim">
+                {renderVinAutocomplete('trim', 'deviceTrim', vinDecodedData?.trim)}
+              </div>
+              <div id="vin-body-class">
+                {renderVinAutocomplete('bodyClass', 'deviceBodyClass', vinDecodedData?.bodyClass)}
+              </div>
+              <div id="vin-vehicle-type">
+                {renderVinAutocomplete('vehicleType', 'deviceVehicleType', vinDecodedData?.vehicleType)}
+              </div>
+              <div id="vin-displacement-l">
+                {renderVinAutocomplete('displacementL', 'deviceDisplacementL', vinDecodedData?.displacementL)}
+              </div>
+              <div id="vin-engine-cylinders">
+                {renderVinAutocomplete('engineCylinders', 'deviceEngineCylinders', vinDecodedData?.engineCylinders)}
+              </div>
+              <div id="vin-engine">
+                {renderVinAutocomplete('engineHP', 'deviceEngineHP', vinDecodedData?.engineHP)}
+              </div>
+              <div id="vin-drive-type">
+                {renderVinAutocomplete('driveType', 'deviceDriveType', vinDecodedData?.driveType)}
+              </div>
+              <div id="vin-fuel-type">
+                {renderVinAutocomplete('fuelTypePrimary', 'deviceFuelTypePrimary', vinDecodedData?.fuelTypePrimary)}
+              </div>
+              <div id="vin-battery-type">
+                {renderVinAutocomplete('batteryType', 'deviceBatteryType', vinDecodedData?.batteryType)}
+              </div>
               <TextField
                 value={item.contact || ''}
                 onChange={(event) => setItem({ ...item, contact: event.target.value })}

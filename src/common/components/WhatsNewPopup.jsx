@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import {
   Dialog,
   DialogContent,
@@ -16,7 +17,7 @@ import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import { driver } from 'driver.js';
 import 'driver.js/dist/driver.css';
 import { useTranslation } from './LocalizationProvider';
-import tourRegistry from '../../tours/tourRegistry';
+import tourRegistry, { tourRegistryMeta } from '../../tours/tourRegistry';
 
 const MOCK_FEATURES = [
   {
@@ -28,10 +29,10 @@ const MOCK_FEATURES = [
   },
   {
     id: 2,
-    versionNo: '2.0.8',
-    feature: 'Faster Report Generation',
-    details: 'Reports now load up to 3× faster. Export to Excel or PDF with one click from the reports page.',
-    tourId: 'reports',
+    versionNo: '2.1.1',
+    feature: 'VIN Decoder',
+    details: 'Enter a valid VIN number on the device page and all vehicle details — make, model, year, trim, engine, fuel type and more — are auto-populated instantly.',
+    tourId: 'vinDecoder',
   },
   {
     id: 3,
@@ -166,6 +167,7 @@ const useStyles = makeStyles((theme) => ({
 
 const WhatsNewPopup = () => {
   const classes = useStyles();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [features, setFeatures] = useState([]);
   const [latestFeature, setLatestFeature] = useState(null);
@@ -189,11 +191,16 @@ const WhatsNewPopup = () => {
       console.warn(`[WhatsNewPopup] No tour found for tourId: "${tourId}"`);
       return;
     }
+
+    // Close popup
     setOpen(false);
-    setTimeout(() => {
+
+    const startTour = () => {
+      console.debug('[WhatsNewPopup] Starting tour for:', tourId);
       const firstEl = document.querySelector(steps[0].element);
+
       if (!firstEl) {
-        console.warn(`[WhatsNewPopup] Tour element not found in DOM: ${steps[0].element}`);
+        console.warn(`[WhatsNewPopup] Element not found in DOM: ${steps[0].element}`);
         return;
       }
 
@@ -204,7 +211,19 @@ const WhatsNewPopup = () => {
         overlayOpacity: 0.5,
         steps,
       }).drive();
-    }, 300);
+    };
+
+    // Check if this tour needs navigation
+    const navigatePath = tourRegistryMeta?.[tourId]?.navigateTo;
+
+    if (navigatePath) {
+      console.debug('[WhatsNewPopup] Navigating to:', navigatePath);
+      navigate(navigatePath);
+      // Give the page enough time to render all elements
+      setTimeout(startTour, 1500);
+    } else {
+      setTimeout(startTour, 300);
+    }
   };
 
   const handleGotIt = () => {
@@ -228,7 +247,6 @@ const WhatsNewPopup = () => {
       PaperProps={{ className: classes.paper }}
       BackdropProps={{ className: classes.backdrop }}
     >
-      {/* ── Header ── */}
       <div className={classes.header}>
         <div className={classes.headerLeft}>
           <AutoAwesomeIcon className={classes.headerIcon} />
@@ -241,12 +259,9 @@ const WhatsNewPopup = () => {
         </IconButton>
       </div>
 
-      {/* ── Feature list ── */}
       <DialogContent className={classes.content}>
         {features.map((item) => (
           <Box key={item.id} className={classes.row}>
-
-            {/* Bullet + feature name + version pill */}
             <div className={classes.featureRow}>
               <span className={classes.bullet} />
               <Typography className={classes.featureTitle}>
@@ -256,13 +271,9 @@ const WhatsNewPopup = () => {
                 {`v${item.versionNo}`}
               </Typography>
             </div>
-
-            {/* Details */}
             <Typography className={classes.detailsText}>
               {item.details}
             </Typography>
-
-            {/* Read More — only shown if tourId exists in registry */}
             {item.tourId && tourRegistry[item.tourId] && (
               <Button
                 size="small"
@@ -274,12 +285,10 @@ const WhatsNewPopup = () => {
                 {t('readMore') || 'Read More'}
               </Button>
             )}
-
           </Box>
         ))}
       </DialogContent>
 
-      {/* ── Footer ── */}
       <div className={classes.footer}>
         <FormControlLabel
           control={(
