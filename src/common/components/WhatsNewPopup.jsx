@@ -18,6 +18,7 @@ import { driver } from 'driver.js';
 import 'driver.js/dist/driver.css';
 import { useTranslation } from './LocalizationProvider';
 import tourRegistry, { tourRegistryMeta } from '../../tours/tourRegistry';
+import { runVinDemoAnimation } from '../../tours/vinDecoderTour';
 
 const MOCK_FEATURES = [
   {
@@ -37,9 +38,9 @@ const MOCK_FEATURES = [
   {
     id: 3,
     versionNo: '2.0.5',
-    feature: 'Trip Export PDF',
-    details: 'Export any trip as a formatted PDF including route map, timestamps, and full trip summary.',
-    tourId: 'trips',
+    feature: 'Zone Violation Notification',
+    details: 'The Geofence Enter/Exit alarm has been replaced with the new Zone Violation alarm. This unified alarm supports monitoring multiple zone types (Geofence, City, State, Country) from a single configuration.',
+    tourId: 'zoneViolation',
   },
   {
     id: 4,
@@ -192,35 +193,63 @@ const WhatsNewPopup = () => {
       return;
     }
 
-    // Close popup
     setOpen(false);
 
     const startTour = () => {
-      console.debug('[WhatsNewPopup] Starting tour for:', tourId);
       const firstEl = document.querySelector(steps[0].element);
-
       if (!firstEl) {
-        console.warn(`[WhatsNewPopup] Element not found in DOM: ${steps[0].element}`);
+        console.warn(`[WhatsNewPopup] Element not found: ${steps[0].element}`);
         return;
       }
 
-      driver({
+      const driverObj = driver({
         showProgress: true,
         smoothScroll: true,
         allowClose: true,
         overlayOpacity: 0.5,
         steps,
-      }).drive();
+
+        // ── Hook into Next button click ──────────────────────────────────────
+        onNextClick: async (el, step, { driver: drv }) => {
+          const currentIndex = drv.getActiveIndex();
+
+          // For VIN tour: run ghost animation between step 0 and step 1
+          if (tourId === 'vinDecoder' && currentIndex === 0) {
+            // Temporarily hide driver overlay during animation
+            const overlay = document.querySelector('.driver-overlay');
+            if (overlay) overlay.style.opacity = '0.1';
+
+            await runVinDemoAnimation();
+
+            // Restore overlay and move to next step
+            if (overlay) overlay.style.opacity = '';
+            drv.moveNext();
+          } else {
+            drv.moveNext();
+          }
+        },
+      });
+
+      driverObj.drive();
     };
 
-    // Check if this tour needs navigation
     const navigatePath = tourRegistryMeta?.[tourId]?.navigateTo;
 
     if (navigatePath) {
-      console.debug('[WhatsNewPopup] Navigating to:', navigatePath);
       navigate(navigatePath);
-      // Give the page enough time to render all elements
-      setTimeout(startTour, 1500);
+      // Poll for element instead of fixed timeout — more reliable
+      let attempts = 0;
+      const poll = setInterval(() => {
+        attempts += 1;
+        const el = document.querySelector(steps[0].element);
+        if (el) {
+          clearInterval(poll);
+          startTour();
+        } else if (attempts > 15) {
+          clearInterval(poll);
+          console.warn('[WhatsNewPopup] Element never appeared after navigation');
+        }
+      }, 300);
     } else {
       setTimeout(startTour, 300);
     }
