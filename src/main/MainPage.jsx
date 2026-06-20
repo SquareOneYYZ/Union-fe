@@ -83,14 +83,26 @@ const MainPage = () => {
   const [filter, setFilter] = usePersistedState('filter', {
     statuses: [],
     groups: [],
+    online: false,
+    moving: false,
+    ignition: false,
+    stale: false,
   });
   const [filterSort, setFilterSort] = usePersistedState('filterSort', '');
   const [filterMap, setFilterMap] = usePersistedState('filterMap', false);
+  const [pinnedDevices, setPinnedDevices] = usePersistedState('pinnedDevices', []);
 
   const [devicesOpen, setDevicesOpen] = useState(desktop);
   const [eventsOpen, setEventsOpen] = useState(false);
 
   const onEventsClick = useCallback(() => setEventsOpen(true), [setEventsOpen]);
+
+  const onTogglePin = useCallback((deviceId) => {
+    const next = pinnedDevices.includes(deviceId)
+      ? pinnedDevices.filter((id) => id !== deviceId)
+      : [...pinnedDevices, deviceId];
+    setPinnedDevices(next);
+  }, [pinnedDevices, setPinnedDevices]);
 
   useEffect(() => {
     if (!desktop && mapOnSelect && selectedDeviceId) {
@@ -98,7 +110,7 @@ const MainPage = () => {
     }
   }, [desktop, mapOnSelect, selectedDeviceId]);
 
-  useFilter(keyword, filter, filterSort, filterMap, positions, setFilteredDevices, setFilteredPositions);
+  useFilter(keyword, filter, filterSort, filterMap, positions, pinnedDevices, setFilteredDevices, setFilteredPositions);
 
   return (
     <div className={classes.root}>
@@ -123,6 +135,8 @@ const MainPage = () => {
             setFilterSort={setFilterSort}
             filterMap={filterMap}
             setFilterMap={setFilterMap}
+            pinnedDevices={pinnedDevices}
+            onTogglePin={onTogglePin}
           />
         </Paper>
         <div className={classes.middle}>
@@ -136,7 +150,7 @@ const MainPage = () => {
             </div>
           )}
           <Paper square className={classes.contentList} style={devicesOpen ? {} : { visibility: 'hidden' }}>
-            <DeviceList devices={filteredDevices} />
+            <DeviceList devices={filteredDevices} pinnedDevices={pinnedDevices} onTogglePin={onTogglePin} />
           </Paper>
         </div>
         {desktop && (
