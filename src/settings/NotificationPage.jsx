@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 import {
   Accordion,
@@ -24,7 +24,8 @@ const NotificationPage = () => {
   const classes = useSettingsStyles();
   const t = useTranslation();
   const [item, setItem] = useState();
-
+  const [tourType, setTourType] = useState(null);
+  const currentType = tourType ?? item?.type;
   const alarms = useTranslationKeys((it) => it.startsWith('alarm')).map((it) => ({
     key: unprefixString('alarm', it),
     name: t(it),
@@ -74,6 +75,18 @@ const NotificationPage = () => {
     },
   };
 
+  useEffect(() => {
+    const start = () => setTourType("zoneViolation");
+    const end = () => setTourType(null);
+    window.addEventListener("zoneViolationDemo", start);
+    window.addEventListener("zoneViolationDemoEnd", end);
+    return () => {
+      window.removeEventListener("zoneViolationDemo", start);
+      window.removeEventListener("zoneViolationDemoEnd", end);
+    };
+
+  }, []);
+
   return (
     <EditItemView
       endpoint="notifications"
@@ -92,16 +105,23 @@ const NotificationPage = () => {
               </Typography>
             </AccordionSummary>
             <AccordionDetails className={classes.details}>
-              <SelectField
-                value={item.type}
-                onChange={(e) => setItem({ ...item, type: e.target.value })}
-                endpoint="/api/notifications/types"
-                keyGetter={(it) => it.type}
-                titleGetter={(it) => t(prefixString('event', it.type))}
-                label={t('sharedType')}
-                filter={(types) => types.filter((type) => !excludedTypes.includes(type.type))}
-              />
-              {item.type === 'alarm' && (
+              <div id='notification-alarm-type'>
+                <SelectField
+                  fullWidth
+                  value={currentType}
+                  onChange={(e) => {
+                    setTourType(null);
+                    setItem({ ...item, type: e.target.value })
+                  }
+                  }
+                  endpoint="/api/notifications/types"
+                  keyGetter={(it) => it.type}
+                  titleGetter={(it) => t(prefixString('event', it.type))}
+                  label={t('sharedType')}
+                  filter={(types) => types.filter((type) => !excludedTypes.includes(type.type))}
+                />
+              </div>
+              {currentType === 'alarm' && (
                 <SelectField
                   multiple
                   value={item.attributes && item.attributes.alarms ? item.attributes.alarms.split(/[, ]+/) : []}
@@ -111,28 +131,35 @@ const NotificationPage = () => {
                   label={t('sharedAlarms')}
                 />
               )}
-              {item.type === 'zoneViolation' && (
-                <SelectField
-                  value={getFirstValue(item.attributes?.zoneTypes || '')}
-                  onChange={(e) => setItem({
-                    ...item,
-                    attributes: { ...item.attributes, zoneTypes: e.target.value }
-                  })}
-                  data={zoneTypes}
-                  keyGetter={(it) => it.key}
-                  titleGetter={(it) => it.name}
-                  label={t('alarmZoneType')}
-                />
+              {(currentType === "zoneViolation" || tourType === "zoneViolation") && (
+                <div id='notification-zone-type'>
+                  <SelectField
+                    fullWidth
+                    value={getFirstValue(item.attributes?.zoneTypes || '')}
+                    onChange={(e) => setItem({
+                      ...item,
+                      attributes: { ...item.attributes, zoneTypes: e.target.value }
+                    })}
+                    data={zoneTypes}
+                    keyGetter={(it) => it.key}
+                    titleGetter={(it) => it.name}
+                    label={t('alarmZoneType')}
+                  />
+                </div>
               )}
-              {item.type === 'zoneViolation' && (
-                <SelectField
-                  value={getFirstValue(item.attributes?.violationTypes || '')}
-                  onChange={(e) => setItem({ ...item, attributes: { ...item.attributes, violationTypes: e.target.value } })}
-                  data={violationTypes}
-                  keyGetter={(it) => it.key}
-                  titleGetter={(it) => it.name}
-                  label={t('alarmViolationType')}
-                />
+              {(currentType === "zoneViolation" || tourType === "zoneViolation") && (
+
+                <div id='notification-violation-type'>
+                  <SelectField
+                    fullWidth
+                    value={getFirstValue(item.attributes?.violationTypes || '')}
+                    onChange={(e) => setItem({ ...item, attributes: { ...item.attributes, violationTypes: e.target.value } })}
+                    data={violationTypes}
+                    keyGetter={(it) => it.key}
+                    titleGetter={(it) => it.name}
+                    label={t('alarmViolationType')}
+                  />
+                </div>
               )}
               <SelectField
                 multiple

@@ -1,3 +1,9 @@
+config: {
+  onDestroyed: () => {
+    window.dispatchEvent(new CustomEvent("zoneViolationDemoEnd"));
+  }
+}
+
 const zoneViolationTour = {
   tourId: 'zoneViolation',
   steps: [
@@ -9,6 +15,13 @@ const zoneViolationTour = {
           'The existing Geofence Enter/Exit alarm has been replaced with the new Zone Violation alarm. This unified alarm supports monitoring multiple zone types from a single configuration.',
         side: 'left',
         align: 'start',
+        onNextClick: (el, step, { driver: driverObj }) => {
+          window.dispatchEvent(new CustomEvent("zoneViolationDemo"));
+
+          setTimeout(() => {
+            driverObj.moveNext();
+          }, 200);
+        }
       },
     },
     {
@@ -31,16 +44,7 @@ const zoneViolationTour = {
         align: 'start',
       },
     },
-    {
-      element: '#notification-zone-name',
-      popover: {
-        title: '📍 Choose Zone',
-        description:
-          'Select the specific zone to monitor. For Geofence, choose from the geofences you have access to. For City, State, or Country, search and select the desired location.',
-        side: 'left',
-        align: 'start',
-      },
-    },
+    
     {
       element: '#notification-save',
       popover: {
