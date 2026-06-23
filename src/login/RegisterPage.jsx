@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import {
   Button, TextField, Typography, Snackbar, IconButton,
 } from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
 import makeStyles from '@mui/styles/makeStyles';
 import { useNavigate } from 'react-router-dom';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -35,7 +36,7 @@ const RegisterPage = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const t = useTranslation();
-
+  const [errorMessage, setErrorMessage] = useState('');
   const server = useSelector((state) => state.session.server);
   const totpForce = useSelector((state) => state.session.server.attributes.totpForce);
 
@@ -45,19 +46,30 @@ const RegisterPage = () => {
   const [totpKey, setTotpKey] = useState(null);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
 
+  const mapRegisterError = (rawMessage) => {
+    const firstLine = rawMessage.split('\n')[0];
+    if (firstLine.includes('SecurityException: Registration disabled')) return 'Registration is currently disabled.';
+    if (firstLine.includes('SecurityException: Manager user limit reached')) return 'User limit reached for your account.';
+    if (firstLine.includes('SecurityException: One-time password key is required')) return 'Two-factor setup is required.';
+    if (firstLine.includes('SecurityException: One-time password is disabled')) return 'Two-factor authentication is unavailable.';
+    if (firstLine.includes('StorageException')) return 'An account with that email already exists.';
+    return 'Something went wrong. Please try again.';
+  };
+
   useEffectAsync(async () => {
     if (totpForce) {
       const response = await fetch('/api/users/totp', { method: 'POST' });
       if (response.ok) {
         setTotpKey(await response.text());
       } else {
-        throw Error(await response.text());
+        setErrorMessage('Two-factor setup is unavailable. Please contact support.');
       }
     }
   }, [totpForce, setTotpKey]);
 
   const handleSubmit = useCatch(async (event) => {
     event.preventDefault();
+    setErrorMessage('');
     const response = await fetch('/api/users', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -66,7 +78,8 @@ const RegisterPage = () => {
     if (response.ok) {
       setSnackbarOpen(true);
     } else {
-      throw Error(await response.text());
+      const body = await response.text();
+      setErrorMessage(mapRegisterError(body));
     }
   });
 
@@ -140,6 +153,18 @@ const RegisterPage = () => {
         }}
         autoHideDuration={snackBarDurationShortMs}
         message={t('loginCreated')}
+      />
+
+      <Snackbar
+        open={!!errorMessage}
+        message={errorMessage}
+        autoHideDuration={6000}
+        onClose={() => setErrorMessage('')}
+        action={(
+          <IconButton size="small" color="inherit" onClick={() => setErrorMessage('')}>
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        )}
       />
     </LoginLayout>
   );
