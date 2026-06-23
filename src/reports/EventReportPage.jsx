@@ -55,6 +55,7 @@ import ReplayControl from './components/ReplayControl';
 
 const columnsArray = [
   ['eventTime', 'positionFixTime'],
+  ['deviceId', 'sharedDevice'],
   ['type', 'sharedType'],
   ['geofenceId', 'sharedGeofence'],
   ['maintenanceId', 'sharedMaintenance'],
@@ -93,6 +94,7 @@ const EventReportPage = () => {
 
   const [columns, setColumns] = usePersistedState('eventColumns', [
     'eventTime',
+    'deviceId',
     'type',
     'attributes',
     'speedLimit',
@@ -232,8 +234,9 @@ const EventReportPage = () => {
   const startRow = totalCount === 0 ? 0 : page * rowsPerPage + 1;
   const endRow = Math.min((page + 1) * rowsPerPage, totalCount);
 
-  const handleSubmit = useCatch(async ({ deviceId, from, to, type }) => {
-    const query = new URLSearchParams({ deviceId, from, to });
+  const handleSubmit = useCatch(async ({ deviceIds, from, to, type }) => {
+    const query = new URLSearchParams({ from, to });
+    deviceIds.forEach((id) => query.append('deviceId', id));
     eventTypes.forEach((it) => query.append('type', it));
     if (eventTypes[0] !== 'allEvents' && eventTypes.includes('alarm')) {
       alarmTypes.forEach((it) => query.append('alarm', it));
@@ -348,10 +351,10 @@ const EventReportPage = () => {
     switch (key) {
       case 'eventTime':
         return formatTime(value, 'seconds');
-
+      case 'deviceId':
+        return devices[value]?.name || value;
       case 'type':
         return t(prefixString('event', value));
-
       case 'geofenceId': {
         if (value > 0) {
           const geofence = geofences[value];
@@ -440,7 +443,6 @@ const EventReportPage = () => {
   }
 
   const showAlarmSelect = eventTypes[0] !== 'allEvents' && eventTypes.includes('alarm');
-
   let tableBodyContent;
 
   if (loading) {
@@ -482,13 +484,13 @@ const EventReportPage = () => {
 
           <TableCell className={classes.columnAction} padding="none">
             {hasPositionId && (
-            <IconButton
-              size="small"
-              onClick={() => handleReplayStart(item)}
-              disabled={replayLoading}
-            >
-              <ReplayIcon fontSize="small" />
-            </IconButton>
+              <IconButton
+                size="small"
+                onClick={() => handleReplayStart(item)}
+                disabled={replayLoading}
+              >
+                <ReplayIcon fontSize="small" />
+              </IconButton>
             )}
           </TableCell>
 
@@ -529,6 +531,7 @@ const EventReportPage = () => {
               handleSubmit={handleSubmit}
               handleSchedule={handleSchedule}
               loading={loading}
+              multiDevice
             >
               <div className={classes.filterItem}>
                 <FormControl fullWidth>
