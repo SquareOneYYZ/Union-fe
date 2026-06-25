@@ -11,6 +11,9 @@ import BatteryCharging60Icon from '@mui/icons-material/BatteryCharging60';
 import Battery20Icon from '@mui/icons-material/Battery20';
 import BatteryCharging20Icon from '@mui/icons-material/BatteryCharging20';
 import ErrorIcon from '@mui/icons-material/Error';
+import StarIcon from '@mui/icons-material/Star';
+import StarBorderIcon from '@mui/icons-material/StarBorder';
+import WatchLaterIcon from '@mui/icons-material/WatchLater';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { devicesActions } from '../store';
@@ -22,6 +25,7 @@ import { mapIconKey, mapIcons } from '../map/core/preloadImages';
 import { useAdministrator } from '../common/util/permissions';
 import EngineIcon from '../resources/images/data/engine.svg?react';
 import { useAttributePreference } from '../common/util/preferences';
+import { isDeviceStale } from './deviceStatus';
 
 dayjs.extend(relativeTime);
 
@@ -48,6 +52,12 @@ const useStyles = makeStyles((theme) => ({
   neutral: {
     color: theme.palette.neutral.main,
   },
+  pinned: {
+    color: theme.palette.warning.main,
+  },
+  staleRow: {
+    opacity: 0.55,
+  },
 }));
 
 const DeviceRow = ({ data, index, style }) => {
@@ -57,11 +67,15 @@ const DeviceRow = ({ data, index, style }) => {
 
   const admin = useAdministrator();
 
-  const item = data[index];
+  const { devices, pinnedDevices = [], onTogglePin } = data;
+  const item = devices[index];
   const position = useSelector((state) => state.session.positions[item.id]);
 
   const devicePrimary = useAttributePreference('devicePrimary', 'name');
   const deviceSecondary = useAttributePreference('deviceSecondary', '');
+
+  const stale = isDeviceStale(item);
+  const pinned = pinnedDevices.includes(item.id);
 
   const secondaryText = () => {
     let status;
@@ -84,6 +98,7 @@ const DeviceRow = ({ data, index, style }) => {
         key={item.id}
         onClick={() => dispatch(devicesActions.selectId(item.id))}
         disabled={!admin && item.disabled}
+        className={stale ? classes.staleRow : undefined}
       >
         <ListItemAvatar>
           <Avatar>
@@ -96,6 +111,30 @@ const DeviceRow = ({ data, index, style }) => {
           secondary={secondaryText()}
           secondaryTypographyProps={{ noWrap: true }}
         />
+        {onTogglePin && (
+          <Tooltip title={pinned ? t('sharedUnpin') : t('sharedPin')}>
+            <IconButton
+              size="small"
+              onClick={(e) => {
+                e.stopPropagation();
+                onTogglePin(item.id);
+              }}
+            >
+              {pinned ? (
+                <StarIcon fontSize="small" className={classes.pinned} />
+              ) : (
+                <StarBorderIcon fontSize="small" />
+              )}
+            </IconButton>
+          </Tooltip>
+        )}
+        {stale && (
+          <Tooltip title={item.lastUpdate ? `${t('deviceLastUpdate')}: ${dayjs(item.lastUpdate).fromNow()}` : t('deviceStatusUnknown')}>
+            <IconButton size="small">
+              <WatchLaterIcon fontSize="small" className={classes.warning} />
+            </IconButton>
+          </Tooltip>
+        )}
         {position && (
           <>
             {position.attributes.hasOwnProperty('alarm') && (

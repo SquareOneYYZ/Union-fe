@@ -1,4 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, {
+  useEffect, useMemo, useRef, useState,
+} from 'react';
 import { useDispatch } from 'react-redux';
 import makeStyles from '@mui/styles/makeStyles';
 import { FixedSizeList } from 'react-window';
@@ -17,7 +19,7 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-const DeviceList = ({ devices }) => {
+const DeviceList = ({ devices, pinnedDevices, onTogglePin }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
   const listInnerEl = useRef(null);
@@ -44,6 +46,10 @@ const DeviceList = ({ devices }) => {
     }
   }, []);
 
+  const itemData = useMemo(() => ({
+    devices, pinnedDevices, onTogglePin,
+  }), [devices, pinnedDevices, onTogglePin]);
+
   return (
     <AutoSizer className={classes.list}>
       {({ height, width }) => (
@@ -51,7 +57,7 @@ const DeviceList = ({ devices }) => {
           width={width}
           height={height}
           itemCount={devices.length}
-          itemData={devices}
+          itemData={itemData}
           itemSize={72}
           overscanCount={10}
           innerRef={listInnerEl}
