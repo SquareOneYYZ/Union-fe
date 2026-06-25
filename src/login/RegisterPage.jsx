@@ -12,6 +12,7 @@ import { useTranslation } from '../common/components/LocalizationProvider';
 import { snackBarDurationShortMs } from '../common/util/duration';
 import { useCatch, useEffectAsync } from '../reactHelper';
 import { sessionActions } from '../store';
+import mapError from '../common/util/errorMapper';
 
 const useStyles = makeStyles((theme) => ({
   container: {
@@ -46,16 +47,6 @@ const RegisterPage = () => {
   const [totpKey, setTotpKey] = useState(null);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
 
-  const mapRegisterError = (rawMessage) => {
-    const firstLine = rawMessage.split('\n')[0];
-    if (firstLine.includes('SecurityException: Registration disabled')) return 'Registration is currently disabled.';
-    if (firstLine.includes('SecurityException: Manager user limit reached')) return 'User limit reached for your account.';
-    if (firstLine.includes('SecurityException: One-time password key is required')) return 'Two-factor setup is required.';
-    if (firstLine.includes('SecurityException: One-time password is disabled')) return 'Two-factor authentication is unavailable.';
-    if (firstLine.includes('StorageException')) return 'An account with that email already exists.';
-    return 'Something went wrong. Please try again.';
-  };
-
   useEffectAsync(async () => {
     if (totpForce) {
       const response = await fetch('/api/users/totp', { method: 'POST' });
@@ -79,7 +70,7 @@ const RegisterPage = () => {
       setSnackbarOpen(true);
     } else {
       const body = await response.text();
-      setErrorMessage(mapRegisterError(body));
+      setErrorMessage(mapError(body, response.status));
     }
   });
 

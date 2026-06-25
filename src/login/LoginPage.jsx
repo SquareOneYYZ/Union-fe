@@ -19,6 +19,7 @@ import {
 import LogoImage from './LogoImage';
 import { useCatch } from '../reactHelper';
 import Loader from '../common/components/Loader';
+import mapError from '../common/util/errorMapper';
 
 const useStyles = makeStyles((theme) => ({
   options: {
@@ -72,22 +73,6 @@ const LoginPage = () => {
 
   const [announcementShown, setAnnouncementShown] = useState(false);
   const announcement = useSelector((state) => state.session.server.announcement);
-
-  const mapLoginError = (rawMessage, status) => {
-    if (!rawMessage && status === 401) return 'Incorrect email or password.';
-    const firstLine = rawMessage.split('\n')[0];
-    if (firstLine.includes('SecurityException: Unknown account')) return 'No account with that email.';
-    if (firstLine.includes('SecurityException: User authorization failed')) return 'Incorrect email or password.';
-    if (firstLine.includes('SecurityException: Unsupported authorization scheme')) return 'Session expired. Please sign in again.';
-    if (firstLine.includes('SecurityException: Token has expired')) return 'This link has expired.';
-    if (firstLine.includes('SecurityException: Invalid signature')) return 'Invalid or expired link.';
-    if (firstLine.includes('GeneralSecurityException: Unable to authenticate with the OpenID')) return 'Single sign-on failed. Try again.';
-    if (firstLine.includes('GeneralSecurityException: Your OpenID Groups do not permit access')) return "Your account isn't permitted to access this app.";
-    if (firstLine.includes('GeneralSecurityException: Malformed OpenID callback')) return 'Single sign-on failed. Try again.';
-
-    return 'Something went wrong. Please try again.';
-  };
-
   const handlePasswordLogin = async (event) => {
     event.preventDefault();
     setErrorMessage('');
@@ -106,7 +91,7 @@ const LoginPage = () => {
         setCodeEnabled(true);
       } else {
         const body = await response.text();
-        setErrorMessage(mapLoginError(body, response.status));
+        setErrorMessage(mapError(body, response.status));
         setPassword('');
       }
     } catch (error) {
@@ -123,7 +108,7 @@ const LoginPage = () => {
       navigate('/');
     } else {
       const body = await response.text();
-      setErrorMessage(mapLoginError(body, response.status));
+      setErrorMessage(mapError(body, response.status));
     }
   });
 

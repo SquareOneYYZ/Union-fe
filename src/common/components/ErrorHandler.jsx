@@ -9,6 +9,7 @@ import { usePrevious } from '../../reactHelper';
 import { errorsActions } from '../../store';
 import { useAdministrator } from '../util/permissions';
 import { useTranslation } from './LocalizationProvider';
+import mapError from '../util/errorMapper';
 
 const ErrorHandler = () => {
   const dispatch = useDispatch();
@@ -18,11 +19,12 @@ const ErrorHandler = () => {
   const error = useSelector((state) => state.errors.errors.find(() => true));
   const cachedError = usePrevious(error);
 
-  const message = error || cachedError;
-  const multiline = message?.includes('\n');
-  const displayMessage = multiline ? message.split('\n')[0] : message;
+  const rawMessage = error || cachedError;
+  const userMessage = mapError(rawMessage) ?? null;
 
   const [expanded, setExpanded] = useState(false);
+
+  if (!userMessage) return null; // silent errors (e.g. 404 with no message)
 
   return (
     <>
@@ -33,11 +35,14 @@ const ErrorHandler = () => {
           severity="error"
           variant="filled"
         >
-          Something went wrong
-          {' '}
-          { admin ?? `: ${displayMessage}`}
-          {(multiline && admin) && (
-            <Link color="inherit" href="#" onClick={() => setExpanded(true)}>{t('sharedShowDetails')}</Link>
+          {userMessage}
+          {admin && rawMessage?.includes('\n') && (
+            <>
+              {' '}
+              <Link color="inherit" href="#" onClick={() => setExpanded(true)}>
+                {t('sharedShowDetails')}
+              </Link>
+            </>
           )}
         </Alert>
       </Snackbar>
@@ -49,7 +54,7 @@ const ErrorHandler = () => {
         <DialogContent>
           <DialogContentText>
             <Typography variant="caption">
-              <pre>{message}</pre>
+              <pre>{rawMessage}</pre>
             </Typography>
           </DialogContentText>
         </DialogContent>
