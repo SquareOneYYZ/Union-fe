@@ -61,6 +61,7 @@ import SharePage from './settings/SharePage';
 import AnnouncementPage from './settings/AnnouncementPage';
 import EmulatorPage from './other/EmulatorPage';
 import AccountRedirect from './AccountRedirect';
+import NotFoundPage from './other/NotFound';
 import Loader from './common/components/Loader';
 import { generateLoginToken } from './common/components/NativeInterface';
 import { useLocalization } from './common/components/LocalizationProvider';
@@ -74,12 +75,6 @@ const Navigation = () => {
 
   const { pathname } = useLocation();
   const query = useQuery();
-  const SettingsFallback = () => (
-    <div style={{ padding: '2rem', textAlign: 'center' }}>
-      <h2>Page not found</h2>
-      <p>This settings page does not exist.</p>
-    </div>
-  );
 
   useEffectAsync(async () => {
     if (query.get('locale')) {
@@ -195,7 +190,6 @@ const Navigation = () => {
           />
           <Route path="user/:id" element={<UserPage />} />
           <Route path="user" element={<UserPage />} />
-          <Route path="*" element={<SettingsFallback />} />
         </Route>
 
         <Route path="reports">
@@ -212,6 +206,7 @@ const Navigation = () => {
           <Route path="logs" element={<LogsPage />} />
         </Route>
       </Route>
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );
 };
