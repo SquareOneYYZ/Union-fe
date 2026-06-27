@@ -34,7 +34,7 @@ import MapPositions from '../map/MapPositions';
 import MapView from '../map/core/MapView';
 import MapCamera from '../map/MapCamera';
 import AddressValue from '../common/components/AddressValue';
-import TableShimmer from '../common/components/TableShimmer';
+import ReportEmptyState from './components/ReportEmptyState';
 import MapGeofence from '../map/MapGeofence';
 import scheduleReport from './common/scheduleReport';
 import MapScale from '../map/MapScale';
@@ -62,7 +62,7 @@ const StopReportPage = () => {
 
   const [columns, setColumns] = usePersistedState('stopColumns', ['startTime', 'endTime', 'startOdometer', 'address']);
   const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [searchState, setSearchState] = useState('idle');
   const [selectedItem, setSelectedItem] = useState(null);
 
   const [order, setOrder] = useState('desc');
@@ -142,19 +142,28 @@ const StopReportPage = () => {
       const response = await fetch(`/api/reports/stops/mail?${query.toString()}`);
       if (!response.ok) throw Error(await response.text());
     } else {
-      setLoading(true);
+      if (new Date(to) < new Date(from)) {
+        setSearchState('invalid');
+        return;
+      }
+
+      setItems([]);
+      setSelectedItem(null);
+      setSearchState('loading');
       try {
         const response = await fetch(`/api/reports/stops?${query.toString()}`, {
           headers: { Accept: 'application/json' },
         });
         if (response.ok) {
-          setItems(await response.json());
+          const data = await response.json();
+          setItems(data);
           setPage(0);
+          setSearchState(data.length === 0 ? 'empty' : 'success');
         } else {
           throw Error(await response.text());
         }
-      } finally {
-        setLoading(false);
+      } catch {
+        setSearchState('error');
       }
     }
   });
@@ -192,17 +201,15 @@ const StopReportPage = () => {
 
   let tableBodyContent;
 
-  if (loading) {
-    tableBodyContent = <TableShimmer columns={columns.length + 1} startAction />;
-  } else if (sortedAndPaginatedData.length === 0) {
+  if (searchState !== 'success') {
     tableBodyContent = (
-      <TableRow>
-        <TableCell colSpan={columns.length + 1} align="center">
-          <Typography variant="body2" color="text.secondary" sx={{ py: 3 }}>
-            {t('sharedNoData') || 'No data available'}
-          </Typography>
-        </TableCell>
-      </TableRow>
+      <ReportEmptyState
+        searchState={searchState}
+        colSpan={columns.length + 1}
+        columns={columns.length + 1}
+        startAction
+        onRetry={() => setSearchState('idle')}
+      />
     );
   } else {
     tableBodyContent = sortedAndPaginatedData.map((item) => {
@@ -243,7 +250,7 @@ const StopReportPage = () => {
           overflow: 'hidden',
         }}
       >
-        {selectedItem && (
+        {searchState === 'success' && selectedItem && (
           <>
             <div
               className={classes.containerMap}
@@ -319,7 +326,7 @@ const StopReportPage = () => {
           }}
         >
           <div className={classes.header}>
-            <ReportFilter handleSubmit={handleSubmit} handleSchedule={handleSchedule} loading={loading}>
+            <ReportFilter handleSubmit={handleSubmit} handleSchedule={handleSchedule} loading={searchState === 'loading'}>
               <ColumnSelect columns={columns} setColumns={setColumns} columnsArray={columnsArray} />
             </ReportFilter>
           </div>
@@ -355,7 +362,7 @@ const StopReportPage = () => {
             </TableHead>
             <TableBody>{tableBodyContent}</TableBody>
           </Table>
-          {!loading && sortedAndPaginatedData.length > 0 && (
+          {searchState === 'success' && sortedAndPaginatedData.length > 0 && (
             <Box
               sx={{
                 display: 'flex',

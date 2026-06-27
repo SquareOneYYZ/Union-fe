@@ -29,7 +29,7 @@ import usePersistedState from '../common/util/usePersistedState';
 import ColumnSelect from './components/ColumnSelect';
 import { useCatch } from '../reactHelper';
 import useReportStyles from './common/useReportStyles';
-import TableShimmer from '../common/components/TableShimmer';
+import ReportEmptyState from './components/ReportEmptyState';
 import scheduleReport from './common/scheduleReport';
 
 const columnsArray = [
@@ -60,7 +60,7 @@ const SummaryReportPage = () => {
   const [columns, setColumns] = usePersistedState('summaryColumns', ['startTime', 'distance', 'averageSpeed']);
   const [daily, setDaily] = useState(false);
   const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [searchState, setSearchState] = useState('idle');
 
   const [order, setOrder] = useState('asc');
   const [orderBy, setOrderBy] = useState('deviceName');
@@ -148,19 +148,26 @@ const SummaryReportPage = () => {
         throw Error(await response.text());
       }
     } else {
-      setLoading(true);
+      if (new Date(to) < new Date(from)) {
+        setSearchState('invalid');
+        return;
+      }
+      setItems([]);
+      setSearchState('loading');
       try {
         const response = await fetch(`/api/reports/summary?${query.toString()}`, {
           headers: { Accept: 'application/json' },
         });
         if (response.ok) {
-          setItems(await response.json());
+          const data = await response.json();
+          setItems(data);
           setPage(0);
+          setSearchState(data.length === 0 ? 'empty' : 'success');
         } else {
           throw Error(await response.text());
         }
-      } finally {
-        setLoading(false);
+      } catch {
+        setSearchState('error');
       }
     }
   });
@@ -203,17 +210,14 @@ const SummaryReportPage = () => {
 
   let tableBodyContent;
 
-  if (loading) {
-    tableBodyContent = <TableShimmer columns={columns.length + 1} />;
-  } else if (sortedAndPaginatedData.length === 0) {
+  if (searchState !== 'success') {
     tableBodyContent = (
-      <TableRow>
-        <TableCell colSpan={columns.length + 1} align="center">
-          <Typography variant="body2" color="text.secondary" sx={{ py: 3 }}>
-            {t('sharedNoData') || 'No data available'}
-          </Typography>
-        </TableCell>
-      </TableRow>
+      <ReportEmptyState
+        searchState={searchState}
+        colSpan={columns.length + 1}
+        columns={columns.length + 1}
+        onRetry={() => setSearchState('idle')}
+      />
     );
   } else {
     tableBodyContent = sortedAndPaginatedData.map((item) => (
@@ -231,7 +235,7 @@ const SummaryReportPage = () => {
   return (
     <PageLayout menu={<ReportsMenu />} breadcrumbs={['reportTitle', 'reportSummary']}>
       <div className={classes.header}>
-        <ReportFilter handleSubmit={handleSubmit} handleSchedule={handleSchedule} multiDevice includeGroups loading={loading}>
+        <ReportFilter handleSubmit={handleSubmit} handleSchedule={handleSchedule} multiDevice includeGroups loading={searchState === 'loading'}>
           <div className={classes.filterItem}>
             <FormControl fullWidth>
               <InputLabel>{t('sharedType')}</InputLabel>
@@ -239,11 +243,11 @@ const SummaryReportPage = () => {
                 label={t('sharedType')}
                 value={daily}
                 onChange={(e) => setDaily(e.target.value)}
-                sx={{ // ← ADD THIS
+                sx={{
                   borderRadius: '13px',
                   '& .MuiOutlinedInput-notchedOutline': { borderRadius: '13px' },
                 }}
-                MenuProps={{ // ← ADD THIS
+                MenuProps={{
                   PaperProps: { sx: { borderRadius: '13px' } },
                 }}
               >
@@ -300,7 +304,7 @@ const SummaryReportPage = () => {
         </TableHead>
         <TableBody>{tableBodyContent}</TableBody>
       </Table>
-      {!loading && sortedAndPaginatedData.length > 0 && (
+      {searchState === 'success' && sortedAndPaginatedData.length > 0 && (
         <Box
           sx={{
             display: 'flex',

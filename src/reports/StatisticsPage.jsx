@@ -11,7 +11,7 @@ import usePersistedState from '../common/util/usePersistedState';
 import ColumnSelect from './components/ColumnSelect';
 import { useCatch } from '../reactHelper';
 import useReportStyles from './common/useReportStyles';
-import TableShimmer from '../common/components/TableShimmer';
+import ReportEmptyState from './components/ReportEmptyState';
 
 const columnsArray = [
   ['captureTime', 'statisticsCaptureTime'],
@@ -33,27 +33,34 @@ const StatisticsPage = () => {
 
   const [columns, setColumns] = usePersistedState('statisticsColumns', ['captureTime', 'activeUsers', 'activeDevices', 'messagesStored']);
   const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [searchState, setSearchState] = useState('idle');
 
   const handleSubmit = useCatch(async ({ from, to }) => {
-    setLoading(true);
+    if (new Date(to) < new Date(from)) {
+      setSearchState('invalid');
+      return;
+    }
+    setItems([]);
+    setSearchState('loading');
     try {
       const query = new URLSearchParams({ from, to });
       const response = await fetch(`/api/statistics?${query.toString()}`);
       if (response.ok) {
-        setItems(await response.json());
+        const data = await response.json();
+        setItems(data);
+        setSearchState(data.length === 0 ? 'empty' : 'success');
       } else {
         throw Error(await response.text());
       }
-    } finally {
-      setLoading(false);
+    } catch {
+      setSearchState('error');
     }
   });
 
   return (
     <PageLayout menu={<ReportsMenu />} breadcrumbs={['reportTitle', 'statisticsTitle']}>
       <div className={classes.header}>
-        <ReportFilter handleSubmit={handleSubmit} showOnly ignoreDevice loading={loading}>
+        <ReportFilter handleSubmit={handleSubmit} showOnly ignoreDevice loading={searchState === 'loading'}>
           <ColumnSelect columns={columns} setColumns={setColumns} columnsArray={columnsArray} />
         </ReportFilter>
       </div>
@@ -64,7 +71,14 @@ const StatisticsPage = () => {
           </TableRow>
         </TableHead>
         <TableBody>
-          {!loading ? items.map((item) => (
+          {searchState !== 'success' ? (
+            <ReportEmptyState
+              searchState={searchState}
+              colSpan={columns.length}
+              columns={columns.length}
+              onRetry={() => setSearchState('idle')}
+            />
+          ) : items.map((item) => (
             <TableRow key={item.id}>
               {columns.map((key) => (
                 <TableCell key={key}>
@@ -72,7 +86,7 @@ const StatisticsPage = () => {
                 </TableCell>
               ))}
             </TableRow>
-          )) : (<TableShimmer columns={columns.length} />)}
+          ))}
         </TableBody>
       </Table>
     </PageLayout>

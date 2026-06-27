@@ -21,7 +21,7 @@ import MapRoutePath from '../map/MapRoutePath';
 import MapRoutePoints from '../map/MapRoutePoints';
 import MapPositions from '../map/MapPositions';
 import useReportStyles from './common/useReportStyles';
-import TableShimmer from '../common/components/TableShimmer';
+import ReportEmptyState from './components/ReportEmptyState';
 import MapCamera from '../map/MapCamera';
 import MapGeofence from '../map/MapGeofence';
 import scheduleReport from './common/scheduleReport';
@@ -42,7 +42,7 @@ const RouteReportPage = () => {
   const [available, setAvailable] = useState([]);
   const [columns, setColumns] = useState(['fixTime', 'latitude', 'longitude', 'speed', 'address']);
   const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [searchState, setSearchState] = useState('idle');
   const [selectedItem, setSelectedItem] = useState(null);
 
   const selectedIcon = useRef();
@@ -68,7 +68,14 @@ const RouteReportPage = () => {
         throw Error(await response.text());
       }
     } else {
-      setLoading(true);
+      if (new Date(to) < new Date(from)) {
+        setSearchState('invalid');
+        return;
+      }
+
+      setItems([]);
+      setSelectedItem(null);
+      setSearchState('loading');
       try {
         const response = await fetch(`/api/reports/route?${query.toString()}`, {
           headers: { Accept: 'application/json' },
@@ -90,11 +97,12 @@ const RouteReportPage = () => {
           });
           setAvailable([...keyList, ...keySet].map((key) => [key, positionAttributes[key]?.name || key]));
           setItems(data);
+          setSearchState(data.length === 0 ? 'empty' : 'success');
         } else {
           throw Error(await response.text());
         }
-      } finally {
-        setLoading(false);
+      } catch {
+        setSearchState('error');
       }
     }
   });
@@ -112,7 +120,7 @@ const RouteReportPage = () => {
   return (
     <PageLayout menu={<ReportsMenu />} breadcrumbs={['reportTitle', 'reportRoute']}>
       <div className={classes.container}>
-        {selectedItem && (
+        {searchState === 'success' && selectedItem && (
           <div className={classes.containerMap}>
             <MapView>
               <MapGeofence />
@@ -133,7 +141,7 @@ const RouteReportPage = () => {
         )}
         <div className={classes.containerMain}>
           <div className={classes.header}>
-            <ReportFilter handleSubmit={handleSubmit} handleSchedule={handleSchedule} multiDevice loading={loading}>
+            <ReportFilter handleSubmit={handleSubmit} handleSchedule={handleSchedule} multiDevice loading={searchState === 'loading'}>
               <ColumnSelect
                 columns={columns}
                 setColumns={setColumns}
@@ -153,7 +161,15 @@ const RouteReportPage = () => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {!loading ? items.slice(0, 4000).map((item) => (
+              {searchState !== 'success' ? (
+                <ReportEmptyState
+                  searchState={searchState}
+                  colSpan={columns.length + 3}
+                  columns={columns.length + 3}
+                  startAction
+                  onRetry={() => setSearchState('idle')}
+                />
+              ) : items.slice(0, 4000).map((item) => (
                 <TableRow key={item.id}>
                   <TableCell className={classes.columnAction} padding="none">
                     {selectedItem === item ? (
@@ -182,13 +198,12 @@ const RouteReportPage = () => {
                       endpoint="positions"
                       readonly={readonly}
                       setTimestamp={() => {
-                        // NOTE: Gets called when an item was removed
                         setItems(items.filter((position) => position.id !== item.id));
                       }}
                     />
                   </TableCell>
                 </TableRow>
-              )) : (<TableShimmer columns={columns.length + 2} startAction />)}
+              ))}
             </TableBody>
           </Table>
         </div>

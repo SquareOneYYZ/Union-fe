@@ -11,7 +11,7 @@ import ReportsMenu from './components/ReportsMenu';
 import { useCatch } from '../reactHelper';
 import MapView from '../map/core/MapView';
 import useReportStyles from './common/useReportStyles';
-import TableShimmer from '../common/components/TableShimmer';
+import ReportEmptyState from './components/ReportEmptyState';
 import MapCamera from '../map/MapCamera';
 import MapGeofence from '../map/MapGeofence';
 import { formatTime } from '../common/util/formatter';
@@ -26,7 +26,7 @@ const CombinedReportPage = () => {
   const t = useTranslation();
   const devices = useSelector((state) => state.devices.items);
   const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [searchState, setSearchState] = useState('idle');
 
   const [order, setOrder] = useState('asc');
   const [orderBy, setOrderBy] = useState('eventTime');
@@ -90,21 +90,13 @@ const CombinedReportPage = () => {
       }
 
       if (order === 'asc') {
-        if (aVal < bVal) {
-          return -1;
-        }
-        if (aVal > bVal) {
-          return 1;
-        }
+        if (aVal < bVal) return -1;
+        if (aVal > bVal) return 1;
         return 0;
       }
 
-      if (aVal > bVal) {
-        return -1;
-      }
-      if (aVal < bVal) {
-        return 1;
-      }
+      if (aVal > bVal) return -1;
+      if (aVal < bVal) return 1;
       return 0;
     };
 
@@ -118,36 +110,44 @@ const CombinedReportPage = () => {
   const endRow = Math.min((page + 1) * rowsPerPage, totalCount);
 
   const handleSubmit = useCatch(async ({ deviceIds, groupIds, from, to }) => {
+    if (new Date(to) < new Date(from)) {
+      setItems([]);
+      setSearchState('invalid');
+      return;
+      return;
+    }
+
     const query = new URLSearchParams({ from, to });
     deviceIds.forEach((deviceId) => query.append('deviceId', deviceId));
     groupIds.forEach((groupId) => query.append('groupId', groupId));
-    setLoading(true);
+    setItems([]);
+    setSearchState('loading');
     try {
       const response = await fetch(`/api/reports/combined?${query.toString()}`);
       if (response.ok) {
-        setItems(await response.json());
+        const data = await response.json();
+        setItems(data);
         setPage(0);
+        setSearchState(data.flatMap((item) => item.events).length === 0 ? 'empty' : 'success');
       } else {
         throw Error(await response.text());
       }
-    } finally {
-      setLoading(false);
+    } catch {
+      setSearchState('error');
     }
   });
 
   let tableBodyContent;
 
-  if (loading) {
-    tableBodyContent = <TableShimmer columns={3} />;
-  } else if (sortedAndPaginatedData.length === 0) {
+  if (searchState !== 'success') {
     tableBodyContent = (
-      <TableRow>
-        <TableCell colSpan={3} align="center">
-          <Typography variant="body2" color="text.secondary" sx={{ py: 3 }}>
-            {t('sharedNoData') || 'No data available'}
-          </Typography>
-        </TableCell>
-      </TableRow>
+      <ReportEmptyState
+        searchState={searchState}
+        colSpan={3}
+        columns={3}
+        key={searchState}
+        onRetry={() => setSearchState('idle')}
+      />
     );
   } else {
     tableBodyContent = sortedAndPaginatedData.map((row) => (
@@ -171,7 +171,7 @@ const CombinedReportPage = () => {
           overflow: 'hidden',
         }}
       >
-        {Boolean(items.length) && (
+        {searchState === 'success' && Boolean(items.length) && (
           <>
             <div
               className={classes.containerMap}
@@ -240,7 +240,7 @@ const CombinedReportPage = () => {
               showOnly
               multiDevice
               includeGroups
-              loading={loading}
+              loading={searchState === 'loading'}
             />
           </div>
           <Table>
@@ -254,9 +254,9 @@ const CombinedReportPage = () => {
                   >
                     {t('sharedDevice')}
                     {orderBy === 'deviceName' && (
-                    <Box component="span" sx={visuallyHidden}>
-                      {order === 'desc' ? 'sorted descending' : 'sorted ascending'}
-                    </Box>
+                      <Box component="span" sx={visuallyHidden}>
+                        {order === 'desc' ? 'sorted descending' : 'sorted ascending'}
+                      </Box>
                     )}
                   </TableSortLabel>
                 </TableCell>
@@ -269,9 +269,9 @@ const CombinedReportPage = () => {
                   >
                     {t('positionFixTime')}
                     {orderBy === 'eventTime' && (
-                    <Box component="span" sx={visuallyHidden}>
-                      {order === 'desc' ? 'sorted descending' : 'sorted ascending'}
-                    </Box>
+                      <Box component="span" sx={visuallyHidden}>
+                        {order === 'desc' ? 'sorted descending' : 'sorted ascending'}
+                      </Box>
                     )}
                   </TableSortLabel>
                 </TableCell>
@@ -284,9 +284,9 @@ const CombinedReportPage = () => {
                   >
                     {t('sharedType')}
                     {orderBy === 'eventType' && (
-                    <Box component="span" sx={visuallyHidden}>
-                      {order === 'desc' ? 'sorted descending' : 'sorted ascending'}
-                    </Box>
+                      <Box component="span" sx={visuallyHidden}>
+                        {order === 'desc' ? 'sorted descending' : 'sorted ascending'}
+                      </Box>
                     )}
                   </TableSortLabel>
                 </TableCell>
@@ -296,7 +296,7 @@ const CombinedReportPage = () => {
             <TableBody>{tableBodyContent}</TableBody>
           </Table>
 
-          {!loading && sortedAndPaginatedData.length > 0 && (
+          {searchState === 'success' && sortedAndPaginatedData.length > 0 && (
             <Box
               sx={{
                 display: 'flex',
