@@ -40,7 +40,9 @@ const DeviceList = ({ devices }) => {
     if (response.ok) {
       dispatch(devicesActions.refresh(await response.json()));
     } else {
-      throw Error(await response.text());
+      const err = Error(await response.text());
+      err.status = response.status;
+      throw err;
     }
   }, []);
 

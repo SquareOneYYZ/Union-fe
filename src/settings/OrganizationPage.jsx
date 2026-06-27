@@ -34,7 +34,9 @@ const OrganizationPage = () => {
     if (response.ok) {
       dispatch(organizationsActions.refresh(await response.json()));
     } else {
-      throw Error(await response.text());
+      const err = Error(await response.text());
+      err.status = response.status;
+      throw err;
     }
   });
 

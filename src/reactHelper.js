@@ -1,5 +1,6 @@
 import { useRef, useEffect, useCallback } from 'react';
 import { useDispatch } from 'react-redux';
+import Clarity from '@microsoft/clarity';
 import { errorsActions } from './store';
 
 export const usePrevious = (value) => {
@@ -10,15 +11,27 @@ export const usePrevious = (value) => {
   return ref.current;
 };
 
-/* eslint-disable */
+const fireClarity = (error) => {
+  try {
+    Clarity.event('app_error');
+    Clarity.set('error_message', error.message?.split('\n')[0] || 'unknown');
+    Clarity.set('error_status', String(error.status || ''));
+    Clarity.upgrade('error_occurred');
+  } catch (e) {
+  }
+};
+
 export const useEffectAsync = (effect, deps) => {
   const dispatch = useDispatch();
   const ref = useRef();
   useEffect(() => {
     effect()
       .then((result) => ref.current = result)
-      .catch((error) => dispatch(errorsActions.push(error.message)));
-      
+      .catch((error) => {
+        fireClarity(error);
+        dispatch(errorsActions.push({ message: error.message, status: error.status }));
+      });
+
     return () => {
       const result = ref.current;
       if (result) {
@@ -31,7 +44,10 @@ export const useEffectAsync = (effect, deps) => {
 export const useCatch = (method) => {
   const dispatch = useDispatch();
   return (...parameters) => {
-    method(...parameters).catch((error) => dispatch(errorsActions.push(error.message)));
+    method(...parameters).catch((error) => {
+      fireClarity(error);
+      dispatch(errorsActions.push({ message: error.message, status: error.status }));
+    });
   };
 };
 

@@ -89,7 +89,9 @@ const UserPage = () => {
         navigate('/login');
         dispatch(sessionActions.updateUser(null));
       } else {
-        throw Error(await response.text());
+        const err = Error(await response.text());
+        err.status = response.status;
+        throw err;
       }
     } else {
       setDeleteFailed(true);
@@ -101,7 +103,9 @@ const UserPage = () => {
     if (response.ok) {
       setItem({ ...item, totpKey: await response.text() });
     } else {
-      throw Error(await response.text());
+      const err = Error(await response.text());
+      err.status = response.status;
+      throw err;
     }
   });
 

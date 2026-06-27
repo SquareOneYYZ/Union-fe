@@ -105,7 +105,9 @@ const TripReportPage = () => {
       if (response.ok) {
         setRoute(await response.json());
       } else {
-        throw Error(await response.text());
+        const err = Error(await response.text());
+        err.status = response.status;
+        throw err;
       }
     } else {
       setRoute(null);
@@ -183,7 +185,9 @@ const TripReportPage = () => {
     } else if (type === 'mail') {
       const response = await fetch(`/api/reports/trips/mail?${query.toString()}`);
       if (!response.ok) {
-        throw Error(await response.text());
+        const err = Error(await response.text());
+        err.status = response.status;
+        throw err;
       }
     } else {
       setLoading(true);
@@ -195,7 +199,9 @@ const TripReportPage = () => {
           setItems(await response.json());
           setPage(0);
         } else {
-          throw Error(await response.text());
+          const err = Error(await response.text());
+          err.status = response.status;
+          throw err;
         }
       } finally {
         setLoading(false);
@@ -295,64 +301,64 @@ const TripReportPage = () => {
         }}
       >
         {selectedItem && (
-        <>
-          <div
-            className={classes.containerMap}
-            style={{
-              height: `${mapHeight}%`,
-              minHeight: '150px',
-              position: 'relative',
-              overflow: 'hidden',
-            }}
-          >
-            <MapView>
-              <MapGeofence />
-              {route && (
-              <>
-                <MapRoutePath positions={route} />
-                <MapMarkers markers={createMarkers()} />
-                <MapCamera positions={route} />
-              </>
-              )}
-            </MapView>
-            <MapScale />
-          </div>
-
-          <button
-            type="button"
-            aria-label="Resize map"
-            onMouseDown={handleMouseDown}
-            style={{
-              height: '8px',
-              backgroundColor: '#e0e0e0',
-              cursor: 'row-resize',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-              borderTop: '1px solid #ccc',
-              borderBottom: '1px solid #ccc',
-              transition: 'background-color 0.2s',
-            }}
-            onMouseEnter={(e) => {
-              const target = e.currentTarget;
-              target.style.backgroundColor = '#d0d0d0';
-            }}
-            onMouseLeave={(e) => {
-              const target = e.currentTarget;
-              target.style.backgroundColor = '#e0e0e0';
-            }}
-          >
+          <>
             <div
+              className={classes.containerMap}
               style={{
-                width: '40px',
-                height: '4px',
-                backgroundColor: '#999',
-                borderRadius: '2px',
+                height: `${mapHeight}%`,
+                minHeight: '150px',
+                position: 'relative',
+                overflow: 'hidden',
               }}
-            />
-          </button>
-        </>
+            >
+              <MapView>
+                <MapGeofence />
+                {route && (
+                  <>
+                    <MapRoutePath positions={route} />
+                    <MapMarkers markers={createMarkers()} />
+                    <MapCamera positions={route} />
+                  </>
+                )}
+              </MapView>
+              <MapScale />
+            </div>
+
+            <button
+              type="button"
+              aria-label="Resize map"
+              onMouseDown={handleMouseDown}
+              style={{
+                height: '8px',
+                backgroundColor: '#e0e0e0',
+                cursor: 'row-resize',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+                borderTop: '1px solid #ccc',
+                borderBottom: '1px solid #ccc',
+                transition: 'background-color 0.2s',
+              }}
+              onMouseEnter={(e) => {
+                const target = e.currentTarget;
+                target.style.backgroundColor = '#d0d0d0';
+              }}
+              onMouseLeave={(e) => {
+                const target = e.currentTarget;
+                target.style.backgroundColor = '#e0e0e0';
+              }}
+            >
+              <div
+                style={{
+                  width: '40px',
+                  height: '4px',
+                  backgroundColor: '#999',
+                  borderRadius: '2px',
+                }}
+              />
+            </button>
+          </>
         )}
 
         <div

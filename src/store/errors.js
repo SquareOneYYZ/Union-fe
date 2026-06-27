@@ -7,7 +7,10 @@ const { reducer, actions } = createSlice({
   },
   reducers: {
     push(state, action) {
-      state.errors.push(action.payload);
+      const payload = typeof action.payload === 'string'
+        ? { message: action.payload, status: undefined }
+        : action.payload;
+      state.errors.push(payload);
     },
     pop(state) {
       if (state.errors.length) {

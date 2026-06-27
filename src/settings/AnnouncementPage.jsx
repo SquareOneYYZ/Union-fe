@@ -38,7 +38,9 @@ const AnnouncementPage = () => {
     if (response.ok) {
       navigate(-1);
     } else {
-      throw Error(await response.text());
+      const err = Error(await response.text());
+      err.status = response.status;
+      throw err;
     }
   }, [users, notificator, message, navigate]);
 

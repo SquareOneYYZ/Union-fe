@@ -24,7 +24,9 @@ const EditItemView = ({
         if (response.ok) {
           setItem(await response.json());
         } else {
-          throw Error(await response.text());
+          const err = Error(await response.text());
+          err.status = response.status;
+          throw err;
         }
       } else {
         setItem(defaultItem || {});
@@ -50,7 +52,7 @@ const EditItemView = ({
     const response = await fetch(url, {
       method: !id ? 'POST' : 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(savedItem),  
+      body: JSON.stringify(savedItem),
     });
 
     if (response.ok) {
@@ -59,7 +61,9 @@ const EditItemView = ({
       }
       navigate(-1);
     } else {
-      throw Error(await response.text());
+      const err = Error(await response.text());
+      err.status = response.status;
+      throw err;
     }
   });
 

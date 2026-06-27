@@ -150,7 +150,9 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
       if (response.ok) {
         dispatch(devicesActions.refresh(await response.json()));
       } else {
-        throw Error(await response.text());
+        const err = Error(await response.text());
+        err.status = response.status;
+        throw err;
       }
     }
     setRemoving(false);
@@ -178,7 +180,7 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
       }
       navigate(`/settings/geofence/${item.id}`);
     } else {
-      throw Error(await response.text());
+      const err = Error(await response.text()); err.status = response.status; throw err;
     }
   }, [navigate, position]);
 

@@ -71,7 +71,9 @@ const SelectField = ({
         const data = await response.json();
         setItems(filter ? filter(data) : data);
       } else {
-        throw Error(await response.text());
+        const err = Error(await response.text());
+        err.status = response.status;
+        throw err;
       }
     }
   }, []);

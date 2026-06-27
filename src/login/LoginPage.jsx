@@ -19,6 +19,7 @@ import {
 import LogoImage from './LogoImage';
 import { useCatch } from '../reactHelper';
 import Loader from '../common/components/Loader';
+import mapError from '../common/util/errorMapper';
 
 const useStyles = makeStyles((theme) => ({
   options: {
@@ -55,12 +56,9 @@ const LoginPage = () => {
   const navigate = useNavigate();
   const theme = useTheme();
   const t = useTranslation();
-
+  const [errorMessage, setErrorMessage] = useState('');
   const { languages, language, setLanguage } = useLocalization();
   const languageList = Object.entries(languages).map((values) => ({ code: values[0], country: values[1].country, name: values[1].name }));
-
-  const [failed, setFailed] = useState(false);
-
   const [email, setEmail] = usePersistedState('loginEmail', '');
   const [password, setPassword] = useState('');
   const [code, setCode] = useState('');
@@ -75,10 +73,9 @@ const LoginPage = () => {
 
   const [announcementShown, setAnnouncementShown] = useState(false);
   const announcement = useSelector((state) => state.session.server.announcement);
-
   const handlePasswordLogin = async (event) => {
     event.preventDefault();
-    setFailed(false);
+    setErrorMessage('');
     try {
       const query = `email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`;
       const response = await fetch('/api/session', {
@@ -93,10 +90,12 @@ const LoginPage = () => {
       } else if (response.status === 401 && response.headers.get('WWW-Authenticate') === 'TOTP') {
         setCodeEnabled(true);
       } else {
-        throw Error(await response.text());
+        const body = await response.text();
+        setErrorMessage(mapError(body, response.status));
+        setPassword('');
       }
     } catch (error) {
-      setFailed(true);
+      setErrorMessage('Something went wrong. Please try again.');
       setPassword('');
     }
   };
@@ -108,7 +107,8 @@ const LoginPage = () => {
       dispatch(sessionActions.updateUser(user));
       navigate('/');
     } else {
-      throw Error(await response.text());
+      const body = await response.text();
+      setErrorMessage(mapError(body, response.status));
     }
   });
 
@@ -158,18 +158,18 @@ const LoginPage = () => {
         {useMediaQuery(theme.breakpoints.down('lg')) && <LogoImage color={theme.palette.primary.main} />}
         <TextField
           required
-          error={failed}
+          error={!!errorMessage}
           label={t('userEmail')}
           name="email"
           value={email}
           autoComplete="email"
           autoFocus={!email}
           onChange={(e) => setEmail(e.target.value)}
-          helperText={failed && 'Invalid username or password'}
+          helperText={errorMessage || ''}
         />
         <TextField
           required
-          error={failed}
+          error={!!errorMessage}
           label={t('userPassword')}
           name="password"
           value={password}
@@ -181,7 +181,7 @@ const LoginPage = () => {
         {codeEnabled && (
           <TextField
             required
-            error={failed}
+            error={!!errorMessage}
             label={t('loginTotpCode')}
             name="code"
             value={code}
@@ -231,10 +231,12 @@ const LoginPage = () => {
         </div>
       </div>
       <Snackbar
-        open={!!announcement && !announcementShown}
-        message={announcement}
+        open={!!errorMessage}
+        message={errorMessage}
+        autoHideDuration={6000}
+        onClose={() => setErrorMessage('')}
         action={(
-          <IconButton size="small" color="inherit" onClick={() => setAnnouncementShown(true)}>
+          <IconButton size="small" color="inherit" onClick={() => setErrorMessage('')}>
             <CloseIcon fontSize="small" />
           </IconButton>
         )}

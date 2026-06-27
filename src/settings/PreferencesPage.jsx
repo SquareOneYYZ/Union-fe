@@ -64,7 +64,9 @@ const PreferencesPage = () => {
     if (response.ok) {
       setToken(await response.text());
     } else {
-      throw Error(await response.text());
+      const err = Error(await response.text());
+      err.status = response.status;
+      throw err;
     }
   });
 
@@ -83,7 +85,9 @@ const PreferencesPage = () => {
       dispatch(sessionActions.updateUser(await response.json()));
       navigate(-1);
     } else {
-      throw Error(await response.text());
+      const err = Error(await response.text());
+      err.status = response.status;
+      throw err;
     }
   });
 
@@ -355,7 +359,7 @@ const PreferencesPage = () => {
             </FormControl>
           </AccordionDetails>
         </Accordion>
-        { admin && (
+        {admin && (
           <>
             <Accordion>
               <AccordionSummary expandIcon={<ExpandMoreIcon />}>

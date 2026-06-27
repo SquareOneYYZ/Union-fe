@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import {
   Button, TextField, Typography, Snackbar, IconButton,
 } from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
 import makeStyles from '@mui/styles/makeStyles';
 import { useNavigate } from 'react-router-dom';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -11,6 +12,7 @@ import { useTranslation } from '../common/components/LocalizationProvider';
 import { snackBarDurationShortMs } from '../common/util/duration';
 import { useCatch, useEffectAsync } from '../reactHelper';
 import { sessionActions } from '../store';
+import mapError from '../common/util/errorMapper';
 
 const useStyles = makeStyles((theme) => ({
   container: {
@@ -35,7 +37,7 @@ const RegisterPage = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const t = useTranslation();
-
+  const [errorMessage, setErrorMessage] = useState('');
   const server = useSelector((state) => state.session.server);
   const totpForce = useSelector((state) => state.session.server.attributes.totpForce);
 
@@ -51,13 +53,14 @@ const RegisterPage = () => {
       if (response.ok) {
         setTotpKey(await response.text());
       } else {
-        throw Error(await response.text());
+        setErrorMessage('Two-factor setup is unavailable. Please contact support.');
       }
     }
   }, [totpForce, setTotpKey]);
 
   const handleSubmit = useCatch(async (event) => {
     event.preventDefault();
+    setErrorMessage('');
     const response = await fetch('/api/users', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -66,7 +69,8 @@ const RegisterPage = () => {
     if (response.ok) {
       setSnackbarOpen(true);
     } else {
-      throw Error(await response.text());
+      const body = await response.text();
+      setErrorMessage(mapError(body, response.status));
     }
   });
 
@@ -140,6 +144,18 @@ const RegisterPage = () => {
         }}
         autoHideDuration={snackBarDurationShortMs}
         message={t('loginCreated')}
+      />
+
+      <Snackbar
+        open={!!errorMessage}
+        message={errorMessage}
+        autoHideDuration={6000}
+        onClose={() => setErrorMessage('')}
+        action={(
+          <IconButton size="small" color="inherit" onClick={() => setErrorMessage('')}>
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        )}
       />
     </LoginLayout>
   );

@@ -31,7 +31,9 @@ const LinkField = ({
       if (response.ok) {
         setItems(await response.json());
       } else {
-        throw Error(await response.text());
+        const err = Error(await response.text());
+        err.status = response.status;
+        throw err;
       }
     }
   }, [active]);
@@ -45,7 +47,7 @@ const LinkField = ({
         setLinkedIds(ids);
         localStorage.setItem(localStorageKey, JSON.stringify(ids));
       } else {
-        throw Error(await response.text());
+        const err = Error(await response.text()); err.status = response.status; throw err;
       }
     }
   }, [active]);

@@ -43,7 +43,9 @@ const GeofencesList = ({ onGeofenceSelected }) => {
     if (response.ok) {
       dispatch(geofencesActions.refresh(await response.json()));
     } else {
-      throw Error(await response.text());
+      const err = Error(await response.text());
+      err.status = response.status;
+      throw err;
     }
   }, [dispatch]);
 

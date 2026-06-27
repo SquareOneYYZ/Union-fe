@@ -15,7 +15,9 @@ const CachingController = () => {
       if (response.ok) {
         dispatch(geofencesActions.refresh(await response.json()));
       } else {
-        throw Error(await response.text());
+        const err = Error(await response.text());
+        err.status = response.status;
+        throw err;
       }
     }
   }, [authenticated]);
@@ -26,7 +28,9 @@ const CachingController = () => {
       if (response.ok) {
         dispatch(groupsActions.refresh(await response.json()));
       } else {
-        throw Error(await response.text());
+        const err = Error(await response.text());
+        err.status = response.status;
+        throw err;
       }
     }
   }, [authenticated]);
@@ -37,7 +41,9 @@ const CachingController = () => {
       if (response.ok) {
         dispatch(driversActions.refresh(await response.json()));
       } else {
-        throw Error(await response.text());
+        const err = Error(await response.text());
+        err.status = response.status;
+        throw err;
       }
     }
   }, [authenticated]);
@@ -48,7 +54,9 @@ const CachingController = () => {
       if (response.ok) {
         dispatch(maintenancesActions.refresh(await response.json()));
       } else {
-        throw Error(await response.text());
+        const err = Error(await response.text());
+        err.status = response.status;
+        throw err;
       }
     }
   }, [authenticated]);
@@ -59,7 +67,9 @@ const CachingController = () => {
       if (response.ok) {
         dispatch(calendarsActions.refresh(await response.json()));
       } else {
-        throw Error(await response.text());
+        const err = Error(await response.text());
+        err.status = response.status;
+        throw err;
       }
     }
   }, [authenticated]);

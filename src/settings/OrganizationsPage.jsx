@@ -32,7 +32,9 @@ const GroupsPage = () => {
       if (response.ok) {
         setItems(await response.json());
       } else {
-        throw Error(await response.text());
+        const err = Error(await response.text());
+        err.status = response.status;
+        throw err;
       }
     } finally {
       setLoading(false);
@@ -77,11 +79,11 @@ const GroupsPage = () => {
                     editPath="/settings/organization"
                     endpoint="organization"
                     setTimestamp={setTimestamp}
-                    // customActions={
-                    //   limitCommands
-                    //     ? [actionConnections]
-                    //     : [actionConnections, actionCommand]
-                    // }
+                  // customActions={
+                  //   limitCommands
+                  //     ? [actionConnections]
+                  //     : [actionConnections, actionCommand]
+                  // }
                   />
                 </TableCell>
               </TableRow>
