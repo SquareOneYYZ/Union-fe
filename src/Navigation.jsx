@@ -60,6 +60,8 @@ import LogsPage from './reports/LogsPage';
 import SharePage from './settings/SharePage';
 import AnnouncementPage from './settings/AnnouncementPage';
 import EmulatorPage from './other/EmulatorPage';
+import AccountRedirect from './AccountRedirect';
+import NotFoundPage from './other/NotFound';
 import Loader from './common/components/Loader';
 import { generateLoginToken } from './common/components/NativeInterface';
 import { useLocalization } from './common/components/LocalizationProvider';
@@ -134,6 +136,7 @@ const Navigation = () => {
         <Route path="emulator" element={<EmulatorPage />} />
 
         <Route path="settings">
+          <Route path="account" element={<AccountRedirect />} />
           <Route path="accumulators/:deviceId" element={<AccumulatorsPage />} />
           <Route path="announcement" element={<AnnouncementPage />} />
           <Route path="calendars" element={<CalendarsPage />} />
@@ -203,6 +206,7 @@ const Navigation = () => {
           <Route path="logs" element={<LogsPage />} />
         </Route>
       </Route>
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );
 };
