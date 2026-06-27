@@ -128,7 +128,9 @@ const CombinedReportPage = () => {
         setItems(await response.json());
         setPage(0);
       } else {
-        throw Error(await response.text());
+        const err = Error(await response.text());
+        err.status = response.status;
+        throw err;
       }
     } finally {
       setLoading(false);
@@ -254,9 +256,9 @@ const CombinedReportPage = () => {
                   >
                     {t('sharedDevice')}
                     {orderBy === 'deviceName' && (
-                    <Box component="span" sx={visuallyHidden}>
-                      {order === 'desc' ? 'sorted descending' : 'sorted ascending'}
-                    </Box>
+                      <Box component="span" sx={visuallyHidden}>
+                        {order === 'desc' ? 'sorted descending' : 'sorted ascending'}
+                      </Box>
                     )}
                   </TableSortLabel>
                 </TableCell>
@@ -269,9 +271,9 @@ const CombinedReportPage = () => {
                   >
                     {t('positionFixTime')}
                     {orderBy === 'eventTime' && (
-                    <Box component="span" sx={visuallyHidden}>
-                      {order === 'desc' ? 'sorted descending' : 'sorted ascending'}
-                    </Box>
+                      <Box component="span" sx={visuallyHidden}>
+                        {order === 'desc' ? 'sorted descending' : 'sorted ascending'}
+                      </Box>
                     )}
                   </TableSortLabel>
                 </TableCell>
@@ -284,9 +286,9 @@ const CombinedReportPage = () => {
                   >
                     {t('sharedType')}
                     {orderBy === 'eventType' && (
-                    <Box component="span" sx={visuallyHidden}>
-                      {order === 'desc' ? 'sorted descending' : 'sorted ascending'}
-                    </Box>
+                      <Box component="span" sx={visuallyHidden}>
+                        {order === 'desc' ? 'sorted descending' : 'sorted ascending'}
+                      </Box>
                     )}
                   </TableSortLabel>
                 </TableCell>

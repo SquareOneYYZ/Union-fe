@@ -17,7 +17,7 @@ export const useEffectAsync = (effect, deps) => {
   useEffect(() => {
     effect()
       .then((result) => ref.current = result)
-      .catch((error) => dispatch(errorsActions.push(error.message)));
+      .catch((error) => dispatch(errorsActions.push({ message: error.message, status: error.status })));
       
     return () => {
       const result = ref.current;
@@ -31,7 +31,7 @@ export const useEffectAsync = (effect, deps) => {
 export const useCatch = (method) => {
   const dispatch = useDispatch();
   return (...parameters) => {
-    method(...parameters).catch((error) => dispatch(errorsActions.push(error.message)));
+    method(...parameters).catch((error) => dispatch(errorsActions.push({ message: error.message, status: error.status })));
   };
 };
 
