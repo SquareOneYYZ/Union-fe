@@ -4,6 +4,10 @@ import {
   FormControl, InputLabel, Select, MenuItem, useTheme, Button, ButtonGroup,
   Box, Typography, Card, CardContent,
 } from '@mui/material';
+import InboxIcon from '@mui/icons-material/Inbox';
+import SearchOffIcon from '@mui/icons-material/SearchOff';
+import DateRangeIcon from '@mui/icons-material/DateRange';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import {
   Area, AreaChart, CartesianGrid, Line, LineChart, ResponsiveContainer,
   Tooltip, XAxis, YAxis, Brush,
@@ -77,14 +81,12 @@ const ChartReportPage = () => {
   const classes = useReportStyles();
   const theme = useTheme();
   const t = useTranslation();
-
+  const [searchState, setSearchState] = useState('idle');
   const positionAttributes = usePositionAttributes(t);
-
   const distanceUnit = useAttributePreference('distanceUnit');
   const altitudeUnit = useAttributePreference('altitudeUnit');
   const speedUnit = useAttributePreference('speedUnit');
   const volumeUnit = useAttributePreference('volumeUnit');
-
   const [items, setItems] = useState([]);
   const [types, setTypes] = useState(['speed']);
   const [selectedTypes, setSelectedTypes] = useState(['speed']);
@@ -108,61 +110,74 @@ const ChartReportPage = () => {
   const chartMinValue = Math.max(0, minValue - valueRange / 5);
   const chartMaxValue = maxValue + valueRange / 5;
   const handleSubmit = useCatch(async ({ deviceId, from, to }) => {
-    const query = new URLSearchParams({ deviceId, from, to });
-    const response = await fetch(`/api/reports/route?${query.toString()}`, {
-      headers: { Accept: 'application/json' },
-    });
-    if (response.ok) {
-      const positions = await response.json();
-      const keySet = new Set();
-      const keyList = [];
-      const formattedPositions = positions.map((position) => {
-        const data = { ...position, ...position.attributes };
-        const formatted = {};
-        formatted.fixTime = dayjs(position.fixTime).valueOf();
-        formatted.deviceTime = dayjs(position.deviceTime).valueOf();
-        formatted.serverTime = dayjs(position.serverTime).valueOf();
-        Object.keys(data).filter((key) => !['id', 'deviceId'].includes(key)).forEach((key) => {
-          const value = data[key];
-          if (typeof value === 'number') {
-            keySet.add(key);
-            const definition = positionAttributes[key] || {};
-            switch (definition.dataType) {
-              case 'speed':
-                formatted[key] = speedFromKnots(value, speedUnit).toFixed(2);
-                break;
-              case 'altitude':
-                formatted[key] = altitudeFromMeters(value, altitudeUnit).toFixed(2);
-                break;
-              case 'distance':
-                formatted[key] = distanceFromMeters(value, distanceUnit).toFixed(2);
-                break;
-              case 'volume':
-                formatted[key] = volumeFromLiters(value, volumeUnit).toFixed(2);
-                break;
-              case 'hours':
-                formatted[key] = (value / 1000).toFixed(2);
-                break;
-              default:
-                formatted[key] = value;
-                break;
+    if (new Date(to) < new Date(from)) {
+      setSearchState('invalid');
+      setItems([]);
+      return;
+    }
+
+    setItems([]);
+    setSearchState('loading');
+    try {
+      const query = new URLSearchParams({ deviceId, from, to });
+      const response = await fetch(`/api/reports/route?${query.toString()}`, {
+        headers: { Accept: 'application/json' },
+      });
+      if (response.ok) {
+        const positions = await response.json();
+        const keySet = new Set();
+        const keyList = [];
+        const formattedPositions = positions.map((position) => {
+          const data = { ...position, ...position.attributes };
+          const formatted = {};
+          formatted.fixTime = dayjs(position.fixTime).valueOf();
+          formatted.deviceTime = dayjs(position.deviceTime).valueOf();
+          formatted.serverTime = dayjs(position.serverTime).valueOf();
+          Object.keys(data).filter((key) => !['id', 'deviceId'].includes(key)).forEach((key) => {
+            const value = data[key];
+            if (typeof value === 'number') {
+              keySet.add(key);
+              const definition = positionAttributes[key] || {};
+              switch (definition.dataType) {
+                case 'speed':
+                  formatted[key] = speedFromKnots(value, speedUnit).toFixed(2);
+                  break;
+                case 'altitude':
+                  formatted[key] = altitudeFromMeters(value, altitudeUnit).toFixed(2);
+                  break;
+                case 'distance':
+                  formatted[key] = distanceFromMeters(value, distanceUnit).toFixed(2);
+                  break;
+                case 'volume':
+                  formatted[key] = volumeFromLiters(value, volumeUnit).toFixed(2);
+                  break;
+                case 'hours':
+                  formatted[key] = (value / 1000).toFixed(2);
+                  break;
+                default:
+                  formatted[key] = value;
+                  break;
+              }
             }
+          });
+          return formatted;
+        });
+        Object.keys(positionAttributes).forEach((key) => {
+          if (keySet.has(key)) {
+            keyList.push(key);
+            keySet.delete(key);
           }
         });
-        return formatted;
-      });
-      Object.keys(positionAttributes).forEach((key) => {
-        if (keySet.has(key)) {
-          keyList.push(key);
-          keySet.delete(key);
-        }
-      });
-      setTypes([...keyList, ...keySet]);
-      setItems(formattedPositions);
-      setBrushDomain(null);
-      setZoomLevel('all');
-    } else {
-      throw Error(await response.text());
+        setTypes([...keyList, ...keySet]);
+        setItems(formattedPositions);
+        setBrushDomain(null);
+        setZoomLevel('all');
+        setSearchState(formattedPositions.length === 0 ? 'empty' : 'success');
+      } else {
+        throw Error(await response.text());
+      }
+    } catch {
+      setSearchState('error');
     }
   });
 
@@ -200,7 +215,7 @@ const ChartReportPage = () => {
 
   return (
     <PageLayout menu={<ReportsMenu />} breadcrumbs={['reportTitle', 'reportChart']}>
-      <ReportFilter handleSubmit={handleSubmit} showOnly>
+      <ReportFilter handleSubmit={handleSubmit} showOnly loading={searchState === 'loading'}>
         <div className={classes.filterItem}>
           <FormControl fullWidth>
             <InputLabel>{t('reportChartType')}</InputLabel>
@@ -248,6 +263,66 @@ const ChartReportPage = () => {
           </FormControl>
         </div>
       </ReportFilter>
+      {searchState === 'idle' && (
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 10, gap: 1.5 }}>
+          <InboxIcon sx={{ fontSize: 48, color: 'text.disabled' }} />
+          <Typography variant="subtitle1" fontWeight={600} color="text.secondary">
+            {t('reportNoSearchYet') || 'No search run yet'}
+          </Typography>
+          <Typography variant="body2" color="text.disabled" textAlign="center" sx={{ maxWidth: 360 }}>
+            {t('reportNoSearchYetHint') || 'Select your filters above and click Show to load results.'}
+          </Typography>
+        </Box>
+      )}
+      {searchState !== 'idle' && searchState !== 'success' && searchState !== 'loading' && (
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            py: 10,
+            gap: 1.5,
+          }}
+        >
+          {searchState === 'invalid' && (
+            <>
+              <DateRangeIcon sx={{ fontSize: 48, color: 'warning.main' }} />
+              <Typography variant="subtitle1" fontWeight={600} color="warning.main">
+                {t('reportInvalidDateRange') || 'Invalid date range'}
+              </Typography>
+              <Typography variant="body2" color="text.disabled" textAlign="center" sx={{ maxWidth: 360 }}>
+                {t('reportInvalidDateRangeHint') || 'No data matches the selected criteria. Try adjusting the date range or filters.'}
+              </Typography>
+            </>
+          )}
+          {searchState === 'empty' && (
+            <>
+              <SearchOffIcon sx={{ fontSize: 48, color: 'text.disabled' }} />
+              <Typography variant="subtitle1" fontWeight={600} color="text.secondary">
+                {t('reportNoResults') || 'No results found'}
+              </Typography>
+              <Typography variant="body2" color="text.disabled" textAlign="center" sx={{ maxWidth: 360 }}>
+                {t('reportNoResultsHint') || 'No records were returned for the selected period.'}
+              </Typography>
+            </>
+          )}
+          {searchState === 'error' && (
+            <>
+              <ErrorOutlineIcon sx={{ fontSize: 48, color: 'error.light' }} />
+              <Typography variant="subtitle1" fontWeight={600} color="error.main">
+                {t('reportError') || 'Report could not be loaded'}
+              </Typography>
+              <Typography variant="body2" color="text.disabled" textAlign="center" sx={{ maxWidth: 360 }}>
+                {t('reportErrorHint') || 'The report could not be loaded. Please try again.'}
+              </Typography>
+              <Button variant="outlined" color="error" size="small" onClick={() => setSearchState('idle')} sx={{ mt: 1 }}>
+                {t('reportRetry') || 'Try Again'}
+              </Button>
+            </>
+          )}
+        </Box>
+      )}
       {displayData.length > 0 && (
         <Card
           sx={{
@@ -422,8 +497,9 @@ const ChartReportPage = () => {
             </Typography>
           </CardContent>
         </Card>
-      )}
-    </PageLayout>
+      )
+      }
+    </PageLayout >
   );
 };
 

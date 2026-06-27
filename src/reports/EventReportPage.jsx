@@ -42,7 +42,7 @@ import usePersistedState from '../common/util/usePersistedState';
 import ColumnSelect from './components/ColumnSelect';
 import { useCatch, useEffectAsync } from '../reactHelper';
 import useReportStyles from './common/useReportStyles';
-import TableShimmer from '../common/components/TableShimmer';
+import ReportEmptyState from './components/ReportEmptyState';
 import { useAttributePreference } from '../common/util/preferences';
 import MapView from '../map/core/MapView';
 import MapGeofence from '../map/MapGeofence';
@@ -100,7 +100,7 @@ const EventReportPage = () => {
   const [eventTypes, setEventTypes] = useState(['allEvents']);
   const [alarmTypes, setAlarmTypes] = useState([]);
   const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [searchState, setSearchState] = useState('empty');
   const [selectedItem, setSelectedItem] = useState(null);
   const [position, setPosition] = useState(null);
   const [replayMode, setReplayMode] = useState(false);
@@ -248,24 +248,20 @@ const EventReportPage = () => {
         throw Error(await response.text());
       }
     } else {
-      setLoading(true);
+      if (new Date(to) < new Date(from)) {
+        setSearchState('invalid');
+        return;
+      }
+
+      setItems([]);
+      setSearchState('loading');
       try {
-        const response = await fetch(
-          `/api/reports/events?${query.toString()}`,
-          {
-            headers: { Accept: 'application/json' },
-          },
-        );
+        const response = await fetch(`/api/reports/events?${query.toString()}`, {
+          headers: { Accept: 'application/json' },
+        });
         if (response.ok) {
           const data = await response.json();
-
-          const typesToExclude = [
-            'deviceOnline',
-            'deviceUnknown',
-            'commandResult',
-            'queuedCommandSent',
-          ];
-
+          const typesToExclude = ['deviceOnline', 'deviceUnknown', 'commandResult', 'queuedCommandSent'];
           const modifiedData = data.map((item) => ({
             ...item,
             speedLimit: item.attributes?.speedLimit || null,
@@ -273,11 +269,12 @@ const EventReportPage = () => {
           const filteredEvents = filterEvents(modifiedData, typesToExclude);
           setItems(filteredEvents);
           setPage(0);
+          setSearchState(filteredEvents.length === 0 ? 'empty' : 'success');
         } else {
           throw Error(await response.text());
         }
-      } finally {
-        setLoading(false);
+      } catch {
+        setSearchState('error');
       }
     }
   });
@@ -443,17 +440,14 @@ const EventReportPage = () => {
 
   let tableBodyContent;
 
-  if (loading) {
-    tableBodyContent = <TableShimmer columns={columns.length + 2} />;
-  } else if (sortedAndPaginatedData.length === 0) {
+  if (searchState !== 'success') {
     tableBodyContent = (
-      <TableRow>
-        <TableCell colSpan={columns.length + 2} align="center">
-          <Typography variant="body2" color="text.secondary" sx={{ py: 3 }}>
-            {t('sharedNoData') || 'No data available'}
-          </Typography>
-        </TableCell>
-      </TableRow>
+      <ReportEmptyState
+        searchState={searchState}
+        colSpan={columns.length + 2}
+        columns={columns.length + 2}
+        onRetry={() => setSearchState('idle')}
+      />
     );
   } else {
     tableBodyContent = sortedAndPaginatedData.map((item) => {
@@ -482,13 +476,13 @@ const EventReportPage = () => {
 
           <TableCell className={classes.columnAction} padding="none">
             {hasPositionId && (
-            <IconButton
-              size="small"
-              onClick={() => handleReplayStart(item)}
-              disabled={replayLoading}
-            >
-              <ReplayIcon fontSize="small" />
-            </IconButton>
+              <IconButton
+                size="small"
+                onClick={() => handleReplayStart(item)}
+                disabled={replayLoading}
+              >
+                <ReplayIcon fontSize="small" />
+              </IconButton>
             )}
           </TableCell>
 
@@ -506,7 +500,7 @@ const EventReportPage = () => {
       breadcrumbs={['reportTitle', 'reportEvents']}
     >
       <div className={classes.container}>
-        {selectedItem && (
+        {searchState === 'success' && selectedItem && (
           <div className={classes.containerMap}>
             <MapView>
               <MapGeofence />
@@ -528,7 +522,7 @@ const EventReportPage = () => {
             <ReportFilter
               handleSubmit={handleSubmit}
               handleSchedule={handleSchedule}
-              loading={loading}
+              loading={searchState === 'loading'}
             >
               <div className={classes.filterItem}>
                 <FormControl fullWidth>
@@ -621,7 +615,7 @@ const EventReportPage = () => {
             </TableHead>
             <TableBody>{tableBodyContent}</TableBody>
           </Table>
-          {!loading && sortedAndPaginatedData.length > 0 && (
+          {searchState === 'success' && sortedAndPaginatedData.length > 0 && (
             <Box
               sx={{
                 display: 'flex',

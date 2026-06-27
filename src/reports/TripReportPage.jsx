@@ -33,7 +33,7 @@ import useReportStyles from './common/useReportStyles';
 import MapView from '../map/core/MapView';
 import MapRoutePath from '../map/MapRoutePath';
 import AddressValue from '../common/components/AddressValue';
-import TableShimmer from '../common/components/TableShimmer';
+import ReportEmptyState from './components/ReportEmptyState';
 import MapMarkers from '../map/MapMarkers';
 import MapCamera from '../map/MapCamera';
 import MapGeofence from '../map/MapGeofence';
@@ -68,7 +68,7 @@ const TripReportPage = () => {
 
   const [columns, setColumns] = usePersistedState('tripColumns', ['startTime', 'endTime', 'distance', 'averageSpeed']);
   const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [searchState, setSearchState] = useState('idle');
   const [selectedItem, setSelectedItem] = useState(null);
   const [route, setRoute] = useState(null);
 
@@ -186,19 +186,28 @@ const TripReportPage = () => {
         throw Error(await response.text());
       }
     } else {
-      setLoading(true);
+      if (new Date(to) < new Date(from)) {
+        setSearchState('invalid');
+        return;
+      }
+
+      setItems([]);
+      setSelectedItem(null);
+      setSearchState('loading');
       try {
         const response = await fetch(`/api/reports/trips?${query.toString()}`, {
           headers: { Accept: 'application/json' },
         });
         if (response.ok) {
-          setItems(await response.json());
+          const data = await response.json();
+          setItems(data);
           setPage(0);
+          setSearchState(data.length === 0 ? 'empty' : 'success');
         } else {
           throw Error(await response.text());
         }
-      } finally {
-        setLoading(false);
+      } catch {
+        setSearchState('error');
       }
     }
   });
@@ -241,17 +250,15 @@ const TripReportPage = () => {
 
   let tableBodyContent;
 
-  if (loading) {
-    tableBodyContent = <TableShimmer columns={columns.length + 1} startAction />;
-  } else if (sortedAndPaginatedData.length === 0) {
+  if (searchState !== 'success') {
     tableBodyContent = (
-      <TableRow>
-        <TableCell colSpan={columns.length + 1} align="center">
-          <Typography variant="body2" color="text.secondary" sx={{ py: 3 }}>
-            {t('sharedNoData') || 'No data available'}
-          </Typography>
-        </TableCell>
-      </TableRow>
+      <ReportEmptyState
+        searchState={searchState}
+        colSpan={columns.length + 1}
+        columns={columns.length + 1}
+        startAction
+        onRetry={() => setSearchState('idle')}
+      />
     );
   } else {
     tableBodyContent = sortedAndPaginatedData.map((item) => {
@@ -294,65 +301,65 @@ const TripReportPage = () => {
           overflow: 'hidden',
         }}
       >
-        {selectedItem && (
-        <>
-          <div
-            className={classes.containerMap}
-            style={{
-              height: `${mapHeight}%`,
-              minHeight: '150px',
-              position: 'relative',
-              overflow: 'hidden',
-            }}
-          >
-            <MapView>
-              <MapGeofence />
-              {route && (
-              <>
-                <MapRoutePath positions={route} />
-                <MapMarkers markers={createMarkers()} />
-                <MapCamera positions={route} />
-              </>
-              )}
-            </MapView>
-            <MapScale />
-          </div>
-
-          <button
-            type="button"
-            aria-label="Resize map"
-            onMouseDown={handleMouseDown}
-            style={{
-              height: '8px',
-              backgroundColor: '#e0e0e0',
-              cursor: 'row-resize',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-              borderTop: '1px solid #ccc',
-              borderBottom: '1px solid #ccc',
-              transition: 'background-color 0.2s',
-            }}
-            onMouseEnter={(e) => {
-              const target = e.currentTarget;
-              target.style.backgroundColor = '#d0d0d0';
-            }}
-            onMouseLeave={(e) => {
-              const target = e.currentTarget;
-              target.style.backgroundColor = '#e0e0e0';
-            }}
-          >
+        {searchState === 'success' && selectedItem && (
+          <>
             <div
+              className={classes.containerMap}
               style={{
-                width: '40px',
-                height: '4px',
-                backgroundColor: '#999',
-                borderRadius: '2px',
+                height: `${mapHeight}%`,
+                minHeight: '150px',
+                position: 'relative',
+                overflow: 'hidden',
               }}
-            />
-          </button>
-        </>
+            >
+              <MapView>
+                <MapGeofence />
+                {route && (
+                  <>
+                    <MapRoutePath positions={route} />
+                    <MapMarkers markers={createMarkers()} />
+                    <MapCamera positions={route} />
+                  </>
+                )}
+              </MapView>
+              <MapScale />
+            </div>
+
+            <button
+              type="button"
+              aria-label="Resize map"
+              onMouseDown={handleMouseDown}
+              style={{
+                height: '8px',
+                backgroundColor: '#e0e0e0',
+                cursor: 'row-resize',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+                borderTop: '1px solid #ccc',
+                borderBottom: '1px solid #ccc',
+                transition: 'background-color 0.2s',
+              }}
+              onMouseEnter={(e) => {
+                const target = e.currentTarget;
+                target.style.backgroundColor = '#d0d0d0';
+              }}
+              onMouseLeave={(e) => {
+                const target = e.currentTarget;
+                target.style.backgroundColor = '#e0e0e0';
+              }}
+            >
+              <div
+                style={{
+                  width: '40px',
+                  height: '4px',
+                  backgroundColor: '#999',
+                  borderRadius: '2px',
+                }}
+              />
+            </button>
+          </>
         )}
 
         <div
@@ -364,7 +371,7 @@ const TripReportPage = () => {
           }}
         >
           <div className={classes.header}>
-            <ReportFilter handleSubmit={handleSubmit} handleSchedule={handleSchedule} loading={loading}>
+            <ReportFilter handleSubmit={handleSubmit} handleSchedule={handleSchedule} loading={searchState === 'loading'}>
               <ColumnSelect columns={columns} setColumns={setColumns} columnsArray={columnsArray} />
             </ReportFilter>
           </div>
@@ -400,7 +407,7 @@ const TripReportPage = () => {
             </TableHead>
             <TableBody>{tableBodyContent}</TableBody>
           </Table>
-          {!loading && sortedAndPaginatedData.length > 0 && (
+          {searchState === 'success' && sortedAndPaginatedData.length > 0 && (
             <Box
               sx={{
                 display: 'flex',

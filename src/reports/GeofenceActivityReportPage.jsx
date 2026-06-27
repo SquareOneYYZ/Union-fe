@@ -37,7 +37,7 @@ import usePersistedState from '../common/util/usePersistedState';
 import ColumnSelect from './components/ColumnSelect';
 import { useCatch, useEffectAsync } from '../reactHelper';
 import useReportStyles from './common/useReportStyles';
-import TableShimmer from '../common/components/TableShimmer';
+import ReportEmptyState from './components/ReportEmptyState';
 import { useAttributePreference } from '../common/util/preferences';
 import scheduleReport from './common/scheduleReport';
 import MapView from '../map/core/MapView';
@@ -78,9 +78,7 @@ const GeofenceDistanceReportPage = () => {
   const classes = useReportStyles();
   const t = useTranslation();
   const { containerRef, mapHeight, handleMouseDown } = useResizableMap(60, 20, 80);
-
   const devices = useSelector((state) => state.devices.items);
-
   const distanceUnit = useAttributePreference('distanceUnit');
   const [filterRange, setFilterRange] = useState({ from: null, to: null });
 
@@ -99,7 +97,7 @@ const GeofenceDistanceReportPage = () => {
   const [items, setItems] = useState([]);
   const [geofences, setGeofences] = useState({});
   const [allGeofences, setAllGeofences] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [searchState, setSearchState] = useState('idle');
   const [selectedTypes, setSelectedTypes] = useState(['allTypes']);
   const [selectedSegmentType, setSelectedSegmentType] = useState('all');
   const [selectedGeofences, setSelectedGeofences] = useState(['allGeofences']);
@@ -297,14 +295,17 @@ const GeofenceDistanceReportPage = () => {
         throw Error(await response.text());
       }
     } else {
-      setLoading(true);
+      if (new Date(to) < new Date(from)) {
+        setSearchState('invalid');
+        return;
+      }
+
+      setItems([]);
+      setSearchState('loading');
       try {
-        const response = await fetch(
-          `/api/devicegeofencedistances?${query.toString()}`,
-          {
-            headers: { Accept: 'application/json' },
-          },
-        );
+        const response = await fetch(`/api/devicegeofencedistances?${query.toString()}`, {
+          headers: { Accept: 'application/json' },
+        });
         if (response.ok) {
           let data = await response.json();
 
@@ -326,12 +327,8 @@ const GeofenceDistanceReportPage = () => {
           if (selectedGeofences[0] !== 'allGeofences') {
             const selectedGeofenceIds = selectedGeofences.map(Number);
             const existingData = data.filter((item) => selectedGeofenceIds.includes(item.geofenceId));
-
             const existingGeofenceIds = new Set(existingData.map((item) => item.geofenceId));
-            const missingGeofenceIds = selectedGeofenceIds.filter(
-              (id) => !existingGeofenceIds.has(id),
-            );
-
+            const missingGeofenceIds = selectedGeofenceIds.filter((id) => !existingGeofenceIds.has(id));
             const placeholderRows = missingGeofenceIds.map((geofenceId, index) => ({
               id: `placeholder-${geofenceId}-${index}`,
               deviceId,
@@ -344,18 +341,18 @@ const GeofenceDistanceReportPage = () => {
               odoEnd: 0,
               isPlaceholder: true,
             }));
-
             data = [...existingData, ...placeholderRows];
           }
 
           setItems(data);
           setFilterRange({ from, to });
           setPage(0);
+          setSearchState(data.length === 0 ? 'empty' : 'success');
         } else {
           throw Error(await response.text());
         }
-      } finally {
-        setLoading(false);
+      } catch {
+        setSearchState('error');
       }
     }
   });
@@ -436,17 +433,15 @@ const GeofenceDistanceReportPage = () => {
 
   let tableBodyContent;
 
-  if (loading) {
-    tableBodyContent = <TableShimmer columns={columns.length + 1} startAction />;
-  } else if (sortedAndPaginatedData.length === 0) {
+  if (searchState !== 'success') {
     tableBodyContent = (
-      <TableRow>
-        <TableCell colSpan={columns.length + 1} align="center">
-          <Typography variant="body2" color="text.secondary" sx={{ py: 3 }}>
-            {t('sharedNoData') || 'No data available'}
-          </Typography>
-        </TableCell>
-      </TableRow>
+      <ReportEmptyState
+        searchState={searchState}
+        colSpan={columns.length + 1}
+        columns={columns.length + 1}
+        startAction
+        onRetry={() => setSearchState('idle')}
+      />
     );
   } else {
     tableBodyContent = sortedAndPaginatedData.map((item) => {
@@ -495,7 +490,7 @@ const GeofenceDistanceReportPage = () => {
           overflow: 'hidden',
         }}
       >
-        {selectedItem && (
+        {searchState === 'success' && selectedItem && (
           <>
             <div
               className={classes.containerMap}
@@ -569,7 +564,7 @@ const GeofenceDistanceReportPage = () => {
               <ReportFilter
                 handleSubmit={handleSubmit}
                 handleSchedule={handleSchedule}
-                loading={loading}
+                loading={searchState === 'loading'}
               >
                 <div className={classes.filterItem}>
                   <FormControl fullWidth>
@@ -715,7 +710,7 @@ const GeofenceDistanceReportPage = () => {
               </TableHead>
               <TableBody>{tableBodyContent}</TableBody>
             </Table>
-            {!loading && sortedAndPaginatedData.length > 0 && (
+            {searchState === 'success' && sortedAndPaginatedData.length > 0 && (
               <Box
                 sx={{
                   display: 'flex',
