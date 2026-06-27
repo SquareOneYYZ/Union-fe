@@ -65,7 +65,9 @@ const RouteReportPage = () => {
     } else if (type === 'mail') {
       const response = await fetch(`/api/reports/route/mail?${query.toString()}`);
       if (!response.ok) {
-        throw Error(await response.text());
+        const err = Error(await response.text());
+        err.status = response.status;
+        throw err;
       }
     } else {
       setLoading(true);
@@ -91,7 +93,9 @@ const RouteReportPage = () => {
           setAvailable([...keyList, ...keySet].map((key) => [key, positionAttributes[key]?.name || key]));
           setItems(data);
         } else {
-          throw Error(await response.text());
+          const err = Error(await response.text());
+          err.status = response.status;
+          throw err;
         }
       } finally {
         setLoading(false);

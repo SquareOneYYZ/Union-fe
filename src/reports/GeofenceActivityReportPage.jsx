@@ -294,7 +294,9 @@ const GeofenceDistanceReportPage = () => {
         `/api/reports/devicegeofencedistances/mail?${query.toString()}`,
       );
       if (!response.ok) {
-        throw Error(await response.text());
+        const err = Error(await response.text());
+        err.status = response.status;
+        throw err;
       }
     } else {
       setLoading(true);
@@ -352,7 +354,9 @@ const GeofenceDistanceReportPage = () => {
           setFilterRange({ from, to });
           setPage(0);
         } else {
-          throw Error(await response.text());
+          const err = Error(await response.text());
+          err.status = response.status;
+          throw err;
         }
       } finally {
         setLoading(false);

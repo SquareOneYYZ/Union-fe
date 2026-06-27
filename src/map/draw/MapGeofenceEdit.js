@@ -71,7 +71,9 @@ const MapGeofenceEdit = ({
     if (response.ok) {
       dispatch(geofencesActions.refresh(await response.json()));
     } else {
-      throw Error(await response.text());
+      const err = Error(await response.text());
+      err.status = response.status;
+      throw err;
     }
   }, [dispatch]);
 
@@ -97,7 +99,9 @@ const MapGeofenceEdit = ({
           if (onSaved) onSaved();
           if (onEditStateChange) onEditStateChange(false, null);
         } else {
-          throw Error(await response.text());
+          const err = Error(await response.text());
+          err.status = response.status;
+          throw err;
         }
       } catch (error) {
         dispatch(errorsActions.push(error.message));
@@ -286,7 +290,9 @@ const MapGeofenceEdit = ({
           const item = await response.json();
           navigate(`/settings/geofence/${item.id}`);
         } else {
-          throw Error(await response.text());
+          const err = Error(await response.text());
+          err.status = response.status;
+          throw err;
         }
       } catch (error) {
         dispatch(errorsActions.push(error.message));
@@ -317,7 +323,9 @@ const MapGeofenceEdit = ({
           }
           refreshGeofences();
         } else {
-          throw Error(await response.text());
+          const err = Error(await response.text());
+          err.status = response.status;
+          throw err;
         }
       } catch (error) {
         dispatch(errorsActions.push(error.message));

@@ -115,7 +115,9 @@ const DevicesPage = () => {
         const data = await response.json();
         setItems(data);
       } else {
-        throw Error(await response.text());
+        const err = Error(await response.text());
+        err.status = response.status;
+        throw err;
       }
     } finally {
       setLoading(false);
@@ -331,9 +333,8 @@ const DevicesPage = () => {
 
     setSnackbar({
       open: true,
-      message: `Assigned group to ${successCount} device(s)${
-        failedCount ? `, ${failedCount} failed` : ''
-      }`,
+      message: `Assigned group to ${successCount} device(s)${failedCount ? `, ${failedCount} failed` : ''
+        }`,
     });
 
     setBulkAssignOpen(false);
@@ -373,9 +374,8 @@ const DevicesPage = () => {
 
     setSnackbar({
       open: true,
-      message: `Updated settings for ${successCount} device(s)${
-        failedCount ? `, ${failedCount} failed` : ''
-      }`,
+      message: `Updated settings for ${successCount} device(s)${failedCount ? `, ${failedCount} failed` : ''
+        }`,
     });
 
     setBulkUpdateOpen(false);

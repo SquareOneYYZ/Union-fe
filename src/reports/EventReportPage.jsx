@@ -134,7 +134,9 @@ const EventReportPage = () => {
           setPosition(positions[0]);
         }
       } else {
-        throw Error(await response.text());
+        const err = Error(await response.text());
+        err.status = response.status;
+        throw err;
       }
     } else if (!selectedItem) {
       setPosition(null);
@@ -159,7 +161,9 @@ const EventReportPage = () => {
         ...typeFiltered.map((it) => [it.type, prefixString('event', it.type)]),
       ]);
     } else {
-      throw Error(await response.text());
+      const err = Error(await response.text());
+      err.status = response.status;
+      throw err;
     }
   }, []);
 
@@ -245,7 +249,9 @@ const EventReportPage = () => {
         `/api/reports/events/mail?${query.toString()}`,
       );
       if (!response.ok) {
-        throw Error(await response.text());
+        const err = Error(await response.text());
+        err.status = response.status;
+        throw err;
       }
     } else {
       setLoading(true);
@@ -274,7 +280,9 @@ const EventReportPage = () => {
           setItems(filteredEvents);
           setPage(0);
         } else {
-          throw Error(await response.text());
+          const err = Error(await response.text());
+          err.status = response.status;
+          throw err;
         }
       } finally {
         setLoading(false);
@@ -329,7 +337,9 @@ const EventReportPage = () => {
           throw Error(t('sharedNoData'));
         }
       } else {
-        throw Error(await response.text());
+        const err = Error(await response.text());
+        err.status = response.status;
+        throw err;
       }
     } finally {
       setReplayLoading(false);
@@ -482,13 +492,13 @@ const EventReportPage = () => {
 
           <TableCell className={classes.columnAction} padding="none">
             {hasPositionId && (
-            <IconButton
-              size="small"
-              onClick={() => handleReplayStart(item)}
-              disabled={replayLoading}
-            >
-              <ReplayIcon fontSize="small" />
-            </IconButton>
+              <IconButton
+                size="small"
+                onClick={() => handleReplayStart(item)}
+                disabled={replayLoading}
+              >
+                <ReplayIcon fontSize="small" />
+              </IconButton>
             )}
           </TableCell>
 

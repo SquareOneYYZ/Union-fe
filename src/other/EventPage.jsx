@@ -140,7 +140,9 @@ const EventPage = () => {
       if (response.ok) {
         setEvent(await response.json());
       } else {
-        throw Error(await response.text());
+        const err = Error(await response.text());
+        err.status = response.status;
+        throw err;
       }
     }
   }, [id]);
@@ -154,7 +156,9 @@ const EventPage = () => {
           setPosition(positions[0]);
         }
       } else {
-        throw Error(await response.text());
+        const err = Error(await response.text());
+        err.status = response.status;
+        throw err;
       }
     }
   }, [event]);

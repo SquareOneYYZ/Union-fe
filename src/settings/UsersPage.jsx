@@ -55,7 +55,9 @@ const UsersPage = () => {
     if (response.ok) {
       window.location.replace('/');
     } else {
-      throw Error(await response.text());
+      const err = Error(await response.text());
+      err.status = response.status;
+      throw err;
     }
   });
 
@@ -80,7 +82,9 @@ const UsersPage = () => {
       if (response.ok) {
         setItems(await response.json());
       } else {
-        throw Error(await response.text());
+        const err = Error(await response.text());
+        err.status = response.status;
+        throw err;
       }
     } finally {
       setLoading(false);

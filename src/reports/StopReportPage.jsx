@@ -140,7 +140,11 @@ const StopReportPage = () => {
       window.location.assign(`/api/reports/stops/xlsx?${query.toString()}`);
     } else if (type === 'mail') {
       const response = await fetch(`/api/reports/stops/mail?${query.toString()}`);
-      if (!response.ok) throw Error(await response.text());
+      if (!response.ok) {
+        const err = Error(await response.text());
+        err.status = response.status;
+        throw err;
+      }
     } else {
       setLoading(true);
       try {
@@ -151,7 +155,9 @@ const StopReportPage = () => {
           setItems(await response.json());
           setPage(0);
         } else {
-          throw Error(await response.text());
+          const err = Error(await response.text());
+          err.status = response.status;
+          throw err;
         }
       } finally {
         setLoading(false);

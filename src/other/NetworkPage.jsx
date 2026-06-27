@@ -42,7 +42,9 @@ const NetworkPage = () => {
           setItem(positions[0]);
         }
       } else {
-        throw Error(await response.text());
+        const err = Error(await response.text());
+        err.status = response.status;
+        throw err;
       }
     }
   }, [positionId]);
