@@ -6,8 +6,10 @@ import {
   Button,
   Typography,
   Box,
+  IconButton,
 } from '@mui/material';
 import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded';
+import CloseIcon from '@mui/icons-material/Close';
 import { useDispatch, useSelector } from 'react-redux';
 import { usePrevious } from '../../reactHelper';
 import { errorsActions } from '../../store';
@@ -23,7 +25,6 @@ const ErrorHandler = () => {
 
   const current = error || cachedError;
 
-  // Support both legacy string and new { message, status } object
   const rawMessage = typeof current === 'string' ? current : current?.message;
   const status = typeof current === 'string' ? undefined : current?.status;
 
@@ -42,69 +43,76 @@ const ErrorHandler = () => {
       PaperProps={{
         elevation: 6,
         sx: {
-          borderRadius: 3,
-          px: 1,
-          py: 2,
-          textAlign: 'center',
+          borderRadius: 2,
+          borderLeft: '4px solid',
+          borderColor: 'error.main',
+          px: 0,
+          py: 0,
+          overflow: 'hidden',
         },
       }}
     >
-      <DialogContent
+      {/* Close button top right */}
+      <IconButton
+        onClick={handleClose}
+        size="small"
         sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: 1.5,
-          pb: 1,
+          position: 'absolute',
+          top: 8,
+          right: 8,
+          color: 'text.secondary',
         }}
       >
-        <Box
-          sx={{
-            width: 56,
-            height: 56,
-            borderRadius: '50%',
-            backgroundColor: '#ff3d3d6b',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            mb: 0.5,
-          }}
-        >
-          <WarningAmberRoundedIcon sx={{ color: 'error.contrastText', fontSize: 38, marginTop: -0.5 }} />
+        <CloseIcon fontSize="small" />
+      </IconButton>
+
+      <DialogContent sx={{ pt: 2.5, pb: 1, px: 2.5 }}>
+        {/* Icon + Title row */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.75 }}>
+          <WarningAmberRoundedIcon sx={{ color: 'error.main', fontSize: 20 }} />
+          <Typography variant="subtitle1" fontWeight={700} color="text.primary">
+            Something went wrong
+          </Typography>
         </Box>
 
-        <Typography variant="h6" fontWeight={700} color="text.primary">
-          Something went wrong
-        </Typography>
-
+        {/* Message */}
         <Typography
           variant="body2"
           color="text.secondary"
-          sx={{ lineHeight: 1.7, maxWidth: 260, mx: 'auto' }}
+          sx={{ lineHeight: 1.6, pl: 0.5 }}
         >
           {userMessage}
         </Typography>
       </DialogContent>
 
-      <DialogActions sx={{ justifyContent: 'center', pt: 1, pb: 1.5 }}>
+      <DialogActions sx={{ justifyContent: 'flex-start', px: 2.5, pb: 2, pt: 0.5, gap: 0.5 }}>
         <Button
           onClick={handleClose}
-          variant="outlined"
-          size="medium"
+          size="small"
           sx={{
-            minWidth: 120,
             textTransform: 'none',
             fontWeight: 600,
-            borderRadius: 2,
-            borderColor: 'divider',
-            color: 'text.primary',
-            '&:hover': {
-              borderColor: 'text.secondary',
-              backgroundColor: 'action.hover',
-            },
+            color: 'error.main',
+            minWidth: 'unset',
+            px: 1,
+            '&:hover': { backgroundColor: 'error.light' },
           }}
         >
-          {t('sharedHide') || 'Close'}
+          Retry
+        </Button>
+        <Button
+          onClick={handleClose}
+          size="small"
+          sx={{
+            textTransform: 'none',
+            fontWeight: 500,
+            color: 'text.secondary',
+            minWidth: 'unset',
+            px: 1,
+            '&:hover': { backgroundColor: 'action.hover' },
+          }}
+        >
+          {t('sharedHide') || 'Dismiss'}
         </Button>
       </DialogActions>
     </Dialog>
