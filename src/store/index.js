@@ -11,6 +11,7 @@ import { maintenancesReducer as maintenances } from './maintenances';
 import { calendarsReducer as calendars } from './calendars';
 import { reportsReducer as reports } from './reports';
 import { mapInteractionsReducer as mapInteractions } from './mapInteractions';
+import { clustersReducer as clusters } from './cluster';
 import throttleMiddleware from './throttleMiddleware';
 
 const reducer = combineReducers({
@@ -25,6 +26,7 @@ const reducer = combineReducers({
   calendars,
   reports,
   mapInteractions,
+  clusters,
 });
 
 export { errorsActions } from './errors';
@@ -38,6 +40,7 @@ export { maintenancesActions } from './maintenances';
 export { calendarsActions } from './calendars';
 export { reportsActions } from './reports';
 export { mapInteractionsActions } from './mapInteractions';
+export { clustersActions } from './cluster';
 
 export default configureStore({
   reducer,
