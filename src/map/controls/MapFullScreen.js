@@ -1,5 +1,4 @@
 import { useEffect } from 'react';
-import { map } from '../core/MapView';
 import { createCtrlButton, createCtrlContainer } from './util';
 import './mapControls.css';
 

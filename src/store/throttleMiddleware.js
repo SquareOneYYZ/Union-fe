@@ -1,7 +1,7 @@
 import { sessionActions } from './session';
 import { devicesActions } from './devices';
 
-const threshold = 3; // dispatches per second
+const threshold = 3;
 const minInterval = 1500;
 const maxInterval = 30000;
 const scaleFactor = 1000;
@@ -47,7 +47,7 @@ export default () => (next) => {
       currentInterval = Math.min(Math.max(totalTime * scaleFactor, minInterval), maxInterval);
     }
 
-    const shouldThrottle = (counter * 1000 / currentInterval) > threshold;
+    const shouldThrottle = ((counter * 1000) / currentInterval) > threshold;
     if (throttled !== shouldThrottle) {
       debugLog(`Throttling ${shouldThrottle}`);
       throttled = shouldThrottle;
@@ -71,7 +71,7 @@ export default () => (next) => {
       return undefined;
     }
 
-    if ((counter * 1000 / currentInterval) > threshold) {
+    if (((counter * 1000) / currentInterval) > threshold) {
       if (!throttled) debugLog('Throttling started');
       throttled = true;
     }
