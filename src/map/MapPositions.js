@@ -257,6 +257,8 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
     });
 
     [id, selected].forEach((source) => {
+      const isSelectedLayer = source === selected;
+
       map.addLayer({
         id: source,
         type: 'symbol',
@@ -264,7 +266,7 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
         filter: ['!has', 'point_count'],
         layout: {
           'icon-image': '{category}-{color}',
-          'icon-size': iconScale,
+          'icon-size': isSelectedLayer ? iconScale * 1.3 : iconScale,
           'icon-allow-overlap': true,
           'text-field': `{${titleField || 'name'}}`,
           'text-allow-overlap': true,
@@ -273,8 +275,13 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
           'text-font': findFonts(map),
           'text-size': 12,
         },
-        paint: { 'text-halo-color': 'white', 'text-halo-width': 1 },
+        paint: {
+          'text-halo-color': 'white',
+          'text-halo-width': 1,
+          'icon-opacity': isSelectedLayer ? 1 : 0.5,
+        },
       });
+      
       map.addLayer({
         id: `direction-${source}`,
         type: 'symbol',
@@ -282,7 +289,7 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
         filter: ['all', ['!has', 'point_count'], ['==', 'direction', true]],
         layout: {
           'icon-image': 'direction',
-          'icon-size': iconScale,
+          'icon-size': isSelectedLayer ? iconScale * 1.3 : iconScale,
           'icon-allow-overlap': true,
           'icon-rotate': ['get', 'rotation'],
           'icon-rotation-alignment': 'map',
