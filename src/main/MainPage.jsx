@@ -1,5 +1,5 @@
 import React, {
-  useState, useCallback, useEffect, useRef,
+  useState, useCallback, useEffect,
 } from 'react';
 import { Paper } from '@mui/material';
 import { makeStyles } from '@mui/styles';
@@ -108,7 +108,6 @@ const MainPage = () => {
           selectedPosition={selectedPosition}
           onEventsClick={onEventsClick}
           panic={!!panicEvent}
-          onNotificationButtonReady={onNotificationButtonReady}
         />
       )}
       <div className={classes.sidebar}>
@@ -135,7 +134,6 @@ const MainPage = () => {
                 selectedPosition={selectedPosition}
                 onEventsClick={onEventsClick}
                 panic={!!panicEvent}
-                onNotificationButtonReady={onNotificationButtonReady}
               />
             </div>
           )}
