@@ -26,23 +26,13 @@ class NotificationControl {
   onRemove() {
     this.container.parentNode.removeChild(this.container);
   }
-
-  setEnabled(enabled) {
-    this.button.className = statusClass(enabled ? 'on' : 'off');
-    this.button.title = enabled ? 'Notifications (active)' : 'Notifications';
-  }
 }
 
-const MapNotification = ({ enabled, onClick, panic, onButtonReady }) => {
+const MapNotification = ({ enabled, onClick, panic }) => {
   const control = useMemo(() => new NotificationControl(onClick), [onClick]);
 
   useEffect(() => {
     map.addControl(control, 'top-right');
-    setTimeout(() => {
-      if (onButtonReady && control.button) {
-        onButtonReady(control.button);
-      }
-    }, 100);
     return () => map.removeControl(control);
   }, [onClick]);
 
@@ -54,3 +44,5 @@ const MapNotification = ({ enabled, onClick, panic, onButtonReady }) => {
 
   return null;
 };
+
+export default MapNotification;
