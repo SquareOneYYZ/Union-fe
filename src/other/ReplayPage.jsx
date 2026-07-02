@@ -28,7 +28,7 @@ import ReportFilter from '../reports/components/ReportFilter';
 import { useTranslation } from '../common/components/LocalizationProvider';
 import { formatTime } from '../common/util/formatter';
 import SelectField from '../common/components/SelectField';
-import { useStyles, SPEED_OPTIONS, DEVICE_COLORS } from './replayStyles';
+import { useStyles, SPEED_OPTIONS, DEVICE_COLORS } from './ReplayStyles';
 import { useReplayState } from './useReplayState';
 
 const ReplayPage = () => {

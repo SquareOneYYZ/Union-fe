@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSelector } from 'react-redux';
 import { useCatch } from '../reactHelper';
-import { DEVICE_COLORS } from './replayStyles';
+import { DEVICE_COLORS } from './ReplayStyles';
 
 function getSmoothPositionAtTime(positions, currentTime) {
     if (!positions || positions.length === 0) return null;
