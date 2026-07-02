@@ -92,7 +92,7 @@ const EventReportPage = () => {
     }),
   );
 
-  const [columns, setColumns] = usePersistedState('eventColumns', [
+  const [columns, setColumns] = usePersistedState('eventColumns_v2', [
     'eventTime',
     'deviceId',
     'type',
@@ -235,8 +235,11 @@ const EventReportPage = () => {
   const endRow = Math.min((page + 1) * rowsPerPage, totalCount);
 
   const handleSubmit = useCatch(async ({ deviceIds, from, to, type }) => {
+    if (deviceIds && deviceIds.length === 0) {
+      return;
+    }
     const query = new URLSearchParams({ from, to });
-    deviceIds.forEach((id) => query.append('deviceId', id));
+    (deviceIds ?? []).forEach((id) => query.append('deviceId', id));
     eventTypes.forEach((it) => query.append('type', it));
     if (eventTypes[0] !== 'allEvents' && eventTypes.includes('alarm')) {
       alarmTypes.forEach((it) => query.append('alarm', it));
@@ -413,7 +416,7 @@ const EventReportPage = () => {
         if (item.type === 'deviceTollRouteEnter') {
           let tollDetails = '';
           if ('tollName' in item.attributes) {
-            tollDetails += `Toll name: ${item.attributes.trollName} | `;
+            tollDetails += `Toll name: ${item.attributes.tollName} | `;
           }
           if ('tollRef' in item.attributes) {
             tollDetails += `Toll Reference: ${item.attributes.tollRef} | `;
@@ -459,9 +462,8 @@ const EventReportPage = () => {
     );
   } else {
     tableBodyContent = sortedAndPaginatedData.map((item) => {
-      const isSelectedItem = selectedItem === item;
+      const isSelectedItem = selectedItem?.id === item.id;
       const hasPositionId = Boolean(item.positionId);
-
       let locationAction = null;
 
       if (hasPositionId) {
