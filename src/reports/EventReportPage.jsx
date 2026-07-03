@@ -167,48 +167,31 @@ const EventReportPage = () => {
     if (!autoFilter) return;
 
     const run = async () => {
-      setLoading(true);
+      const query = new URLSearchParams({
+        deviceId: autoFilter.deviceId,
+        from: autoFilter.from,
+        to: autoFilter.to,
+      });
+
+      if (autoFilter.eventType && autoFilter.eventType !== 'allEvents') {
+        query.append('type', autoFilter.eventType);
+        setEventTypes([autoFilter.eventType]);
+      }
+
       try {
-        const query = new URLSearchParams({
-          deviceId: autoFilter.deviceId,
-          from: autoFilter.from,
-          to: autoFilter.to,
-        });
-
-        if (autoFilter.eventType && autoFilter.eventType !== 'allEvents') {
-          query.append('type', autoFilter.eventType);
-          setEventTypes([autoFilter.eventType]);
-        }
-
-        const response = await fetch(`/api/reports/events?${query.toString()}`, {
-          headers: { Accept: 'application/json' },
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          const typesToExclude = ['deviceOnline', 'deviceUnknown', 'commandResult', 'queuedCommandSent'];
-          const modifiedData = data.map((item) => ({
-            ...item,
-            speedLimit: item.attributes?.speedLimit || null,
-          }));
-          const filtered = filterEvents(modifiedData, typesToExclude);
-          setItems(filtered);
-          setPage(0);
-
-          const matched = filtered.find((item) => item.type === autoFilter.eventType) || filtered[0];
-          if (matched?.positionId) {
-            setSelectedItem(matched);
-          }
+        const filtered = await fetchEvents(query);
+        const matched = filtered.find((item) => item.type === autoFilter.eventType) || filtered[0];
+        if (matched?.positionId) {
+          setSelectedItem(matched);
         }
       } finally {
-        setLoading(false);
         dispatch(reportsActions.clearAutoFilter());
       }
     };
 
     run();
-  }, [autoFilter]);
-
+  }, [autoFilter, dispatch, fetchEvents]);
+  
   const handleRequestSort = (property) => {
     const isAsc = orderBy === property && order === 'asc';
     setOrder(isAsc ? 'desc' : 'asc');
@@ -278,6 +261,37 @@ const EventReportPage = () => {
   const startRow = totalCount === 0 ? 0 : page * rowsPerPage + 1;
   const endRow = Math.min((page + 1) * rowsPerPage, totalCount);
 
+  const fetchEvents = useCatch(async (query) => {
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/reports/events?${query.toString()}`, {
+        headers: { Accept: 'application/json' },
+      });
+      if (response.ok) {
+        const data = await response.json();
+
+        const typesToExclude = [
+          'deviceOnline',
+          'deviceUnknown',
+          'commandResult',
+          'queuedCommandSent',
+        ];
+
+        const modifiedData = data.map((item) => ({
+          ...item,
+          speedLimit: item.attributes?.speedLimit || null,
+        }));
+        const filteredEvents = filterEvents(modifiedData, typesToExclude);
+        setItems(filteredEvents);
+        setPage(0);
+        return filteredEvents;
+      }
+      throw Error(await response.text());
+    } finally {
+      setLoading(false);
+    }
+  });
+
   const handleSubmit = useCatch(async ({ deviceId, from, to, type }) => {
     const query = new URLSearchParams({ deviceId, from, to });
     eventTypes.forEach((it) => query.append('type', it));
@@ -294,37 +308,7 @@ const EventReportPage = () => {
         throw Error(await response.text());
       }
     } else {
-      setLoading(true);
-      try {
-        const response = await fetch(
-          `/api/reports/events?${query.toString()}`,
-          {
-            headers: { Accept: 'application/json' },
-          },
-        );
-        if (response.ok) {
-          const data = await response.json();
-
-          const typesToExclude = [
-            'deviceOnline',
-            'deviceUnknown',
-            'commandResult',
-            'queuedCommandSent',
-          ];
-
-          const modifiedData = data.map((item) => ({
-            ...item,
-            speedLimit: item.attributes?.speedLimit || null,
-          }));
-          const filteredEvents = filterEvents(modifiedData, typesToExclude);
-          setItems(filteredEvents);
-          setPage(0);
-        } else {
-          throw Error(await response.text());
-        }
-      } finally {
-        setLoading(false);
-      }
+      await fetchEvents(query);
     }
   });
 
