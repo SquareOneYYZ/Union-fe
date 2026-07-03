@@ -27,7 +27,7 @@ import MapCamera from '../map/MapCamera';
 import MapGeofence from '../map/MapGeofence';
 import StatusCard from '../common/components/StatusCard';
 import MapScale from '../map/MapScale';
-import useReplaySession, { CHUNK_SIZE } from '../reports/components/useChunkedReplay';
+import useReplaySession from '../reports/components/useChunkedReplay';
 
 const SPEED_OPTIONS = [1, 1.5, 2, 5, 10];
 const PLAY_TICK_MS = 300;
@@ -117,6 +117,7 @@ const ReplayPage = () => {
     positions,
     overviewPositions,
     totalCount,
+    windowStart,
     isBuffering,
     loadingSession,
     loadingOverview,
@@ -143,11 +144,13 @@ const ReplayPage = () => {
   const indexRef = useRef(0);
   const positionsRef = useRef([]);
   const speedRef = useRef(1);
+  const windowStartRef = useRef(0);
   const timerRef = useRef(null);
 
   useEffect(() => { indexRef.current = index; }, [index]);
   useEffect(() => { positionsRef.current = positions; }, [positions]);
   useEffect(() => { speedRef.current = speed; }, [speed]);
+  useEffect(() => { windowStartRef.current = windowStart; }, [windowStart]);
 
   const deviceName = useSelector((state) => {
     if (selectedDeviceId) {
@@ -188,9 +191,12 @@ const ReplayPage = () => {
             setPlaying(false);
             return 0;
           }
-        }
-
-        if (nextIdx >= pos.length) {
+          const nextLocal = nextIdx - windowStartRef.current;
+          if (nextLocal >= pos.length) {
+            setPlaying(false);
+            return 0;
+          }
+        } else if (nextIdx >= pos.length) {
           setPlaying(false);
           return 0;
         }
@@ -209,7 +215,8 @@ const ReplayPage = () => {
 
   useEffect(() => {
     if (positions.length === 0) return;
-    const clamped = Math.min(index, positions.length - 1);
+    const localIndex = isLongRangeMode ? index - windowStart : index;
+    const clamped = Math.min(Math.max(localIndex, 0), positions.length - 1);
     const cur = positions[clamped];
     const nxt = positions[clamped + 1];
     if (cur && nxt) {
@@ -223,7 +230,7 @@ const ReplayPage = () => {
     } else if (cur) {
       setSmoothPosition(cur);
     }
-  }, [positions, index, animProgress]);
+  }, [positions, index, animProgress, isLongRangeMode, windowStart]);
 
   const handleSubmit = useCatch(async ({ deviceId, from: f, to: t2 }) => {
     setSelectedDeviceId(deviceId);
@@ -245,14 +252,9 @@ const ReplayPage = () => {
 
     if (isLongRangeMode) {
       await sliderSeek(sliderValue);
-      const chunkOffset = Math.floor(sliderValue / CHUNK_SIZE) * CHUNK_SIZE;
-      const localIndex = sliderValue - chunkOffset;
-      setIndex(localIndex);
-      indexRef.current = localIndex;
-    } else {
-      setIndex(sliderValue);
-      indexRef.current = sliderValue;
     }
+    setIndex(sliderValue);
+    indexRef.current = sliderValue;
   }, [isLongRangeMode, sliderSeek]);
 
   const onPointClick = useCallback((_, idx) => {
@@ -275,12 +277,36 @@ const ReplayPage = () => {
     window.location.assign(`/api/positions/kml?${query.toString()}`);
   };
 
-  const displayIndex = Math.min(index, Math.max(0, positions.length - 1));
-  const currentPos = positions[displayIndex];
+  const handleStepBack = () => {
+    const ni = Math.max(0, index - 1);
+    setIndex(ni);
+    indexRef.current = ni;
+    setAnimProgress(0);
+    setPlaying(false);
+  };
+
+  const handleStepForward = () => {
+    const maxGlobal = isLongRangeMode ? totalCount - 1 : positions.length - 1;
+    const ni = Math.min(maxGlobal, index + 1);
+    setIndex(ni);
+    indexRef.current = ni;
+    setAnimProgress(0);
+    setPlaying(false);
+  };
+
+  const displayIndex = isLongRangeMode
+    ? Math.min(index, Math.max(0, totalCount - 1))
+    : Math.min(index, Math.max(0, positions.length - 1));
+  const localDisplayIndex = isLongRangeMode
+    ? Math.min(Math.max(displayIndex - windowStart, 0), Math.max(0, positions.length - 1))
+    : displayIndex;
+  const currentPos = positions[localDisplayIndex];
   const knownTotal = totalCount > 0 ? totalCount : positions.length;
   const sliderMax = isLongRangeMode ? (totalCount > 1 ? totalCount - 1 : 0) : (positions.length > 1 ? positions.length - 1 : 0);
   const routePositions = isLongRangeMode && overviewPositions.length > 0 ? overviewPositions : positions;
   const loadingAny = loadingSession || loadingOverview;
+  const atStart = displayIndex <= 0;
+  const atEnd = isLongRangeMode ? displayIndex >= totalCount - 1 : displayIndex >= positions.length - 1;
 
   return (
     <div className={classes.root}>
@@ -383,14 +409,8 @@ const ReplayPage = () => {
                 <Typography variant="caption">{`${displayIndex + 1}/${knownTotal}`}</Typography>
 
                 <IconButton
-                  onClick={() => {
-                    const ni = Math.max(0, index - 1);
-                    setIndex(ni);
-                    indexRef.current = ni;
-                    setAnimProgress(0);
-                    setPlaying(false);
-                  }}
-                  disabled={playing || isBuffering || displayIndex <= 0}
+                  onClick={handleStepBack}
+                  disabled={playing || isBuffering || atStart}
                 >
                   <FastRewindIcon />
                 </IconButton>
@@ -403,14 +423,8 @@ const ReplayPage = () => {
                 </IconButton>
 
                 <IconButton
-                  onClick={() => {
-                    const ni = Math.min(positions.length - 1, index + 1);
-                    setIndex(ni);
-                    indexRef.current = ni;
-                    setAnimProgress(0);
-                    setPlaying(false);
-                  }}
-                  disabled={playing || isBuffering || displayIndex >= positions.length - 1}
+                  onClick={handleStepForward}
+                  disabled={playing || isBuffering || atEnd}
                 >
                   <FastForwardIcon />
                 </IconButton>

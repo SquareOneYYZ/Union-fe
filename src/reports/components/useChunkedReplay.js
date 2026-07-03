@@ -42,6 +42,7 @@ const useReplaySession = () => {
   const [loadingOverview, setLoadingOverview] = useState(false);
   const [error, setError] = useState(null);
   const [isLongRangeMode, setIsLongRangeMode] = useState(false);
+  const [windowStart, setWindowStart] = useState(0);
 
   const sessionIdRef = useRef(null);
   const loadedUpToRef = useRef(0);
@@ -59,6 +60,7 @@ const useReplaySession = () => {
     setPositions([]);
     setOverviewPositions([]);
     setTotalCount(0);
+    setWindowStart(0);
     setIsBuffering(false);
     setError(null);
     setIsLongRangeMode(false);
@@ -84,8 +86,9 @@ const useReplaySession = () => {
       }
 
       if (mode === 'replace') {
+        setWindowStart(offset);
         setPositions(chunk);
-        loadedUpToRef.current = chunk.length;
+        loadedUpToRef.current = offset + chunk.length;
       } else {
         setPositions((prev) => {
           const merged = [...prev, ...chunk];
@@ -103,6 +106,8 @@ const useReplaySession = () => {
       return chunk;
     } catch (err) {
       setError(err.message);
+      setIsBuffering(false);
+      pendingResumeRef.current = null;
       return null;
     } finally {
       isFetchingRef.current = false;
@@ -290,6 +295,7 @@ const useReplaySession = () => {
     overviewPositions,
     totalCount,
     isBuffering,
+    windowStart,
     loadingSession,
     loadingOverview,
     error,
