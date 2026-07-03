@@ -29,17 +29,26 @@ const VinPage = () => {
   const vinError = item && item.vin && !VIN_REGEX.test(item.vin);
   const imeiError = item && item.imei && !IMEI_REGEX.test(item.imei);
   const [groups, setGroups] = useState([]);
-
+  
   useEffect(() => {
     const loadGroups = async () => {
       const response = await fetch('/api/groups?all=true');
+
       if (response.ok) {
-        setGroups(await response.json());
+        const allGroups = await response.json();
+
+        const filteredGroups = allGroups.filter(
+          (group) => group.organizationId === userOrganizationId,
+        );
+
+        setGroups(filteredGroups);
       }
     };
 
-    loadGroups();
-  }, []);
+    if (userOrganizationId != null) {
+      loadGroups();
+    }
+  }, [userOrganizationId]);
 
   const validate = () => (
     item
