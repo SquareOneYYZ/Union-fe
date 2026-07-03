@@ -1,7 +1,7 @@
 import {
   useId, useCallback, useEffect, useRef,
 } from 'react';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { useMediaQuery } from '@mui/material';
 import { useTheme } from '@mui/styles';
 import { map } from './core/MapView';
@@ -11,6 +11,9 @@ import { useAttributePreference } from '../common/util/preferences';
 import { useCatchCallback } from '../reactHelper';
 import { findFonts } from './core/mapUtil';
 import { lerp, easeInOutCubic, interpolateRotation } from '../common/util/useAnimation';
+import { clustersActions } from '../store/cluster';
+
+const CLUSTER_POPUP_MIN_ZOOM = 9;
 
 const TELEPORT_THRESHOLD_SQ = 0.0045 * 0.0045;
 const STALE_GAP_MS = 10000;
@@ -21,6 +24,7 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
   const clusters = `${id}-clusters`;
   const selected = `${id}-selected`;
 
+  const dispatch = useDispatch();
   const theme = useTheme();
   const desktop = useMediaQuery(theme.breakpoints.up('md'));
   const iconScale = useAttributePreference('iconScale', desktop ? 0.75 : 1);
@@ -237,11 +241,45 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
 
   const onClusterClick = useCatchCallback(async (event) => {
     event.preventDefault();
-    const features = map.queryRenderedFeatures(event.point, { layers: [clusters] });
-    const clusterId = features[0].properties.cluster_id;
+    const features = map.queryRenderedFeatures(event.point, {
+      layers: [clusters],
+    });
+
+    const clusterFeature = features[0];
+    const clusterId = clusterFeature.properties.cluster_id;
+    const clusterCoords = clusterFeature.geometry.coordinates;
+    const currentZoom = map.getZoom();
     const zoom = await map.getSource(id).getClusterExpansionZoom(clusterId);
-    map.easeTo({ center: features[0].geometry.coordinates, zoom });
-  }, [clusters]);
+
+    if (currentZoom < CLUSTER_POPUP_MIN_ZOOM) {
+      map.easeTo({ center: clusterCoords, zoom });
+      return;
+    }
+
+    const clusterPoint = map.project(clusterCoords);
+    const radius = 50;
+
+    const bounds = [
+      map.unproject([clusterPoint.x - radius, clusterPoint.y - radius]),
+      map.unproject([clusterPoint.x + radius, clusterPoint.y + radius]),
+    ];
+
+    const clusterPositions = positions.filter((pos) => pos.longitude >= bounds[0].lng
+      && pos.longitude <= bounds[1].lng
+      && pos.latitude <= bounds[0].lat
+      && pos.latitude >= bounds[1].lat);
+
+    const clusterDevices = clusterPositions
+      .map((pos) => devices[pos.deviceId])
+      .filter(Boolean);
+
+    dispatch(clustersActions.showClusterPopup({
+      devices: clusterDevices,
+      coordinates: clusterCoords,
+    }));
+
+    map.easeTo({ center: clusterCoords, zoom });
+  }, [clusters, positions, devices]);
 
   useEffect(() => {
     map.addSource(id, {
@@ -257,6 +295,8 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
     });
 
     [id, selected].forEach((source) => {
+      const isSelectedLayer = source === selected;
+
       map.addLayer({
         id: source,
         type: 'symbol',
@@ -264,7 +304,7 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
         filter: ['!has', 'point_count'],
         layout: {
           'icon-image': '{category}-{color}',
-          'icon-size': iconScale,
+          'icon-size': isSelectedLayer ? iconScale * 1.3 : iconScale,
           'icon-allow-overlap': true,
           'text-field': `{${titleField || 'name'}}`,
           'text-allow-overlap': true,
@@ -273,8 +313,13 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
           'text-font': findFonts(map),
           'text-size': 12,
         },
-        paint: { 'text-halo-color': 'white', 'text-halo-width': 1 },
+        paint: {
+          'text-halo-color': 'white',
+          'text-halo-width': 1,
+          'icon-opacity': isSelectedLayer ? 1 : 0.5,
+        },
       });
+      
       map.addLayer({
         id: `direction-${source}`,
         type: 'symbol',
@@ -282,7 +327,7 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
         filter: ['all', ['!has', 'point_count'], ['==', 'direction', true]],
         layout: {
           'icon-image': 'direction',
-          'icon-size': iconScale,
+          'icon-size': isSelectedLayer ? iconScale * 1.3 : iconScale,
           'icon-allow-overlap': true,
           'icon-rotate': ['get', 'rotation'],
           'icon-rotation-alignment': 'map',

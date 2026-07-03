@@ -15,6 +15,7 @@ import EventsDrawer from './EventsDrawer';
 import useFilter from './useFilter';
 import MainToolbar from './MainToolbar';
 import MainMap from './MainMap';
+import ClusterPopup from './ClusterPopUp';
 import { useAttributePreference } from '../common/util/preferences';
 import WhatsNewPopup from '../common/components/WhatsNewPopup';
 import VinFAB from '../settings/VinFAB';
@@ -157,6 +158,7 @@ const MainPage = () => {
         />
       )}
       <VinFAB />
+      <ClusterPopup />
     </div>
   );
 };

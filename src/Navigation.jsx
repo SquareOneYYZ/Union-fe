@@ -85,7 +85,7 @@ const Navigation = () => {
       await fetch('/api/session', {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });
