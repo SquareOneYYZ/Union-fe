@@ -18,6 +18,7 @@ import MainMap from './MainMap';
 import ClusterPopup from './ClusterPopUp';
 import { useAttributePreference } from '../common/util/preferences';
 import WhatsNewPopup from '../common/components/WhatsNewPopup';
+import VinFAB from '../settings/VinFAB';
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -156,6 +157,7 @@ const MainPage = () => {
           desktopPadding={theme.dimensions.drawerWidthDesktop}
         />
       )}
+      <VinFAB />
       <ClusterPopup />
     </div>
   );
