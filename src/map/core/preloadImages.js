@@ -85,6 +85,15 @@ export const EVENT_TYPE_COLORS = {
   default: '#f9a825',
 };
 
+export const REPLAY_DEVICE_COLORS = [
+  '#2196f3',
+  '#ff5722',
+  '#4caf50',
+  '#9c27b0',
+  '#ff9800',
+  '#00bcd4',
+];
+
 export const mapImages = {};
 
 const mapPalette = createPalette({
@@ -118,6 +127,17 @@ export default async () => {
   await Promise.all(
     Object.entries(EVENT_TYPE_COLORS).map(async ([eventType, hexColor]) => {
       mapImages[`event-${eventType}`] = await prepareIcon(background, eventIcon, hexColor);
+    }),
+  );
+
+  await Promise.all(
+    Object.keys(mapIcons).map(async (category) => {
+      const icon = await loadImage(mapIcons[category]);
+      await Promise.all(
+        REPLAY_DEVICE_COLORS.map(async (hexColor, index) => {
+          mapImages[`${category}-replay${index}`] = await prepareIcon(background, icon, hexColor);
+        }),
+      );
     }),
   );
 };

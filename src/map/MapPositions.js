@@ -17,10 +17,9 @@ const MapPositions = ({
   const clusters = `${id}-clusters`;
   const selected = `${id}-selected`;
   const mapClusterPref = useAttributePreference('mapCluster', true);
-  const mapCluster =
-    cluster === undefined
-      ? mapClusterPref
-      : cluster;
+  const mapCluster = cluster === undefined
+    ? mapClusterPref
+    : cluster;
   const theme = useTheme();
   const desktop = useMediaQuery(theme.breakpoints.up('md'));
   const iconScale = useAttributePreference('iconScale', desktop ? 0.75 : 1);

@@ -4,7 +4,7 @@ import {
 } from 'recharts';
 import {
   IconButton, Paper, Slider, Toolbar, Typography, Box, Chip,
-  Tooltip, useTheme, Avatar,
+  Tooltip, useTheme,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import TuneIcon from '@mui/icons-material/Tune';
@@ -25,6 +25,7 @@ import MapCamera from '../map/MapCamera';
 import MapPositions from '../map/MapPositions';
 import MapRouteCoordinates from '../map/MapRouteCoordinates';
 import ReportFilter from '../reports/components/ReportFilter';
+import StatusCard from '../common/components/StatusCard';
 import { useTranslation } from '../common/components/LocalizationProvider';
 import { formatTime } from '../common/util/formatter';
 import SelectField from '../common/components/SelectField';
@@ -76,15 +77,14 @@ const ReplayPage = () => {
     allDeviceIds,
     deviceColors,
     chartData,
+    showCard,
+    cardDeviceId,
+    currentCardPosition,
+    handleMarkerClick,
+    handleCloseCard,
   } = useReplayState();
 
   const isAtEnd = currentTime >= timelineEnd;
-
-  const speedGradientStops = {
-    high: theme.palette.error.main,
-    medium: theme.palette.warning.main,
-    low: theme.palette.success.main,
-  };
 
   return (
     <div className={classes.root}>
@@ -93,16 +93,17 @@ const ReplayPage = () => {
         {deviceRoutes.map((route) => (
           <MapRouteCoordinates
             key={route.deviceId}
-            name=''
+            name={route.name}
             coordinates={route.coordinates}
             deviceId={route.deviceId}
+            color={route.color}
           />
         ))}
         {deviceMarkers.length > 0 && (
           <MapPositions
             positions={deviceMarkers}
             titleField="name"
-            sourceId="replay-markers"
+            onClick={handleMarkerClick}
             cluster={false}
           />
         )}
@@ -118,9 +119,10 @@ const ReplayPage = () => {
               <Box key={item.label} className={classes.deviceLegendItem}>
                 <Box className={classes.deviceDot} sx={{ background: item.color }} />
                 <Typography variant="caption" color="text.secondary" noWrap>
-                  {item.label}:&nbsp;
+                  {item.label}
+                  :&nbsp;
                   <span style={{ fontWeight: 600, color: item.color }}>
-                    {Math.round(item.speed)} km/h
+                    {item.formattedSpeed}
                   </span>
                 </Typography>
               </Box>
@@ -131,14 +133,19 @@ const ReplayPage = () => {
             <ResponsiveContainer width="100%" height={48}>
               <ComposedChart
                 data={chartData}
-                margin={{ top: 0, right: 0, bottom: 0, left: 0 }}
+                margin={{
+                  top: 0, right: 0, bottom: 0, left: 0,
+                }}
               >
                 <defs>
                   {allDeviceIds.map((deviceId) => (
                     <linearGradient
                       key={deviceId}
                       id={`deviceGrad_${deviceId}`}
-                      x1="0" y1="0" x2="0" y2="1"
+                      x1="0"
+                      y1="0"
+                      x2="0"
+                      y2="1"
                     >
                       <stop
                         offset="0%"
@@ -172,8 +179,10 @@ const ReplayPage = () => {
 
             <svg className={classes.playheadOverlay}>
               <line
-                x1={`${playheadPercent}%`} y1="0%"
-                x2={`${playheadPercent}%`} y2="100%"
+                x1={`${playheadPercent}%`}
+                y1="0%"
+                x2={`${playheadPercent}%`}
+                y2="100%"
                 stroke={theme.palette.primary.light}
                 strokeWidth={3}
               />
@@ -184,7 +193,10 @@ const ReplayPage = () => {
 
       <div className={`${classes.sidebar} ${titleExpanded ? 'expanded' : ''}`}>
         <Paper elevation={3} square>
-          <Toolbar sx={{ alignItems: 'center', minHeight: 'unset', paddingTop: 1, paddingBottom: 1 }}>
+          <Toolbar sx={{
+            alignItems: 'center', minHeight: 'unset', paddingTop: 1, paddingBottom: 1,
+          }}
+          >
             <IconButton edge="start" sx={{ mr: 2 }} onClick={() => navigate(-1)}>
               <ArrowBackIcon />
             </IconButton>
@@ -248,7 +260,10 @@ const ReplayPage = () => {
                 value={sliderValue}
                 onChange={handleSliderChange}
               />
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: -1, mb: 1 }}>
+              <Box sx={{
+                display: 'flex', justifyContent: 'space-between', mt: -1, mb: 1,
+              }}
+              >
                 <Typography variant="caption" color="text.secondary">
                   {from ? formatTime(from, 'seconds') : '—'}
                 </Typography>
@@ -279,10 +294,14 @@ const ReplayPage = () => {
 
                 <Box
                   onClick={() => setDevicesOpen((prev) => !prev)}
-                  sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}
+                  sx={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer',
+                  }}
                 >
                   <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                    Compare Devices {compareDeviceList.length > 0 ? `(${compareDeviceList.length})` : ''}
+                    Compare Devices
+                    {' '}
+                    {compareDeviceList.length > 0 ? `(${compareDeviceList.length})` : ''}
                   </Typography>
                   {devicesOpen ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
                 </Box>
@@ -305,7 +324,10 @@ const ReplayPage = () => {
                           }}
                         >
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: d.color, flexShrink: 0 }} />
+                            <Box sx={{
+                              width: 10, height: 10, borderRadius: '50%', bgcolor: d.color, flexShrink: 0,
+                            }}
+                            />
                             <Typography variant="body2" noWrap sx={{ maxWidth: 180 }}>
                               {d.name}
                             </Typography>
@@ -359,6 +381,15 @@ const ReplayPage = () => {
           )}
         </Paper>
       </div>
+
+      {showCard && currentCardPosition && (
+        <StatusCard
+          deviceId={cardDeviceId}
+          position={currentCardPosition}
+          onClose={handleCloseCard}
+          disableActions
+        />
+      )}
     </div>
   );
 };
