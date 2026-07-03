@@ -49,12 +49,14 @@ const EventsDrawer = ({ open, onClose }) => {
     attributes: { alarms: event.attributes.alarm },
   });
 
-  // Build unique device list from current events only
   const eventDevices = useMemo(() => {
-    const seen = new Set();
-    return events
-      .filter((e) => devices[e.deviceId] && !seen.has(e.deviceId) && seen.add(e.deviceId))
-      .map((e) => ({ id: e.deviceId, name: devices[e.deviceId].name }));
+    const map = new Map();
+    events.forEach((e) => {
+      if (devices[e.deviceId] && !map.has(e.deviceId)) {
+        map.set(e.deviceId, { id: e.deviceId, name: devices[e.deviceId].name });
+      }
+    });
+    return Array.from(map.values());
   }, [events, devices]);
 
   const filteredEvents = useMemo(() => events.filter((event) => {
