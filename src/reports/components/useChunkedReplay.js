@@ -201,7 +201,7 @@ const useReplaySession = () => {
     setIsLongRangeMode(true);
 
     try {
-      const sessionRes = await fetch(`/api/replay/session`, {
+      const sessionRes = await fetch('/api/replay/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ deviceId, from, to }),

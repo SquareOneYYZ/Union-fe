@@ -206,12 +206,7 @@ const ReplayPage = () => {
         return 0;
       });
     }, 16);
-
-    return () => {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    };
-  }, [playing]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [playing]);
 
   useEffect(() => {
     if (positions.length === 0) return;
@@ -302,7 +297,9 @@ const ReplayPage = () => {
     : displayIndex;
   const currentPos = positions[localDisplayIndex];
   const knownTotal = totalCount > 0 ? totalCount : positions.length;
-  const sliderMax = isLongRangeMode ? (totalCount > 1 ? totalCount - 1 : 0) : (positions.length > 1 ? positions.length - 1 : 0);
+  const sliderMax = isLongRangeMode
+    ? Math.max(totalCount - 1, 0)
+    : Math.max(positions.length - 1, 0);
   const routePositions = isLongRangeMode && overviewPositions.length > 0 ? overviewPositions : positions;
   const loadingAny = loadingSession || loadingOverview;
   const atStart = displayIndex <= 0;
