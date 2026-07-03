@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import TextField from '@mui/material/TextField';
 
@@ -7,6 +7,7 @@ import {
   AccordionSummary,
   AccordionDetails,
   Typography,
+  Autocomplete,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import EditItemView from './components/EditItemView';
@@ -27,6 +28,18 @@ const VinPage = () => {
 
   const vinError = item && item.vin && !VIN_REGEX.test(item.vin);
   const imeiError = item && item.imei && !IMEI_REGEX.test(item.imei);
+  const [groups, setGroups] = useState([]);
+
+  useEffect(() => {
+    const loadGroups = async () => {
+      const response = await fetch('/api/groups?all=true');
+      if (response.ok) {
+        setGroups(await response.json());
+      }
+    };
+
+    loadGroups();
+  }, []);
 
   const validate = () => (
     item
@@ -57,7 +70,7 @@ const VinPage = () => {
           <AccordionSummary expandIcon={<ExpandMoreIcon />}>
             <Typography variant="subtitle1">{t('sharedRequired')}</Typography>
           </AccordionSummary>
-          <AccordionDetails className={classes.details} style={{gap: '0px' }}>
+          <AccordionDetails className={classes.details} style={{ gap: '0px' }}>
             <TextField
               value={item.vin || ''}
               onChange={(event) => setItem({
@@ -86,6 +99,24 @@ const VinPage = () => {
               helperText={imeiError ? 'IMEI must be exactly 15 digits' : ' '}
               inputProps={{ maxLength: 15, inputMode: 'numeric' }}
               sx={roundedFieldSx}
+            />
+            <Autocomplete
+              options={groups}
+              getOptionLabel={(option) => option.name}
+              value={groups.find((g) => g.id === item.groupId) || null}
+              onChange={(_, value) =>
+                setItem({
+                  ...item,
+                  groupId: value?.id || null,
+                })
+              }
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label={t('settingsGroups')}
+                  sx={roundedFieldSx}
+                />
+              )}
             />
           </AccordionDetails>
         </Accordion>

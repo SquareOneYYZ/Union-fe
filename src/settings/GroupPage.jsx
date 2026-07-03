@@ -19,6 +19,7 @@ import useGroupAttributes from '../common/attributes/useGroupAttributes';
 import { useCatch } from '../reactHelper';
 import { groupsActions } from '../store';
 import useSettingsStyles from './common/useSettingsStyles';
+import { useAdministrator } from '../common/util/permissions';
 
 const GroupPage = () => {
   const classes = useSettingsStyles();
