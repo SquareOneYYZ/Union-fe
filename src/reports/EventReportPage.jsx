@@ -123,6 +123,37 @@ const EventReportPage = () => {
     return null;
   });
 
+  const fetchEvents = useCatch(async (query) => {
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/reports/events?${query.toString()}`, {
+        headers: { Accept: 'application/json' },
+      });
+      if (response.ok) {
+        const data = await response.json();
+
+        const typesToExclude = [
+          'deviceOnline',
+          'deviceUnknown',
+          'commandResult',
+          'queuedCommandSent',
+        ];
+
+        const modifiedData = data.map((item) => ({
+          ...item,
+          speedLimit: item.attributes?.speedLimit || null,
+        }));
+        const filteredEvents = filterEvents(modifiedData, typesToExclude);
+        setItems(filteredEvents);
+        setPage(0);
+        return filteredEvents;
+      }
+      throw Error(await response.text());
+    } finally {
+      setLoading(false);
+    }
+  });
+
   useEffectAsync(async () => {
     if (selectedItem && !replayMode) {
       const response = await fetch(
@@ -191,7 +222,7 @@ const EventReportPage = () => {
 
     run();
   }, [autoFilter, dispatch, fetchEvents]);
-  
+
   const handleRequestSort = (property) => {
     const isAsc = orderBy === property && order === 'asc';
     setOrder(isAsc ? 'desc' : 'asc');
@@ -260,37 +291,6 @@ const EventReportPage = () => {
   const totalPages = Math.ceil(totalCount / rowsPerPage);
   const startRow = totalCount === 0 ? 0 : page * rowsPerPage + 1;
   const endRow = Math.min((page + 1) * rowsPerPage, totalCount);
-
-  const fetchEvents = useCatch(async (query) => {
-    setLoading(true);
-    try {
-      const response = await fetch(`/api/reports/events?${query.toString()}`, {
-        headers: { Accept: 'application/json' },
-      });
-      if (response.ok) {
-        const data = await response.json();
-
-        const typesToExclude = [
-          'deviceOnline',
-          'deviceUnknown',
-          'commandResult',
-          'queuedCommandSent',
-        ];
-
-        const modifiedData = data.map((item) => ({
-          ...item,
-          speedLimit: item.attributes?.speedLimit || null,
-        }));
-        const filteredEvents = filterEvents(modifiedData, typesToExclude);
-        setItems(filteredEvents);
-        setPage(0);
-        return filteredEvents;
-      }
-      throw Error(await response.text());
-    } finally {
-      setLoading(false);
-    }
-  });
 
   const handleSubmit = useCatch(async ({ deviceId, from, to, type }) => {
     const query = new URLSearchParams({ deviceId, from, to });
