@@ -1,6 +1,7 @@
 import React, {
   useState,
   useMemo,
+  useEffect,
 } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -24,7 +25,7 @@ import { visuallyHidden } from '@mui/utils';
 import GpsFixedIcon from '@mui/icons-material/GpsFixed';
 import LocationSearchingIcon from '@mui/icons-material/LocationSearching';
 import ReplayIcon from '@mui/icons-material/Replay';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import {
   formatSpeed,
   formatTime,
@@ -52,6 +53,7 @@ import scheduleReport from './common/scheduleReport';
 import MapScale from '../map/MapScale';
 import SelectField from '../common/components/SelectField';
 import ReplayControl from './components/ReplayControl';
+import { reportsActions } from '../store';
 
 const columnsArray = [
   ['eventTime', 'positionFixTime'],
@@ -73,13 +75,11 @@ const EventReportPage = () => {
   const navigate = useNavigate();
   const classes = useReportStyles();
   const t = useTranslation();
-
+  const dispatch = useDispatch();
   const devices = useSelector((state) => state.devices.items);
   const geofences = useSelector((state) => state.geofences.items);
-
   const speedUnit = useAttributePreference('speedUnit');
   const distanceUnit = useAttributePreference('distanceUnit');
-
   const [allEventTypes, setAllEventTypes] = useState([
     ['allEvents', 'eventAll'],
   ]);
@@ -107,11 +107,11 @@ const EventReportPage = () => {
   const [replayPositions, setReplayPositions] = useState([]);
   const [replayLoading, setReplayLoading] = useState(false);
   const [eventPosition, setEventPosition] = useState(null);
-
   const [order, setOrder] = useState('desc');
   const [orderBy, setOrderBy] = useState('eventTime');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);
+  const autoFilter = useSelector((state) => state.reports.autoFilter);
 
   const deviceName = useSelector((state) => {
     if (selectedItem?.deviceId) {
@@ -121,6 +121,37 @@ const EventReportPage = () => {
       }
     }
     return null;
+  });
+
+  const fetchEvents = useCatch(async (query) => {
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/reports/events?${query.toString()}`, {
+        headers: { Accept: 'application/json' },
+      });
+      if (response.ok) {
+        const data = await response.json();
+
+        const typesToExclude = [
+          'deviceOnline',
+          'deviceUnknown',
+          'commandResult',
+          'queuedCommandSent',
+        ];
+
+        const modifiedData = data.map((item) => ({
+          ...item,
+          speedLimit: item.attributes?.speedLimit || null,
+        }));
+        const filteredEvents = filterEvents(modifiedData, typesToExclude);
+        setItems(filteredEvents);
+        setPage(0);
+        return filteredEvents;
+      }
+      throw Error(await response.text());
+    } finally {
+      setLoading(false);
+    }
   });
 
   useEffectAsync(async () => {
@@ -162,6 +193,35 @@ const EventReportPage = () => {
       throw Error(await response.text());
     }
   }, []);
+
+  useEffect(() => {
+    if (!autoFilter) return;
+
+    const run = async () => {
+      const query = new URLSearchParams({
+        deviceId: autoFilter.deviceId,
+        from: autoFilter.from,
+        to: autoFilter.to,
+      });
+
+      if (autoFilter.eventType && autoFilter.eventType !== 'allEvents') {
+        query.append('type', autoFilter.eventType);
+        setEventTypes([autoFilter.eventType]);
+      }
+
+      try {
+        const filtered = await fetchEvents(query);
+        const matched = filtered.find((item) => item.type === autoFilter.eventType) || filtered[0];
+        if (matched?.positionId) {
+          setSelectedItem(matched);
+        }
+      } finally {
+        dispatch(reportsActions.clearAutoFilter());
+      }
+    };
+
+    run();
+  }, [autoFilter, dispatch, fetchEvents]);
 
   const handleRequestSort = (property) => {
     const isAsc = orderBy === property && order === 'asc';
@@ -248,37 +308,7 @@ const EventReportPage = () => {
         throw Error(await response.text());
       }
     } else {
-      setLoading(true);
-      try {
-        const response = await fetch(
-          `/api/reports/events?${query.toString()}`,
-          {
-            headers: { Accept: 'application/json' },
-          },
-        );
-        if (response.ok) {
-          const data = await response.json();
-
-          const typesToExclude = [
-            'deviceOnline',
-            'deviceUnknown',
-            'commandResult',
-            'queuedCommandSent',
-          ];
-
-          const modifiedData = data.map((item) => ({
-            ...item,
-            speedLimit: item.attributes?.speedLimit || null,
-          }));
-          const filteredEvents = filterEvents(modifiedData, typesToExclude);
-          setItems(filteredEvents);
-          setPage(0);
-        } else {
-          throw Error(await response.text());
-        }
-      } finally {
-        setLoading(false);
-      }
+      await fetchEvents(query);
     }
   });
 
@@ -457,7 +487,7 @@ const EventReportPage = () => {
     );
   } else {
     tableBodyContent = sortedAndPaginatedData.map((item) => {
-      const isSelectedItem = selectedItem === item;
+      const isSelectedItem = selectedItem?.id === item.id;
       const hasPositionId = Boolean(item.positionId);
 
       let locationAction = null;
@@ -482,13 +512,13 @@ const EventReportPage = () => {
 
           <TableCell className={classes.columnAction} padding="none">
             {hasPositionId && (
-            <IconButton
-              size="small"
-              onClick={() => handleReplayStart(item)}
-              disabled={replayLoading}
-            >
-              <ReplayIcon fontSize="small" />
-            </IconButton>
+              <IconButton
+                size="small"
+                onClick={() => handleReplayStart(item)}
+                disabled={replayLoading}
+              >
+                <ReplayIcon fontSize="small" />
+              </IconButton>
             )}
           </TableCell>
 
