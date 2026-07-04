@@ -45,8 +45,6 @@ const MapNotification = ({
 
   useEffect(() => {
     map.addControl(control, 'top-right');
-    // control.button is created synchronously inside onAdd(), called
-    // synchronously by map.addControl — no setTimeout needed.
     onButtonReady?.(control.button);
     return () => {
       map.removeControl(control);

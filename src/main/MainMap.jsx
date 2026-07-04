@@ -29,7 +29,6 @@ const MainMap = ({
   selectedPosition,
   onEventsClick,
   panic,
-  onNotificationButtonReady,
 }) => {
   const theme = useTheme();
   const dispatch = useDispatch();
@@ -75,7 +74,6 @@ const MainMap = ({
           enabled={eventsAvailable}
           onClick={onEventsClick}
           panic={panic}
-          onButtonReady={onNotificationButtonReady}
         />
       )}
       <MapGeofenceAccess onClick={onGeofenceAccessClick} />

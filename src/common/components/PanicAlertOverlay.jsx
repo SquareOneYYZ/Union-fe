@@ -1,10 +1,20 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, {
+  useEffect, useState, useRef,
+} from 'react';
 import { useSelector } from 'react-redux';
 import { useTheme } from '@mui/material/styles';
 import { prefixString } from '../util/stringUtils';
 import { useTranslation } from './LocalizationProvider';
 
 const AUTO_DISMISS_MS = 5000;
+const PANIC_ALARM_TYPES = ['sos', 'panic'];
+
+const isPanicEvent = (event) => {
+  if (!event) return false;
+  if (event.type !== 'alarm') return false;
+  const alarm = event.attributes?.alarm;
+  return PANIC_ALARM_TYPES.includes(alarm);
+};
 
 const PanicAlertOverlay = ({
   panicEvent, onDismiss, eventsOpen, notificationButtonRef,
@@ -41,7 +51,7 @@ const PanicAlertOverlay = ({
   }, [eventsOpen, visible, onDismiss]);
 
   useEffect(() => {
-    if (!panicEvent) return undefined;
+    if (!isPanicEvent(panicEvent)) return undefined;
     if (lastHandledIdRef.current === panicEvent.id) return undefined;
 
     lastHandledIdRef.current = panicEvent.id;
@@ -56,7 +66,7 @@ const PanicAlertOverlay = ({
     return () => clearTimeout(timer);
   }, [panicEvent]);
 
-  if (!visible || !panicEvent || !position) return null;
+  if (!visible || !isPanicEvent(panicEvent) || !position) return null;
 
   const deviceName = devices[panicEvent.deviceId]?.name || t('sharedUnknown') || 'Unknown';
   const eventType = panicEvent.attributes?.alarm || panicEvent.type;
