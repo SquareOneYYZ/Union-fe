@@ -5,6 +5,13 @@ const threshold = 3;
 const minInterval = 1500;
 const maxInterval = 30000;
 const scaleFactor = 1000;
+const debugMode = false;
+
+const debugLog = (...args) => {
+  if (debugMode) {
+    console.log('[Throttle]', ...args);
+  }
+};
 
 export default () => (next) => {
   const buffer = [];
