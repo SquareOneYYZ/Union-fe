@@ -8,7 +8,6 @@ const { reducer, actions } = createSlice({
     period: 'today',
     from: dayjs().subtract(1, 'hour').locale('en').format('YYYY-MM-DDTHH:mm'),
     to: dayjs().locale('en').format('YYYY-MM-DDTHH:mm'),
-    autoFilter: null,
   },
   reducers: {
     updateGroupIds(state, action) {
@@ -22,12 +21,6 @@ const { reducer, actions } = createSlice({
     },
     updateTo(state, action) {
       state.to = action.payload;
-    },
-    updateAutoFilter(state, action) {
-      state.autoFilter = action.payload;
-    },
-    clearAutoFilter(state) {
-      state.autoFilter = null;
     },
   },
 });

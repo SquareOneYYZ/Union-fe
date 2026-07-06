@@ -53,7 +53,7 @@ import scheduleReport from './common/scheduleReport';
 import MapScale from '../map/MapScale';
 import SelectField from '../common/components/SelectField';
 import ReplayControl from './components/ReplayControl';
-import { reportsActions } from '../store';
+import { useSearchParams } from 'react-router-dom';
 
 const columnsArray = [
   ['eventTime', 'positionFixTime'],
@@ -111,7 +111,7 @@ const EventReportPage = () => {
   const [orderBy, setOrderBy] = useState('eventTime');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);
-  const autoFilter = useSelector((state) => state.reports.autoFilter);
+  const [searchParams] = useSearchParams();
 
   const deviceName = useSelector((state) => {
     if (selectedItem?.deviceId) {
@@ -194,34 +194,37 @@ const EventReportPage = () => {
     }
   }, []);
 
-  useEffect(() => {
-    if (!autoFilter) return;
+useEffect(() => {
+  const deviceId = searchParams.get('deviceId');
+  const from = searchParams.get('from');
+  const to = searchParams.get('to');
 
-    const run = async () => {
-      const query = new URLSearchParams({
-        deviceId: autoFilter.deviceId,
-        from: autoFilter.from,
-        to: autoFilter.to,
-      });
+  if (!deviceId || !from || !to) return;
 
-      if (autoFilter.eventType && autoFilter.eventType !== 'allEvents') {
-        query.append('type', autoFilter.eventType);
-        setEventTypes([autoFilter.eventType]);
-      }
+  const eventType = searchParams.get('eventType');
 
-      try {
-        const filtered = await fetchEvents(query);
-        const matched = filtered.find((item) => item.type === autoFilter.eventType) || filtered[0];
-        if (matched?.positionId) {
-          setSelectedItem(matched);
-        }
-      } finally {
-        dispatch(reportsActions.clearAutoFilter());
-      }
-    };
+  const query = new URLSearchParams({
+    deviceId,
+    from,
+    to,
+  });
 
-    run();
-  }, [autoFilter, dispatch, fetchEvents]);
+  if (eventType) {
+    query.append('type', eventType);
+    setEventTypes([eventType]);
+  }
+
+  fetchEvents(query).then((filtered) => {
+    const matched =
+      filtered.find((i) => i.type === eventType) || filtered[0];
+
+    if (matched?.positionId) {
+      setSelectedItem(matched);
+    }
+  });
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [searchParams]);
 
   const handleRequestSort = (property) => {
     const isAsc = orderBy === property && order === 'asc';

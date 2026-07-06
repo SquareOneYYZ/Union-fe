@@ -6,10 +6,9 @@ import {
 } from '@mui/material';
 import { makeStyles } from '@mui/styles';
 import DeleteIcon from '@mui/icons-material/Delete';
-import { reportsActions, eventsActions } from '../store';
+import { eventsActions } from '../store';
 import { formatNotificationTitle, formatTime } from '../common/util/formatter';
 import { useTranslation } from '../common/components/LocalizationProvider';
-
 import SelectField from '../common/components/SelectField';
 
 const useStyles = makeStyles((theme) => ({
@@ -107,16 +106,17 @@ const EventsDrawer = ({ open, onClose }) => {
               const eventTime = new Date(event.eventTime);
               const from = new Date(eventTime.getTime() - 30 * 60 * 1000).toISOString();
               const to = new Date(eventTime.getTime() + 30 * 60 * 1000).toISOString();
-
-              dispatch(reportsActions.updateAutoFilter({
+              const params = new URLSearchParams({
                 deviceId: event.deviceId,
                 from,
                 to,
-                eventType: event.type,
-              }));
+                ...(event.type && event.type !== 'allEvents'
+                  ? { eventType: event.type }
+                  : {}),
+              });
 
               onClose();
-              navigate('/reports/event');
+              navigate(`/reports/event?${params.toString()}`);
             }}
             disabled={!event.id}
           >
