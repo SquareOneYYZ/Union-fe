@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { map } from '../core/MapView';
 import './notification.css';
 
@@ -31,9 +31,8 @@ class NotificationControl {
 const BADGE_CLASS = 'notification-panic-badge';
 const PANIC_CLASS = 'maplibre-ctrl-notification-panic';
 
-const MapNotification = ({ enabled, onClick, panic }) => {
+const MapNotification = ({ enabled, onClick, panic, notificationButtonRef, }) => {
   const control = useMemo(() => new NotificationControl(onClick), [onClick]);
-
   useEffect(() => {
     map.addControl(control, 'top-right');
     return () => map.removeControl(control);
@@ -44,7 +43,8 @@ const MapNotification = ({ enabled, onClick, panic }) => {
 
     control.button.className = statusClass(enabled ? 'on' : 'off');
     control.button.title = enabled ? 'Notifications (active)' : 'Notifications';
-    this.button.style.position = 'relative';
+    control.button.style.position = 'relative';
+    notificationButtonRef.current = control.button;
 
     control.button.classList.toggle(PANIC_CLASS, !!panic);
 

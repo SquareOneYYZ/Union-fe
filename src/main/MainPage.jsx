@@ -1,5 +1,6 @@
 import React, {
   useState, useCallback, useEffect,
+  useRef,
 } from 'react';
 import { Paper } from '@mui/material';
 import { makeStyles } from '@mui/styles';
@@ -76,7 +77,7 @@ const MainPage = () => {
   const positions = useSelector((state) => state.session.positions);
   const [filteredPositions, setFilteredPositions] = useState([]);
   const selectedPosition = filteredPositions.find((position) => selectedDeviceId && position.deviceId === selectedDeviceId);
-
+  const notificationButtonRef = useRef(null);
   const [filteredDevices, setFilteredDevices] = useState([]);
 
   const [keyword, setKeyword] = useState('');
@@ -108,6 +109,7 @@ const MainPage = () => {
           selectedPosition={selectedPosition}
           onEventsClick={onEventsClick}
           panic={!!panicEvent}
+          notificationButtonRef={notificationButtonRef}
         />
       )}
       <div className={classes.sidebar}>
@@ -161,6 +163,7 @@ const MainPage = () => {
         panicEvent={panicEvent}
         onDismiss={dismiss}
         eventsOpen={eventsOpen}
+        notificationButtonRef={notificationButtonRef}
       />
     </div>
   );
