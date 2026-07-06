@@ -23,9 +23,8 @@ const VinPage = () => {
   const classes = useSettingsStyles();
   const t = useTranslation();
   const admin = useAdministrator();
-  const [organizationId, setOrganizationId] = useState(null);
   const userOrganizationId = useSelector((state) => state.session.user?.organizationId);
-  const effectiveOrgId = admin ? organizationId : userOrganizationId;
+  const effectiveOrgId = userOrganizationId;
 
   const [item, setItem] = useState();
 
@@ -38,14 +37,16 @@ const VinPage = () => {
       const response = await fetch(admin ? '/api/groups?all=true' : '/api/groups');
       if (response.ok) {
         const allGroups = await response.json();
-        setGroups(admin
-          ? allGroups.filter((g) => g.organizationId === effectiveOrgId)
-          : allGroups);
+        setGroups(
+          allGroups.filter(g => g.organizationId === effectiveOrgId)
+        );
       }
     };
 
-    if (effectiveOrgId != null) loadGroups();
-  }, [userOrganizationId]);
+    if (effectiveOrgId != null) {
+      loadGroups();
+    }
+  }, [admin, effectiveOrgId]);
 
   const validate = () => (
     item
