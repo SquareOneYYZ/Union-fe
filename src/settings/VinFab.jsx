@@ -10,7 +10,7 @@ import { useTranslation } from '../common/components/LocalizationProvider';
 const useStyles = makeStyles((theme) => ({
   speedDial: {
     position: 'fixed',
-    bottom: theme.spacing(10),
+    bottom: theme.spacing(7),
     right: theme.spacing(2),
     zIndex: theme.zIndex.speedDial,
     '& .MuiFab-primary': {
@@ -45,12 +45,12 @@ const VinFab = () => {
   const actions = [
     {
       icon: <PhoneAndroidIcon fontSize="small" />,
-      name: t('deviceAdd'),
+      name: t('sharedDeviceAdd'),
       route: '/settings/device',
     },
     {
       icon: <DirectionsCarIcon fontSize="small" />,
-      name: t('vinAdd'),
+      name: t('sharedVinAdd'),
       route: '/vin',
     },
   ];
