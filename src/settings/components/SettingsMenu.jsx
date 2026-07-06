@@ -93,15 +93,15 @@ const SettingsMenu = () => {
                 )}
               />
             )}
-             {admin && (
-              <MenuItem
-                title={t('settingsVins')}
-                link="/settings/vins"
-                icon={<TapAndPlayIcon />}
-                selected={location.pathname.startsWith(
-                  '/settings/vins',
-                )}
-              />
+            {admin && (
+            <MenuItem
+              title={t('settingsVins')}
+              link="/settings/vins"
+              icon={<TapAndPlayIcon />}
+              selected={location.pathname.startsWith(
+                '/settings/vins',
+              )}
+            />
             )}
             {!features.disableDrivers && (
               <MenuItem

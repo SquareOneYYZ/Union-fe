@@ -241,6 +241,7 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
 
   const onClusterClick = useCatchCallback(async (event) => {
     event.preventDefault();
+
     const features = map.queryRenderedFeatures(event.point, {
       layers: [clusters],
     });
@@ -256,30 +257,18 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
       return;
     }
 
-    const clusterPoint = map.project(clusterCoords);
-    const radius = 50;
+    const source = map.getSource(id);
+    const leaves = await source.getClusterLeaves(clusterId, Infinity, 0);
 
-    const bounds = [
-      map.unproject([clusterPoint.x - radius, clusterPoint.y - radius]),
-      map.unproject([clusterPoint.x + radius, clusterPoint.y + radius]),
-    ];
-
-    const clusterPositions = positions.filter((pos) => pos.longitude >= bounds[0].lng
-      && pos.longitude <= bounds[1].lng
-      && pos.latitude <= bounds[0].lat
-      && pos.latitude >= bounds[1].lat);
-
-    const clusterDevices = clusterPositions
-      .map((pos) => devices[pos.deviceId])
+    const clusterDevices = leaves
+      .map((feature) => devices[feature.properties.deviceId])
       .filter(Boolean);
 
     dispatch(clustersActions.showClusterPopup({
       devices: clusterDevices,
       coordinates: clusterCoords,
     }));
-
-    map.easeTo({ center: clusterCoords, zoom });
-  }, [clusters, positions, devices]);
+  }, [clusters, devices]);
 
   useEffect(() => {
     map.addSource(id, {
@@ -316,10 +305,10 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
         paint: {
           'text-halo-color': 'white',
           'text-halo-width': 1,
-          'icon-opacity': isSelectedLayer ? 1 : 0.5,
+          'icon-opacity': 1,
         },
       });
-      
+
       map.addLayer({
         id: `direction-${source}`,
         type: 'symbol',
@@ -382,6 +371,13 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
     if (!enableSmoothing) updateMapData();
   }, [positions, devices, enableSmoothing, updateAnimationState, updateMapData]);
 
+  useEffect(() => {
+    const faded = selectedPosition ? 0.5 : 1;
+    if (map.getLayer(id)) {
+      map.setPaintProperty(id, 'icon-opacity', faded);
+      map.setPaintProperty(`direction-${id}`, 'icon-opacity', faded);
+    }
+  }, [selectedPosition?.deviceId]);
   return null;
 };
 

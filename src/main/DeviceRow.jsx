@@ -139,10 +139,10 @@ const DeviceRow = ({ data, index, style }) => {
                       ? (<BatteryCharging60Icon fontSize="small" className={classes.warning} />)
                       : (<Battery60Icon fontSize="small" className={classes.warning} />)
                   )) || (
-                      position.attributes.charge
-                        ? (<BatteryCharging20Icon fontSize="small" className={classes.error} />)
-                        : (<Battery20Icon fontSize="small" className={classes.error} />)
-                    )}
+                    position.attributes.charge
+                      ? (<BatteryCharging20Icon fontSize="small" className={classes.error} />)
+                      : (<Battery20Icon fontSize="small" className={classes.error} />)
+                  )}
                 </IconButton>
               </Tooltip>
             )}

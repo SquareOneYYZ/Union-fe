@@ -82,13 +82,7 @@ const Navigation = () => {
     }
     if (query.get('token')) {
       const token = query.get('token');
-      await fetch('/api/session', {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
+      await fetch(`/api/session?token=${encodeURIComponent(token)}`);
       navigate(pathname, { replace: true });
     } else if (query.get('deviceId')) {
       const deviceId = query.get('deviceId');

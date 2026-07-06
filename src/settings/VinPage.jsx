@@ -14,6 +14,7 @@ import EditItemView from './components/EditItemView';
 import { useTranslation } from '../common/components/LocalizationProvider';
 import SettingsMenu from './components/SettingsMenu';
 import useSettingsStyles from './common/useSettingsStyles';
+import { useAdministrator } from '../common/util/permissions';
 
 const VIN_REGEX = /^[A-HJ-NPR-Z0-9]{17}$/;
 const IMEI_REGEX = /^[0-9]{15}$/;
@@ -21,33 +22,29 @@ const IMEI_REGEX = /^[0-9]{15}$/;
 const VinPage = () => {
   const classes = useSettingsStyles();
   const t = useTranslation();
-
+  const admin = useAdministrator();
+  const [organizationId, setOrganizationId] = useState(null);
   const userOrganizationId = useSelector((state) => state.session.user?.organizationId);
+  const effectiveOrgId = admin ? organizationId : userOrganizationId;
 
   const [item, setItem] = useState();
 
   const vinError = item && item.vin && !VIN_REGEX.test(item.vin);
   const imeiError = item && item.imei && !IMEI_REGEX.test(item.imei);
   const [groups, setGroups] = useState([]);
-  
+
   useEffect(() => {
     const loadGroups = async () => {
-      const response = await fetch('/api/groups?all=true');
-
+      const response = await fetch(admin ? '/api/groups?all=true' : '/api/groups');
       if (response.ok) {
         const allGroups = await response.json();
-
-        const filteredGroups = allGroups.filter(
-          (group) => group.organizationId === userOrganizationId,
-        );
-
-        setGroups(filteredGroups);
+        setGroups(admin
+          ? allGroups.filter((g) => g.organizationId === effectiveOrgId)
+          : allGroups);
       }
     };
 
-    if (userOrganizationId != null) {
-      loadGroups();
-    }
+    if (effectiveOrgId != null) loadGroups();
   }, [userOrganizationId]);
 
   const validate = () => (
@@ -59,7 +56,7 @@ const VinPage = () => {
   const roundedFieldSx = {
     '& .MuiOutlinedInput-root': {
       borderRadius: '13px',
-      '& fieldset': { borderRadius: '13px', borderColor: 'rgba(255,255,255,0.23)' },
+      '& fieldset': { borderRadius: '13px', borderColor: 'rgba(255,255,255,0.5)' },
       '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.5)' },
       '&.Mui-focused fieldset': { borderColor: 'primary.main' },
     },
@@ -89,7 +86,7 @@ const VinPage = () => {
               })}
               label={t('deviceVinNumber')}
               error={!!vinError}
-              helperText={vinError ? 'VIN must be 17 characters (A-Z, 0-9, excluding I, O, Q)' : ' '}
+              helperText={vinError ? t('vinValidation') : ' '}
               inputProps={{ maxLength: 17 }}
               sx={roundedFieldSx}
             />
@@ -103,9 +100,9 @@ const VinPage = () => {
                   organizationId: item.organizationId ?? userOrganizationId,
                 });
               }}
-              label="IMEI"
+              label={t('imei')}
               error={!!imeiError}
-              helperText={imeiError ? 'IMEI must be exactly 15 digits' : ' '}
+              helperText={imeiError ? t('imeiValidation') : ' '}
               inputProps={{ maxLength: 15, inputMode: 'numeric' }}
               sx={roundedFieldSx}
             />
@@ -113,12 +110,10 @@ const VinPage = () => {
               options={groups}
               getOptionLabel={(option) => option.name}
               value={groups.find((g) => g.id === item.groupId) || null}
-              onChange={(_, value) =>
-                setItem({
-                  ...item,
-                  groupId: value?.id || null,
-                })
-              }
+              onChange={(_, value) => setItem({
+                ...item,
+                groupId: value?.id || null,
+              })}
               renderInput={(params) => (
                 <TextField
                   {...params}

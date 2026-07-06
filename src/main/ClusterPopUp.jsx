@@ -5,9 +5,14 @@ import {
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import GpsFixedIcon from '@mui/icons-material/GpsFixed';
 import { makeStyles } from '@mui/styles';
-import { clustersActions } from '../store';
+import { clustersActions } from '../store/cluster';
+import { devicesActions } from '../store/devices';
 import { map } from '../map/core/MapView';
+import { useTranslation } from '../common/components/LocalizationProvider';
+import { formatStatus } from '../common/util/formatter';
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -72,6 +77,7 @@ const INITIAL_BOTTOM = 16;
 const ClusterPopup = () => {
   const classes = useStyles();
   const dispatch = useDispatch();
+  const t = useTranslation();
   const paperRef = useRef(null);
   const dragging = useRef(false);
   const dragOffset = useRef({ x: 0, y: 0 });
@@ -106,10 +112,10 @@ const ClusterPopup = () => {
     };
   }, [visible, dispatch]);
 
-  // Drag listeners
   useEffect(() => {
     const onMouseMove = (e) => {
       if (!dragging.current) return;
+
       setPosition({
         top: e.clientY - dragOffset.current.y,
         left: e.clientX - dragOffset.current.x,
@@ -117,13 +123,38 @@ const ClusterPopup = () => {
       });
     };
 
-    const onMouseUp = () => { dragging.current = false; };
+    const onTouchMove = (e) => {
+      if (!dragging.current) return;
+      if (!e.touches.length) return;
+      const touch = e.touches[0];
+
+      setPosition({
+        top: touch.clientY - dragOffset.current.y,
+        left: touch.clientX - dragOffset.current.x,
+        bottom: null,
+      });
+
+      e.preventDefault();
+    };
+
+    const stopDragging = () => {
+      dragging.current = false;
+    };
 
     window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mouseup', onMouseUp);
+    window.addEventListener('mouseup', stopDragging);
+
+    window.addEventListener('touchmove', onTouchMove, { passive: false });
+    window.addEventListener('touchend', stopDragging);
+    window.addEventListener('touchcancel', stopDragging);
+
     return () => {
       window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('mouseup', onMouseUp);
+      window.removeEventListener('mouseup', stopDragging);
+
+      window.removeEventListener('touchmove', onTouchMove, { passive: false });
+      window.removeEventListener('touchend', stopDragging);
+      window.removeEventListener('touchcancel', stopDragging);
     };
   }, []);
 
@@ -136,6 +167,28 @@ const ClusterPopup = () => {
     e.preventDefault();
   };
 
+  const onTouchStart = (e) => {
+    if (!paperRef.current) return;
+
+    dragging.current = true;
+
+    const touch = e.touches[0];
+    const rect = paperRef.current.getBoundingClientRect();
+
+    dragOffset.current = {
+      x: touch.clientX - rect.left,
+      y: touch.clientY - rect.top,
+    };
+
+    setPosition({
+      top: rect.top,
+      left: rect.left,
+      bottom: null,
+    });
+
+    e.preventDefault();
+  };
+
   if (!visible || devices.length === 0) return null;
 
   const style = {
@@ -145,10 +198,16 @@ const ClusterPopup = () => {
 
   return (
     <Paper ref={paperRef} className={classes.root} elevation={6} style={style}>
-      <Box className={classes.header} onMouseDown={onMouseDown}>
+      <Box
+        className={classes.header}
+        onMouseDown={onMouseDown}
+        onTouchStart={onTouchStart}
+      >
         <Box className={classes.headerLeft}>
           <DragIndicatorIcon className={classes.dragIcon} />
-          <Typography className={classes.title}>Devices in Cluster</Typography>
+          <Typography className={classes.title}>
+            {t('clusterDevices')}
+          </Typography>
           <Typography className={classes.count}>
             (
             {devices.length}
@@ -166,10 +225,40 @@ const ClusterPopup = () => {
       <List dense disablePadding className={classes.list}>
         {devices.map((device, index) => (
           <Box key={device.id}>
-            <ListItem className={classes.listItem}>
+            <ListItem
+              className={classes.listItem}
+              secondaryAction={(
+                <>
+                  <IconButton
+                    size="small"
+                    title={t('sharedShowDetails')}
+                    onClick={() => {
+                      dispatch(devicesActions.selectId(device.id));
+                      dispatch(clustersActions.hideClusterPopup());
+                    }}
+                  >
+                    <InfoOutlinedIcon fontSize="small" />
+                  </IconButton>
+
+                  <IconButton
+                    size="small"
+                    title={t('startTracking')}
+                    onClick={() => {
+                      dispatch(devicesActions.selectId(device.id));
+                      dispatch(clustersActions.hideClusterPopup());
+                    }}
+                  >
+                    <GpsFixedIcon fontSize="small" />
+                  </IconButton>
+                </>
+              )}
+            >
               <ListItemText
                 primary={device.name}
-                primaryTypographyProps={{ className: classes.deviceName }}
+                secondary={formatStatus(device.status, t)}
+                primaryTypographyProps={{
+                  className: classes.deviceName,
+                }}
               />
             </ListItem>
             {index < devices.length - 1 && <Divider component="li" />}

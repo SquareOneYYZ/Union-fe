@@ -58,7 +58,7 @@ const VinsPage = () => {
         <TableHead>
           <TableRow>
             <TableCell>{t('deviceVinNumber')}</TableCell>
-            <TableCell>IMEI</TableCell>
+            <TableCell>{t('deviceIMEINumber')}</TableCell>
             <TableCell className={classes.columnAction} />
           </TableRow>
         </TableHead>

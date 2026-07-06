@@ -30,7 +30,6 @@ const GroupPage = () => {
   const [item, setItem] = useState();
   const admin = useAdministrator();
 
-
   const onItemSaved = useCatch(async () => {
     const response = await fetch('/api/groups');
     if (response.ok) {
@@ -92,7 +91,7 @@ const GroupPage = () => {
                   value={item.organizationId || ''}
                   onChange={(event) => setItem({ ...item, organizationId: event.target.value })}
                   endpoint="/api/organization"
-                  label="Organization"
+                  label={t('organization')}
                 />
               )}
             </AccordionDetails>

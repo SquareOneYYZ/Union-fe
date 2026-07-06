@@ -5,6 +5,7 @@ import { makeStyles } from '@mui/styles';
 import CloseIcon from '@mui/icons-material/Close';
 import PhoneAndroidIcon from '@mui/icons-material/PhoneAndroid';
 import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
+import { useTranslation } from '../common/components/LocalizationProvider';
 
 const useStyles = makeStyles((theme) => ({
   speedDial: {
@@ -19,19 +20,6 @@ const useStyles = makeStyles((theme) => ({
     },
   },
 }));
-
-const actions = [
-  {
-    icon: <PhoneAndroidIcon fontSize="small" />,
-    name: 'Add Device',
-    route: '/settings/device',
-  },
-  {
-    icon: <DirectionsCarIcon fontSize="small" />,
-    name: 'Add VIN & IMEI',
-    route: '/vin',
-  },
-];
 
 const actionSx = {
   '& .MuiSpeedDialAction-staticTooltipLabel': {
@@ -52,10 +40,24 @@ const VinFab = () => {
   const classes = useStyles();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const t = useTranslation();
+
+  const actions = [
+    {
+      icon: <PhoneAndroidIcon fontSize="small" />,
+      name: t('deviceAdd'),
+      route: '/settings/device',
+    },
+    {
+      icon: <DirectionsCarIcon fontSize="small" />,
+      name: t('vinAdd'),
+      route: '/vin',
+    },
+  ];
 
   return (
     <SpeedDial
-      ariaLabel="Quick access actions"
+      ariaLabel={t('quickAccessActions')}
       className={classes.speedDial}
       icon={<SpeedDialIcon openIcon={<CloseIcon />} />}
       open={open}

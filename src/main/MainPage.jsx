@@ -18,7 +18,7 @@ import MainMap from './MainMap';
 import ClusterPopup from './ClusterPopUp';
 import { useAttributePreference } from '../common/util/preferences';
 import WhatsNewPopup from '../common/components/WhatsNewPopup';
-import VinFAB from '../settings/VinFAB';
+import VinFAB from '../settings/VinFab';
 
 const useStyles = makeStyles((theme) => ({
   root: {
