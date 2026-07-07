@@ -37,7 +37,7 @@ const initialCamera = (() => {
   return null;
 })();
 
-export const hasRestoredCamera = !!initialCamera;
+export const restoredCamera = initialCamera;
 
 export const map = new maplibregl.Map({
   container: element,

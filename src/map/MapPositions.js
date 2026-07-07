@@ -335,6 +335,10 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
       layout: {
         'icon-image': 'background',
         'icon-size': iconScale,
+        // without allow-overlap, dense areas collision-cull the cluster icon
+        // (large clusters render as bare text and become un-clickable)
+        'icon-allow-overlap': true,
+        'text-allow-overlap': true,
         'text-field': '{point_count_abbreviated}',
         'text-font': findFonts(map),
         'text-size': 14,
@@ -368,7 +372,11 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
   useEffect(() => {
     const filtered = positions.filter((p) => Object.prototype.hasOwnProperty.call(devices, p.deviceId));
     updateAnimationState(filtered);
-    if (!enableSmoothing) updateMapData();
+    // Always push current state to the map sources. The animation loop only
+    // runs for devices that moved, so with smoothing enabled the initial
+    // positions would otherwise never reach the sources and no markers or
+    // clusters would render until something else called updateMapData.
+    updateMapData();
   }, [positions, devices, enableSmoothing, updateAnimationState, updateMapData]);
 
   useEffect(() => {
