@@ -2,7 +2,7 @@ import maplibregl from 'maplibre-gl';
 import { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { usePreference } from '../../common/util/preferences';
-import { map } from '../core/MapView';
+import { map, hasRestoredCamera } from '../core/MapView';
 
 const MapDefaultCamera = ({ mapReady }) => {
   const selectedDeviceId = useSelector((state) => state.devices.selectedId);
@@ -24,6 +24,10 @@ const MapDefaultCamera = ({ mapReady }) => {
           center: [defaultLongitude, defaultLatitude],
           zoom: defaultZoom,
         });
+        setInitialized(true);
+      } else if (hasRestoredCamera) {
+        // Camera was already restored from persisted state when the map was
+        // created, so late position data must not re-fit the whole viewport.
         setInitialized(true);
       } else {
         const coordinates = Object.values(positions).map((item) => [item.longitude, item.latitude]);
