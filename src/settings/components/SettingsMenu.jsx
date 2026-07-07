@@ -10,6 +10,7 @@ import BuildIcon from '@mui/icons-material/Build';
 import PeopleIcon from '@mui/icons-material/People';
 import TodayIcon from '@mui/icons-material/Today';
 import PublishIcon from '@mui/icons-material/Publish';
+import TapAndPlayIcon from '@mui/icons-material/TapAndPlay';
 import SmartphoneIcon from '@mui/icons-material/Smartphone';
 import HelpIcon from '@mui/icons-material/Help';
 import CampaignIcon from '@mui/icons-material/Campaign';
@@ -91,6 +92,16 @@ const SettingsMenu = () => {
                   '/settings/organization',
                 )}
               />
+            )}
+            {admin && (
+            <MenuItem
+              title={t('settingsVins')}
+              link="/settings/vins"
+              icon={<TapAndPlayIcon />}
+              selected={location.pathname.startsWith(
+                '/settings/vins',
+              )}
+            />
             )}
             {!features.disableDrivers && (
               <MenuItem

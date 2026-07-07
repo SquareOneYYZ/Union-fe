@@ -1,7 +1,7 @@
 import {
   useId, useCallback, useEffect, useRef,
 } from 'react';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { useMediaQuery } from '@mui/material';
 import { useTheme } from '@mui/styles';
 import { map } from './core/MapView';
@@ -10,6 +10,10 @@ import { mapIconKey } from './core/preloadImages';
 import { useAttributePreference } from '../common/util/preferences';
 import { useCatchCallback } from '../reactHelper';
 import { findFonts } from './core/mapUtil';
+import { lerp, easeInOutCubic, interpolateRotation } from '../common/util/useAnimation';
+import { clustersActions } from '../store/cluster';
+
+const CLUSTER_POPUP_MIN_ZOOM = 9;
 
 const TELEPORT_THRESHOLD_SQ = 0.0045 * 0.0045;
 const STALE_GAP_MS = 10000;
@@ -20,6 +24,7 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
   const clusters = `${id}-clusters`;
   const selected = `${id}-selected`;
 
+  const dispatch = useDispatch();
   const theme = useTheme();
   const desktop = useMediaQuery(theme.breakpoints.up('md'));
   const iconScale = useAttributePreference('iconScale', desktop ? 0.75 : 1);
@@ -72,20 +77,6 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
       direction: showDirection,
     };
   }, [directionType, showStatus]);
-
-  const lerp = (a, b, t) => a + (b - a) * t;
-
-  const easeInOutCubic = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
-
-  const interpolateRotation = (start, end, p) => {
-    let diff = end - start;
-    if (diff > 180) diff -= 360;
-    if (diff < -180) diff += 360;
-    let r = start + diff * p;
-    if (r < 0) r += 360;
-    if (r >= 360) r -= 360;
-    return r;
-  };
 
   const calculateAnimationDuration = useCallback((deviceId, now) => {
     if (!useAdaptiveTiming) return baseAnimationDuration;
@@ -250,11 +241,34 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
 
   const onClusterClick = useCatchCallback(async (event) => {
     event.preventDefault();
-    const features = map.queryRenderedFeatures(event.point, { layers: [clusters] });
-    const clusterId = features[0].properties.cluster_id;
+
+    const features = map.queryRenderedFeatures(event.point, {
+      layers: [clusters],
+    });
+
+    const clusterFeature = features[0];
+    const clusterId = clusterFeature.properties.cluster_id;
+    const clusterCoords = clusterFeature.geometry.coordinates;
+    const currentZoom = map.getZoom();
     const zoom = await map.getSource(id).getClusterExpansionZoom(clusterId);
-    map.easeTo({ center: features[0].geometry.coordinates, zoom });
-  }, [clusters]);
+
+    if (currentZoom < CLUSTER_POPUP_MIN_ZOOM) {
+      map.easeTo({ center: clusterCoords, zoom });
+      return;
+    }
+
+    const source = map.getSource(id);
+    const leaves = await source.getClusterLeaves(clusterId, Infinity, 0);
+
+    const clusterDevices = leaves
+      .map((feature) => devices[feature.properties.deviceId])
+      .filter(Boolean);
+
+    dispatch(clustersActions.showClusterPopup({
+      devices: clusterDevices,
+      coordinates: clusterCoords,
+    }));
+  }, [clusters, devices]);
 
   useEffect(() => {
     map.addSource(id, {
@@ -270,6 +284,8 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
     });
 
     [id, selected].forEach((source) => {
+      const isSelectedLayer = source === selected;
+
       map.addLayer({
         id: source,
         type: 'symbol',
@@ -277,7 +293,7 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
         filter: ['!has', 'point_count'],
         layout: {
           'icon-image': '{category}-{color}',
-          'icon-size': iconScale,
+          'icon-size': isSelectedLayer ? iconScale * 1.3 : iconScale,
           'icon-allow-overlap': true,
           'text-field': `{${titleField || 'name'}}`,
           'text-allow-overlap': true,
@@ -286,8 +302,13 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
           'text-font': findFonts(map),
           'text-size': 12,
         },
-        paint: { 'text-halo-color': 'white', 'text-halo-width': 1 },
+        paint: {
+          'text-halo-color': 'white',
+          'text-halo-width': 1,
+          'icon-opacity': 1,
+        },
       });
+
       map.addLayer({
         id: `direction-${source}`,
         type: 'symbol',
@@ -295,7 +316,7 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
         filter: ['all', ['!has', 'point_count'], ['==', 'direction', true]],
         layout: {
           'icon-image': 'direction',
-          'icon-size': iconScale,
+          'icon-size': isSelectedLayer ? iconScale * 1.3 : iconScale,
           'icon-allow-overlap': true,
           'icon-rotate': ['get', 'rotation'],
           'icon-rotation-alignment': 'map',
@@ -314,6 +335,10 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
       layout: {
         'icon-image': 'background',
         'icon-size': iconScale,
+        // without allow-overlap, dense areas collision-cull the cluster icon
+        // (large clusters render as bare text and become un-clickable)
+        'icon-allow-overlap': true,
+        'text-allow-overlap': true,
         'text-field': '{point_count_abbreviated}',
         'text-font': findFonts(map),
         'text-size': 14,
@@ -347,9 +372,20 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
   useEffect(() => {
     const filtered = positions.filter((p) => Object.prototype.hasOwnProperty.call(devices, p.deviceId));
     updateAnimationState(filtered);
-    if (!enableSmoothing) updateMapData();
+    // Always push current state to the map sources. The animation loop only
+    // runs for devices that moved, so with smoothing enabled the initial
+    // positions would otherwise never reach the sources and no markers or
+    // clusters would render until something else called updateMapData.
+    updateMapData();
   }, [positions, devices, enableSmoothing, updateAnimationState, updateMapData]);
 
+  useEffect(() => {
+    const faded = selectedPosition ? 0.5 : 1;
+    if (map.getLayer(id)) {
+      map.setPaintProperty(id, 'icon-opacity', faded);
+      map.setPaintProperty(`direction-${id}`, 'icon-opacity', faded);
+    }
+  }, [selectedPosition?.deviceId]);
   return null;
 };
 
