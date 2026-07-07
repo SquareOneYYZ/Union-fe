@@ -93,7 +93,6 @@ const SettingsMenu = () => {
                 )}
               />
             )}
-            {admin && (
             <MenuItem
               title={t('settingsVins')}
               link="/settings/vins"
@@ -102,7 +101,6 @@ const SettingsMenu = () => {
                 '/settings/vins',
               )}
             />
-            )}
             {!features.disableDrivers && (
               <MenuItem
                 title={t('sharedDrivers')}
