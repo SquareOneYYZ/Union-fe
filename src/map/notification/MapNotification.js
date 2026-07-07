@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { map } from '../core/MapView';
 import './notification.css';
 
@@ -26,24 +26,39 @@ class NotificationControl {
   onRemove() {
     this.container.parentNode.removeChild(this.container);
   }
-
-  setEnabled(enabled) {
-    this.button.className = statusClass(enabled ? 'on' : 'off');
-    this.button.title = enabled ? 'Notifications (active)' : 'Notifications';
-  }
 }
 
-const MapNotification = ({ enabled, onClick }) => {
-  const control = useMemo(() => new NotificationControl(onClick), [onClick]);
+const BADGE_CLASS = 'notification-panic-badge';
+const PANIC_CLASS = 'maplibre-ctrl-notification-panic';
 
+const MapNotification = ({ enabled, onClick, panic, notificationButtonRef, }) => {
+  const control = useMemo(() => new NotificationControl(onClick), [onClick]);
   useEffect(() => {
     map.addControl(control, 'top-right');
     return () => map.removeControl(control);
-  }, [onClick]);
+  }, [control]);
 
   useEffect(() => {
-    control.setEnabled(enabled);
-  }, [enabled]);
+    if (!control.button) return;
+
+    control.button.className = statusClass(enabled ? 'on' : 'off');
+    control.button.title = enabled ? 'Notifications (active)' : 'Notifications';
+    control.button.style.position = 'relative';
+    notificationButtonRef.current = control.button;
+
+    control.button.classList.toggle(PANIC_CLASS, !!panic);
+
+    let badge = control.button.querySelector(`.${BADGE_CLASS}`);
+    if (panic) {
+      if (!badge) {
+        badge = document.createElement('span');
+        badge.className = BADGE_CLASS;
+        control.button.appendChild(badge);
+      }
+    } else if (badge) {
+      badge.remove();
+    }
+  }, [enabled, panic]);
 
   return null;
 };
