@@ -3,6 +3,10 @@ import { useSelector } from 'react-redux';
 import { useTranslation } from '../../common/components/LocalizationProvider';
 import { useAttributePreference } from '../../common/util/preferences';
 
+// Neutral map-like color shown where raster tiles have not loaded yet, so the
+// transparent canvas never exposes the app's dark theme background (#212121).
+export const mapBackgroundColor = '#e8e6e1';
+
 const styleCustom = ({ tiles, minZoom, maxZoom, attribution }) => {
   const source = {
     type: 'raster',
@@ -20,6 +24,12 @@ const styleCustom = ({ tiles, minZoom, maxZoom, attribution }) => {
     },
     glyphs: 'https://api.mapbox.com/fonts/v1/mapbox/{fontstack}/{range}.pbf',
     layers: [{
+      id: 'background',
+      type: 'background',
+      paint: {
+        'background-color': mapBackgroundColor,
+      },
+    }, {
       id: 'custom',
       type: 'raster',
       source: 'custom',
@@ -97,5 +107,5 @@ export default () => {
       available: true,
       attribute: 'googleKey',
     },
-  ], [t, mapTilerKey, locationIqKey, bingMapsKey, tomTomKey, hereKey, mapboxAccessToken, customMapUrl]);
+  ], [t, googleKey, mapTilerKey, locationIqKey, bingMapsKey, tomTomKey, hereKey, mapboxAccessToken, customMapUrl]);
 };
