@@ -335,6 +335,10 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
       layout: {
         'icon-image': 'background',
         'icon-size': iconScale,
+        // without allow-overlap, dense areas collision-cull the cluster icon
+        // (large clusters render as bare text and become un-clickable)
+        'icon-allow-overlap': true,
+        'text-allow-overlap': true,
         'text-field': '{point_count_abbreviated}',
         'text-font': findFonts(map),
         'text-size': 14,
