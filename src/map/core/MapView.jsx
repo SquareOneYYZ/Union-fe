@@ -6,11 +6,12 @@ import { googleProtocol } from 'maplibre-google-maps';
 import React, {
   useRef, useLayoutEffect, useEffect, useState,
 } from 'react';
+import { useTheme } from '@mui/material/styles';
 import { SwitcherControl } from '../switcher/switcher';
 import { useAttributePreference, usePreference } from '../../common/util/preferences';
 import usePersistedState, { savePersistedState } from '../../common/util/usePersistedState';
 import { mapImages } from './preloadImages';
-import useMapStyles from './useMapStyles';
+import useMapStyles, { mapBackgroundColor } from './useMapStyles';
 import { FullScreenControl } from '../controls/MapFullScreen';
 
 const element = document.createElement('div');
@@ -21,8 +22,47 @@ element.style.boxSizing = 'initial';
 maplibregl.setRTLTextPlugin(mapboxglRtlTextUrl);
 maplibregl.addProtocol('google', googleProtocol);
 
+const initialCamera = (() => {
+  try {
+    const saved = JSON.parse(window.localStorage.getItem('mapCamera'));
+    if (saved
+      && Number.isFinite(saved.longitude) && Math.abs(saved.longitude) <= 180
+      && Number.isFinite(saved.latitude) && Math.abs(saved.latitude) <= 90
+      && Number.isFinite(saved.zoom) && saved.zoom >= 1 && saved.zoom <= 24) {
+      return saved;
+    }
+  } catch (error) {
+    // ignore invalid persisted camera
+  }
+  return null;
+})();
+
+export const restoredCamera = initialCamera;
+
 export const map = new maplibregl.Map({
   container: element,
+  ...(initialCamera && {
+    center: [initialCamera.longitude, initialCamera.latitude],
+    zoom: initialCamera.zoom,
+  }),
+});
+
+map.on('moveend', () => {
+  const zoom = map.getZoom();
+  // resize() also fires moveend, so skip the pre-initialization world view to
+  // avoid persisting it before the camera has ever been positioned
+  if (zoom >= 1) {
+    const center = map.getCenter();
+    try {
+      savePersistedState('mapCamera', {
+        longitude: center.lng,
+        latitude: center.lat,
+        zoom,
+      });
+    } catch (error) {
+      // storage failures must not propagate into maplibre event dispatch
+    }
+  }
 });
 
 let ready = false;
@@ -56,6 +96,7 @@ const initMap = async () => {
 const MapView = ({ children }) => {
   const containerEl = useRef(null);
   const switcherRef = useRef(null);
+  const theme = useTheme();
   const [mapReady, setMapReady] = useState(false);
 
   const mapStyles = useMapStyles();
@@ -90,7 +131,7 @@ const MapView = ({ children }) => {
   useEffect(() => {
     if (!switcherRef.current) return;
     const filteredStyles = mapStyles.filter((s) => s.available && activeMapStyles.includes(s.id));
-    const styles = filteredStyles.length ? filteredStyles : mapStyles.filter((s) => s.id === 'osm');
+    const styles = filteredStyles.length ? filteredStyles : mapStyles.filter((s) => s.available);
     switcherRef.current.updateStyles(styles, defaultMapStyle);
   }, [mapStyles, defaultMapStyle, activeMapStyles]);
 
@@ -117,6 +158,13 @@ const MapView = ({ children }) => {
       removeReadyListener(listener);
     };
   }, []);
+
+  useLayoutEffect(() => {
+    // shown where the canvas is transparent (before a style loads and during
+    // style switches); raster tile gaps are covered by each style's own
+    // background layer instead
+    element.style.background = theme.palette.mode === 'dark' ? theme.palette.grey[900] : mapBackgroundColor;
+  }, [theme]);
 
   useLayoutEffect(() => {
     const currentEl = containerEl.current;
