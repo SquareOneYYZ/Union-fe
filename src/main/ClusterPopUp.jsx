@@ -64,6 +64,22 @@ const useStyles = makeStyles((theme) => ({
   },
   list: {
     overflowY: 'auto',
+    // Styled scrollbars are painted on the main thread instead of composited.
+    // A native composited scrollbar inside this transform/fixed-positioned
+    // popup gets painted at the wrong viewport location by Chromium (ghost
+    // black bar at the top of the map), so never let one be created here.
+    scrollbarWidth: 'thin',
+    scrollbarColor: `${theme.palette.grey[500]} transparent`,
+    '&::-webkit-scrollbar': {
+      width: 8,
+    },
+    '&::-webkit-scrollbar-thumb': {
+      backgroundColor: theme.palette.grey[500],
+      borderRadius: 4,
+    },
+    '&::-webkit-scrollbar-track': {
+      background: 'transparent',
+    },
   },
   listItem: {
     paddingTop: theme.spacing(0.75),
@@ -246,7 +262,9 @@ const ClusterPopup = () => {
 
   const style = {
     ...(position.top !== null ? { top: position.top } : { bottom: position.bottom }),
-    ...(position.left !== null ? { left: position.left } : { left: '50%', transform: 'translateX(-50%)' }),
+    // avoid transform positioning: Chromium paints composited scrollbars of
+    // children at the wrong location inside transformed containers
+    ...(position.left !== null ? { left: position.left } : { left: 'calc(50% - 160px)' }),
   };
 
   return (
