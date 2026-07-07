@@ -116,7 +116,7 @@ const NotificationPage = () => {
                   value={getFirstValue(item.attributes?.zoneTypes || '')}
                   onChange={(e) => setItem({
                     ...item,
-                    attributes: { ...item.attributes, zoneTypes: e.target.value }
+                    attributes: { ...item.attributes, zoneTypes: e.target.value },
                   })}
                   data={zoneTypes}
                   keyGetter={(it) => it.key}

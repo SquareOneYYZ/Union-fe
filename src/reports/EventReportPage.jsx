@@ -57,6 +57,7 @@ import { useSearchParams } from 'react-router-dom';
 
 const columnsArray = [
   ['eventTime', 'positionFixTime'],
+  ['deviceId', 'sharedDevice'],
   ['type', 'sharedType'],
   ['geofenceId', 'sharedGeofence'],
   ['maintenanceId', 'sharedMaintenance'],
@@ -91,8 +92,9 @@ const EventReportPage = () => {
     }),
   );
 
-  const [columns, setColumns] = usePersistedState('eventColumns', [
+  const [columns, setColumns] = usePersistedState('eventColumns_v2', [
     'eventTime',
+    'deviceId',
     'type',
     'attributes',
     'speedLimit',
@@ -295,8 +297,12 @@ useEffect(() => {
   const startRow = totalCount === 0 ? 0 : page * rowsPerPage + 1;
   const endRow = Math.min((page + 1) * rowsPerPage, totalCount);
 
-  const handleSubmit = useCatch(async ({ deviceId, from, to, type }) => {
-    const query = new URLSearchParams({ deviceId, from, to });
+  const handleSubmit = useCatch(async ({ deviceIds, from, to, type }) => {
+    if (deviceIds && deviceIds.length === 0) {
+      return;
+    }
+    const query = new URLSearchParams({ from, to });
+    (deviceIds ?? []).forEach((id) => query.append('deviceId', id));
     eventTypes.forEach((it) => query.append('type', it));
     if (eventTypes[0] !== 'allEvents' && eventTypes.includes('alarm')) {
       alarmTypes.forEach((it) => query.append('alarm', it));
@@ -381,10 +387,10 @@ useEffect(() => {
     switch (key) {
       case 'eventTime':
         return formatTime(value, 'seconds');
-
+      case 'deviceId':
+        return devices[value]?.name || value;
       case 'type':
         return t(prefixString('event', value));
-
       case 'geofenceId': {
         if (value > 0) {
           const geofence = geofences[value];
@@ -443,7 +449,7 @@ useEffect(() => {
         if (item.type === 'deviceTollRouteEnter') {
           let tollDetails = '';
           if ('tollName' in item.attributes) {
-            tollDetails += `Toll name: ${item.attributes.trollName} | `;
+            tollDetails += `Toll name: ${item.attributes.tollName} | `;
           }
           if ('tollRef' in item.attributes) {
             tollDetails += `Toll Reference: ${item.attributes.tollRef} | `;
@@ -473,7 +479,6 @@ useEffect(() => {
   }
 
   const showAlarmSelect = eventTypes[0] !== 'allEvents' && eventTypes.includes('alarm');
-
   let tableBodyContent;
 
   if (loading) {
@@ -492,7 +497,6 @@ useEffect(() => {
     tableBodyContent = sortedAndPaginatedData.map((item) => {
       const isSelectedItem = selectedItem?.id === item.id;
       const hasPositionId = Boolean(item.positionId);
-
       let locationAction = null;
 
       if (hasPositionId) {
@@ -562,6 +566,7 @@ useEffect(() => {
               handleSubmit={handleSubmit}
               handleSchedule={handleSchedule}
               loading={loading}
+              multiDevice
             >
               <div className={classes.filterItem}>
                 <FormControl fullWidth>

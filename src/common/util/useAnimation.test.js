@@ -21,7 +21,7 @@ describe('lerp', () => {
 });
 
 // easeInOutCubic(t) — t < 0.5 uses 4t³, else 1 - (-2t+2)³/2
-describe('easeInOutCubic', ()=> {
+describe('easeInOutCubic', () => {
   it('returns 0 at t=0', () => {
     expect(easeInOutCubic(0)).toBe(0);
   });
@@ -43,7 +43,7 @@ describe('interpolateRotation', () => {
     // 0→90 at p=0.5: diff=90, r=0+90*0.5=45 ✓
     expect(interpolateRotation(0, 90, 0.5)).toBeCloseTo(45);
   });
-   it('wraps forward across 360° boundary', () => {
+  it('wraps forward across 360° boundary', () => {
     // 350→10: diff=10-350=-340 → -340+360=20
     // r = 350 + 20*0.5 = 360 → r-=360 → 0
     expect(interpolateRotation(350, 10, 0.5)).toBeCloseTo(0);
@@ -62,4 +62,4 @@ describe('interpolateRotation', () => {
   it('returns end at p=1', () => {
     expect(interpolateRotation(45, 180, 1)).toBeCloseTo(180);
   });
-}); 
+});
