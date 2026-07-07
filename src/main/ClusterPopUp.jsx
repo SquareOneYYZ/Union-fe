@@ -1,8 +1,11 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, {
+  useCallback, useEffect, useMemo, useRef, useState,
+} from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
-  Box, Typography, IconButton, Paper, List, ListItem, ListItemText, Divider,
+  Box, Typography, IconButton, Paper, ListItem, ListItemText,
 } from '@mui/material';
+import { FixedSizeList } from 'react-window';
 import CloseIcon from '@mui/icons-material/Close';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
@@ -61,7 +64,6 @@ const useStyles = makeStyles((theme) => ({
   },
   list: {
     overflowY: 'auto',
-    flex: 1,
   },
   listItem: {
     paddingTop: theme.spacing(0.75),
@@ -73,6 +75,48 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 const INITIAL_BOTTOM = 16;
+const ROW_HEIGHT = 61;
+const LIST_MAX_HEIGHT = 340;
+
+const ClusterDeviceRow = ({ data, index, style }) => {
+  const { devices, classes, t, onSelect } = data;
+  const device = devices[index];
+  return (
+    <ListItem
+      component="div"
+      dense
+      divider={index < devices.length - 1}
+      style={style}
+      className={classes.listItem}
+      secondaryAction={(
+        <>
+          <IconButton
+            size="small"
+            title={t('sharedShowDetails')}
+            onClick={() => onSelect(device.id)}
+          >
+            <InfoOutlinedIcon fontSize="small" />
+          </IconButton>
+          <IconButton
+            size="small"
+            title={t('startTracking')}
+            onClick={() => onSelect(device.id)}
+          >
+            <GpsFixedIcon fontSize="small" />
+          </IconButton>
+        </>
+      )}
+    >
+      <ListItemText
+        primary={device.name}
+        secondary={formatStatus(device.status, t)}
+        primaryTypographyProps={{
+          className: classes.deviceName,
+        }}
+      />
+    </ListItem>
+  );
+};
 
 const ClusterPopup = () => {
   const classes = useStyles();
@@ -83,6 +127,15 @@ const ClusterPopup = () => {
   const dragOffset = useRef({ x: 0, y: 0 });
   const [position, setPosition] = useState({ bottom: INITIAL_BOTTOM, left: null, top: null });
   const { visible, devices } = useSelector((state) => state.clusters);
+
+  const handleSelect = useCallback((deviceId) => {
+    dispatch(devicesActions.selectId(deviceId));
+    dispatch(clustersActions.hideClusterPopup());
+  }, [dispatch]);
+
+  const itemData = useMemo(() => ({
+    devices, classes, t, onSelect: handleSelect,
+  }), [devices, classes, t, handleSelect]);
 
   useEffect(() => {
     if (visible) {
@@ -222,49 +275,16 @@ const ClusterPopup = () => {
           <CloseIcon fontSize="small" />
         </IconButton>
       </Box>
-      <List dense disablePadding className={classes.list}>
-        {devices.map((device, index) => (
-          <Box key={device.id}>
-            <ListItem
-              className={classes.listItem}
-              secondaryAction={(
-                <>
-                  <IconButton
-                    size="small"
-                    title={t('sharedShowDetails')}
-                    onClick={() => {
-                      dispatch(devicesActions.selectId(device.id));
-                      dispatch(clustersActions.hideClusterPopup());
-                    }}
-                  >
-                    <InfoOutlinedIcon fontSize="small" />
-                  </IconButton>
-
-                  <IconButton
-                    size="small"
-                    title={t('startTracking')}
-                    onClick={() => {
-                      dispatch(devicesActions.selectId(device.id));
-                      dispatch(clustersActions.hideClusterPopup());
-                    }}
-                  >
-                    <GpsFixedIcon fontSize="small" />
-                  </IconButton>
-                </>
-              )}
-            >
-              <ListItemText
-                primary={device.name}
-                secondary={formatStatus(device.status, t)}
-                primaryTypographyProps={{
-                  className: classes.deviceName,
-                }}
-              />
-            </ListItem>
-            {index < devices.length - 1 && <Divider component="li" />}
-          </Box>
-        ))}
-      </List>
+      <FixedSizeList
+        className={classes.list}
+        height={Math.min(devices.length * ROW_HEIGHT, LIST_MAX_HEIGHT)}
+        width="100%"
+        itemCount={devices.length}
+        itemSize={ROW_HEIGHT}
+        itemData={itemData}
+      >
+        {ClusterDeviceRow}
+      </FixedSizeList>
     </Paper>
   );
 };
