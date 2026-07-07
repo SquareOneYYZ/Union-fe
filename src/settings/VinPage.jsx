@@ -38,7 +38,7 @@ const VinPage = () => {
       if (response.ok) {
         const allGroups = await response.json();
         setGroups(
-          allGroups.filter(g => g.organizationId === effectiveOrgId)
+          allGroups.filter((g) => g.organizationId === effectiveOrgId),
         );
       }
     };
