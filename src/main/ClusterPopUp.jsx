@@ -65,9 +65,13 @@ const useStyles = makeStyles((theme) => ({
   list: {
     overflowY: 'auto',
     // Styled scrollbars are painted on the main thread instead of composited.
-    // A native composited scrollbar inside this transform/fixed-positioned
-    // popup gets painted at the wrong viewport location by Chromium (ghost
-    // black bar at the top of the map), so never let one be created here.
+    // A native composited scrollbar inside this layer-promoted popup gets
+    // painted at the wrong viewport location by Chromium (ghost black bar at
+    // the top of the map), so never let one be created here. This styling is
+    // the load-bearing fix: react-window keeps the scroller composited via
+    // will-change, so positioning alone cannot prevent the bug. Chromium >=121
+    // uses scrollbar-width/scrollbar-color and ignores the webkit rules, which
+    // remain as the Safari fallback.
     scrollbarWidth: 'thin',
     scrollbarColor: `${theme.palette.grey[500]} transparent`,
     '&::-webkit-scrollbar': {
@@ -127,7 +131,11 @@ const ClusterDeviceRow = ({ data, index, style }) => {
         primary={device.name}
         secondary={formatStatus(device.status, t)}
         primaryTypographyProps={{
+          noWrap: true,
           className: classes.deviceName,
+        }}
+        secondaryTypographyProps={{
+          noWrap: true,
         }}
       />
     </ListItem>
@@ -295,6 +303,7 @@ const ClusterPopup = () => {
       </Box>
       <FixedSizeList
         className={classes.list}
+        style={{ willChange: 'auto' }}
         height={Math.min(devices.length * ROW_HEIGHT, LIST_MAX_HEIGHT)}
         width="100%"
         itemCount={devices.length}
