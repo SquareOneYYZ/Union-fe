@@ -69,7 +69,7 @@ const VinsPage = () => {
         <TableBody>
           {!loading ? (
             items
-              .filter((item) => admin || item.organizationId === userOrganizationId)
+              .filter((item) => admin || (userOrganizationId != null && item.organizationId === userOrganizationId))
               .filter(filterVinMapping(searchKeyword))
               .map((item) => (
                 <TableRow key={item.id}>
