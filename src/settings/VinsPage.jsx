@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useSelector } from 'react-redux';
 import {
   Table,
   TableRow,
@@ -7,6 +8,7 @@ import {
   TableBody,
 } from '@mui/material';
 import { useEffectAsync } from '../reactHelper';
+import { useAdministrator } from '../common/util/permissions';
 import { useTranslation } from '../common/components/LocalizationProvider';
 import PageLayout from '../common/components/PageLayout';
 import SettingsMenu from './components/SettingsMenu';
@@ -28,6 +30,8 @@ const filterVinMapping = (keyword) => (item) => {
 const VinsPage = () => {
   const classes = useSettingsStyles();
   const t = useTranslation();
+  const admin = useAdministrator();
+  const userOrganizationId = useSelector((state) => state.session.user?.organizationId);
 
   const [timestamp, setTimestamp] = useState(Date.now());
   const [items, setItems] = useState([]);
@@ -64,20 +68,23 @@ const VinsPage = () => {
         </TableHead>
         <TableBody>
           {!loading ? (
-            items.filter(filterVinMapping(searchKeyword)).map((item) => (
-              <TableRow key={item.id}>
-                <TableCell>{item.vin}</TableCell>
-                <TableCell>{item.imei}</TableCell>
-                <TableCell className={classes.columnAction} padding="none">
-                  <CollectionActions
-                    itemId={item.id}
-                    editPath="/vin"
-                    endpoint="vinmappings"
-                    setTimestamp={setTimestamp}
-                  />
-                </TableCell>
-              </TableRow>
-            ))
+            items
+              .filter((item) => admin || item.organizationId === userOrganizationId)
+              .filter(filterVinMapping(searchKeyword))
+              .map((item) => (
+                <TableRow key={item.id}>
+                  <TableCell>{item.vin}</TableCell>
+                  <TableCell>{item.imei}</TableCell>
+                  <TableCell className={classes.columnAction} padding="none">
+                    <CollectionActions
+                      itemId={item.id}
+                      editPath="/vin"
+                      endpoint="vinmappings"
+                      setTimestamp={setTimestamp}
+                    />
+                  </TableCell>
+                </TableRow>
+              ))
           ) : (
             <TableShimmer columns={3} endAction />
           )}

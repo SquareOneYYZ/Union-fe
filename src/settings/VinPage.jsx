@@ -68,6 +68,7 @@ const VinPage = () => {
       endpoint="vinmappings"
       item={item}
       setItem={setItem}
+      defaultItem={{ organizationId: userOrganizationId }}
       validate={validate}
       menu={<SettingsMenu />}
       breadcrumbs={['settingsTitle', 'sharedVin']}
