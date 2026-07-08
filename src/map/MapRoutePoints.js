@@ -183,7 +183,7 @@ const MapRoutePoints = ({ positions, onClick, useGlobalExpansion = false, showSp
       }
       map.off('click', handleMapClick);
     };
-  }, [positions, simplifiedPositions, speedUnit, t, id, showSimplifiedPoints, useGlobalExpansion, dispatch]);
+  }, [positions, simplifiedPositions, speedUnit, t, id, showSimplifiedPoints, useGlobalExpansion, dispatch, showSpeedLegend]);
 
   return null;
 };

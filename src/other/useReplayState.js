@@ -94,7 +94,7 @@ const useReplayState = () => {
 
   const deviceMarkers = useMemo(() => allDeviceIds.map((deviceId) => {
     const positions = devicePositions[deviceId];
-    if (!positions || positions.length === 0) return null; // guard empty arrays too
+    if (!positions || positions.length === 0) return null;
 
     const color = deviceColors[deviceId] || DEVICE_COLORS[0];
     const colorIndex = Math.max(DEVICE_COLORS.indexOf(color), 0);
@@ -103,7 +103,7 @@ const useReplayState = () => {
 
     const pos = getSmoothPositionAtTime(positions, currentTime);
     if (!pos) {
-      return positions[0] // fallback to first position instead of null
+      return positions[0]
         ? {
           ...positions[0],
           id: `replay-${deviceId}`,
@@ -248,7 +248,7 @@ const useReplayState = () => {
       if (!response.ok) throw Error(await response.text());
       const data = await response.json();
 
-      if (!data.length) throw Error('sharedNoData');
+      if (!data.length) throw Error(t('sharedNoData'));
 
       setDevicePositions({ [deviceId]: data });
       setDeviceColors({ [deviceId]: DEVICE_COLORS[0] });
@@ -261,7 +261,7 @@ const useReplayState = () => {
     }
   });
 
-  const handleAddCompareDevice = useCatch(async () => {
+const handleAddCompareDevice = useCatch(async () => {
     if (!pendingCompareId || !from || !to) return;
 
     const query = new URLSearchParams({ deviceId: pendingCompareId, from, to });
@@ -273,11 +273,16 @@ const useReplayState = () => {
       setPendingCompareId('');
       return;
     }
-    const colorIndex = (compareDeviceIds.length + 1) % DEVICE_COLORS.length;
+    const usedCount = compareDeviceIds.length + 1;
+    const colorIndex = usedCount % DEVICE_COLORS.length;
+    const colorReused = usedCount >= DEVICE_COLORS.length;
     setDevicePositions((prev) => ({ ...prev, [pendingCompareId]: data }));
     setDeviceColors((prev) => ({ ...prev, [pendingCompareId]: DEVICE_COLORS[colorIndex] }));
     setCompareDeviceIds((prev) => [...prev, pendingCompareId]);
     setPendingCompareId('');
+    if (colorReused) {
+      setNoDataDeviceId(null);
+    }
   });
 
   const handleRemoveCompareDevice = useCallback((deviceId) => {

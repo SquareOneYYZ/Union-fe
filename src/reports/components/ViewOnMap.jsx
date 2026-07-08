@@ -25,6 +25,8 @@ import MapScale from '../../map/MapScale';
 import { formatTime } from '../../common/util/formatter';
 import { useTranslation } from '../../common/components/LocalizationProvider';
 import { prefixString } from '../../common/util/stringUtils';
+import { EVENT_TYPE_COLORS } from '../../map/core/preloadImages';
+
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -249,21 +251,9 @@ const useStyles = makeStyles((theme) => ({
 const SPEED_OPTIONS = [0.5, 0.75, 1, 2, 5, 10];
 const TICK_MS = 16;
 
-const EVENT_COLOR_MAP = {
-  deviceOverspeed: '#c62828',
-  geofenceEnter: '#2e7d32',
-  geofenceExit: '#e65100',
-  deviceStopped: '#1565c0',
-  deviceMoving: '#00838f',
-  alarm: '#ad1457',
-  ignitionOn: '#558b2f',
-  ignitionOff: '#6a1b9a',
-  default: '#f9a825',
-};
+const getEventColor = (type) => EVENT_TYPE_COLORS[type] || EVENT_TYPE_COLORS.default;
+const eventIconKey = (type) => `event-${EVENT_TYPE_COLORS[type] ? type : 'default'}`;
 
-const getEventColor = (type) => EVENT_COLOR_MAP[type] || EVENT_COLOR_MAP.default;
-
-// Full legend — all possible event types with display labels
 const ALL_EVENT_LEGEND = [
   { type: 'deviceOverspeed', label: 'Overspeed' },
   { type: 'alarm', label: 'Alarm' },
@@ -456,9 +446,9 @@ const ViewOnMap = () => {
   const [smoothPosition, setSmoothPosition] = useState(null);
   const [popoverAnchor, setPopoverAnchor] = useState(null);
   const [popoverEvent, setPopoverEvent] = useState(null);
-
   const timerRef = useRef(null);
   const currentTimeRef = useRef(0);
+  const mapContainerRef = useRef(null);
 
   useEffect(() => {
     if (minTime) {
@@ -562,7 +552,6 @@ const ViewOnMap = () => {
     return positions;
   }, [sortedEvents, activeIndex, positionMap]);
 
-  // All events as positions (for overview mode)
   const allEventPositions = useMemo(() => sortedEvents.map((ev, i) => {
     const pos = positionMap[ev.positionId];
     if (!pos) return null;
@@ -579,7 +568,6 @@ const ViewOnMap = () => {
     if (viewMode === 'overview') {
       return allEventPositions;
     }
-    // replay mode — progressive trail + smooth current
     if (!smoothPosition) return trailPositions;
     return [
       ...trailPositions,
@@ -617,6 +605,14 @@ const ViewOnMap = () => {
     currentTimeRef.current = ts;
     setPlaying(false);
   }, [activeIndex, sortedEvents]);
+
+  const handleMarkerClick = useCallback((positionId) => {
+    const ev = sortedEvents.find((e) => String(e.positionId) === String(positionId));
+    if (ev) {
+      setPopoverEvent(ev);
+      setPopoverAnchor(mapContainerRef.current);
+    }
+  }, [sortedEvents]);
 
   const eventTypeSummary = useMemo(() => {
     const map = {};
@@ -678,11 +674,16 @@ const ViewOnMap = () => {
         </ToggleButtonGroup>
       </div>
 
-      <div className={classes.mapContainer}>
+      <div className={classes.mapContainer} ref={mapContainerRef}>
         <MapView>
           <MapGeofence />
           {allVisiblePositions.length > 0 && (
-            <MapPositions positions={allVisiblePositions} titleField="fixTime" customCategory="event" />
+            <MapPositions
+              positions={allVisiblePositions}
+              titleField="fixTime"
+              customCategory="event"
+              onClick={handleMarkerClick}
+            />
           )}
         </MapView>
         <MapScale />

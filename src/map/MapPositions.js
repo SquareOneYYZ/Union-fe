@@ -100,7 +100,7 @@ const dispatch = useDispatch();
       rotation: position.course,
       direction: showDirection,
     };
-  }, [directionType, showStatus]);
+  }, [directionType, showStatus];
 
   const onMouseEnter = () => { map.getCanvas().style.cursor = 'pointer'; };
   const onMouseLeave = () => { map.getCanvas().style.cursor = ''; };
