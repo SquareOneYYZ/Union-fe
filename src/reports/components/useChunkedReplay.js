@@ -46,13 +46,18 @@ const useReplaySession = () => {
 
   const sessionIdRef = useRef(null);
   const loadedUpToRef = useRef(0);
+  const windowStartRef = useRef(0);
   const totalCountRef = useRef(0);
   const isFetchingRef = useRef(false);
   const pendingResumeRef = useRef(null);
+  const abortRef = useRef(null);
+  const requestIdRef = useRef(0);
 
   const reset = useCallback(() => {
+    abortRef.current?.abort();
     sessionIdRef.current = null;
     loadedUpToRef.current = 0;
+    windowStartRef.current = 0;
     totalCountRef.current = 0;
     isFetchingRef.current = false;
     pendingResumeRef.current = null;
@@ -68,31 +73,42 @@ const useReplaySession = () => {
 
   const fetchChunk = useCallback(async (offset, mode = 'append') => {
     if (!sessionIdRef.current) return null;
-    if (isFetchingRef.current) return null;
     if (totalCountRef.current > 0 && offset >= totalCountRef.current) return null;
 
+    if (isFetchingRef.current) {
+      if (mode !== 'replace') return null;
+      abortRef.current?.abort(); // a seek supersedes any in-flight prefetch
+    }
+
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
     isFetchingRef.current = true;
+    const controller = new AbortController();
+    abortRef.current = controller;
     const url = `/api/replay/session/${sessionIdRef.current}/chunk?offset=${offset}&limit=${CHUNK_SIZE}`;
 
     try {
-      const res = await fetch(url);
+      const res = await fetch(url, { signal: controller.signal });
 
       if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
 
       const chunk = await res.json();
 
       if (!chunk || chunk.length === 0) {
+        setIsBuffering(false);
+        pendingResumeRef.current = null;
         return [];
       }
 
       if (mode === 'replace') {
+        windowStartRef.current = offset;
         setWindowStart(offset);
         setPositions(chunk);
         loadedUpToRef.current = offset + chunk.length;
       } else {
         setPositions((prev) => {
           const merged = [...prev, ...chunk];
-          loadedUpToRef.current = merged.length;
+          loadedUpToRef.current = windowStartRef.current + merged.length;
           return merged;
         });
       }
@@ -105,12 +121,17 @@ const useReplaySession = () => {
 
       return chunk;
     } catch (err) {
+      if (err.name === 'AbortError') return null;
       setError(err.message);
-      setIsBuffering(false);
-      pendingResumeRef.current = null;
+      if (requestIdRef.current === requestId) {
+        setIsBuffering(false);
+        pendingResumeRef.current = null;
+      }
       return null;
     } finally {
-      isFetchingRef.current = false;
+      if (requestIdRef.current === requestId) {
+        isFetchingRef.current = false;
+      }
     }
   }, []);
 
@@ -178,6 +199,7 @@ const useReplaySession = () => {
       const data = await res.json();
 
       if (!data.length) {
+        setError('No data available for the selected range.');
         return false;
       }
 
@@ -226,8 +248,10 @@ const useReplaySession = () => {
       lsSave({ sessionId, totalCount: count, deviceId, from, to });
 
       if (count === 0) {
+        setError('No data available for the selected range.');
         return false;
       }
+
 
       fetchOverview(sessionId);
       const firstChunk = await fetchChunk(0, 'append');

@@ -3,7 +3,7 @@ import React, {
 } from 'react';
 import {
   IconButton, Paper, Slider, Toolbar, Typography, Box, Chip,
-  Tooltip, CircularProgress, LinearProgress,
+  Tooltip, LinearProgress,
 } from '@mui/material';
 import makeStyles from '@mui/styles/makeStyles';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -126,7 +126,6 @@ const ReplayPage = () => {
     init,
     sliderSeek,
     checkAndPrefetch,
-    getStoredSession,
   } = useReplaySession();
 
   const [index, setIndex] = useState(0);
@@ -159,10 +158,6 @@ const ReplayPage = () => {
     }
     return null;
   });
-
-  useEffect(() => {
-    getStoredSession();
-  }, []);
 
   useEffect(() => {
     if (!playing) {
@@ -206,6 +201,11 @@ const ReplayPage = () => {
         return 0;
       });
     }, 16);
+
+    return () => {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    };
   }, [playing]);
 
   useEffect(() => {
