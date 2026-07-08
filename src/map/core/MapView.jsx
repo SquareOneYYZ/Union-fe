@@ -41,6 +41,11 @@ export const restoredCamera = initialCamera;
 
 export const map = new maplibregl.Map({
   container: element,
+  // Live position updates rewrite the marker sources every batch (and every
+  // animation frame while devices move), which restarts the default 300ms
+  // symbol fade on affected markers and makes the whole fleet pulse/blink.
+  // Disable symbol fading so markers always render at full opacity.
+  fadeDuration: 0,
   ...(initialCamera && {
     center: [initialCamera.longitude, initialCamera.latitude],
     zoom: initialCamera.zoom,
