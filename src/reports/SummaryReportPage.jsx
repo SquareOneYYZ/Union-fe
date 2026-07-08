@@ -235,7 +235,18 @@ const SummaryReportPage = () => {
           <div className={classes.filterItem}>
             <FormControl fullWidth>
               <InputLabel>{t('sharedType')}</InputLabel>
-              <Select label={t('sharedType')} value={daily} onChange={(e) => setDaily(e.target.value)}>
+              <Select
+                label={t('sharedType')}
+                value={daily}
+                onChange={(e) => setDaily(e.target.value)}
+                sx={{ // ← ADD THIS
+                  borderRadius: '13px',
+                  '& .MuiOutlinedInput-notchedOutline': { borderRadius: '13px' },
+                }}
+                MenuProps={{ // ← ADD THIS
+                  PaperProps: { sx: { borderRadius: '13px' } },
+                }}
+              >
                 <MenuItem value={false}>{t('reportSummary')}</MenuItem>
                 <MenuItem value>{t('reportDaily')}</MenuItem>
               </Select>
