@@ -1,17 +1,15 @@
 import { sessionActions } from './session';
 import { devicesActions } from './devices';
+import { eventsActions } from './events';
 
 const threshold = 3;
 const minInterval = 1500;
-const maxInterval = 30000;
-const scaleFactor = 1000;
-const debugMode = false;
+const maxInterval = 5000;
+const scaleFactor = 20;
 
-const debugLog = (...args) => {
-  if (debugMode) {
-    console.log('[Throttle]', ...args);
-  }
-};
+// eslint-disable-next-line no-console
+const debugMode = process.env.NODE_ENV === 'development';
+const debugLog = (message) => debugMode && console.log(message);
 
 export default () => (next) => {
   const buffer = [];
@@ -27,44 +25,86 @@ export default () => (next) => {
 
       const deviceUpdates = {};
       const positionUpdates = {};
+      const eventUpdates = [];
 
       flushed.forEach((action) => {
         if (action.type === devicesActions.update.type) {
-          action.payload.forEach((item) => { deviceUpdates[item.id] = item; });
+          action.payload.forEach((item) => {
+            deviceUpdates[item.id] = item;
+          });
         } else if (action.type === sessionActions.updatePositions.type) {
-          action.payload.forEach((item) => { positionUpdates[item.deviceId] = item; });
+          action.payload.forEach((item) => {
+            positionUpdates[item.deviceId] = item;
+          });
+        } else if (action.type === eventsActions.add.type) {
+          eventUpdates.push(...action.payload);
         }
       });
 
       const mergedDeviceUpdates = Object.values(deviceUpdates);
       if (mergedDeviceUpdates.length) {
-        next({ type: devicesActions.update.type, payload: mergedDeviceUpdates });
+        next({
+          type: devicesActions.update.type,
+          payload: mergedDeviceUpdates,
+        });
       }
 
       const mergedPositionUpdates = Object.values(positionUpdates);
       if (mergedPositionUpdates.length) {
-        next({ type: sessionActions.updatePositions.type, payload: mergedPositionUpdates });
+        next({
+          type: sessionActions.updatePositions.type,
+          payload: mergedPositionUpdates,
+        });
+      }
+
+      if (eventUpdates.length) {
+        next({
+          type: eventsActions.add.type,
+          payload: eventUpdates,
+        });
       }
 
       const totalTime = performance.now() - start;
-      debugLog(`Flushed ${mergedDeviceUpdates.length + mergedPositionUpdates.length} / ${flushed.length} events in ${totalTime.toFixed(2)} ms`);
-      currentInterval = Math.min(Math.max(totalTime * scaleFactor, minInterval), maxInterval);
+      const flushedCount = mergedDeviceUpdates.length
+        + mergedPositionUpdates.length
+        + eventUpdates.length;
+
+      debugLog(
+        `Flushed ${flushedCount} / ${flushed.length} events in ${totalTime.toFixed(2)} ms`,
+      );
+
+      currentInterval = Math.min(
+        Math.max(totalTime * scaleFactor, minInterval),
+        maxInterval,
+      );
     }
 
     const shouldThrottle = ((counter * 1000) / currentInterval) > threshold;
+
     if (throttled !== shouldThrottle) {
       debugLog(`Throttling ${shouldThrottle}`);
       throttled = shouldThrottle;
     }
+
     counter = 0;
-    if (!throttled) currentInterval = minInterval;
+
+    if (!throttled) {
+      currentInterval = minInterval;
+    }
+
     setTimeout(tick, currentInterval);
   };
 
   setTimeout(tick, currentInterval);
 
   return (action) => {
-    if (action.type !== devicesActions.update.type && action.type !== sessionActions.updatePositions.type) {
+    const throttledTypes = [
+      devicesActions.update.type,
+      sessionActions.updatePositions.type,
+      eventsActions.add.type,
+    ];
+
+    if (!throttledTypes.includes(action.type)) {
       return next(action);
     }
 
@@ -76,7 +116,9 @@ export default () => (next) => {
     }
 
     if (((counter * 1000) / currentInterval) > threshold) {
-      if (!throttled) debugLog('Throttling started');
+      if (!throttled) {
+        debugLog('Throttling started');
+      }
       throttled = true;
     }
 

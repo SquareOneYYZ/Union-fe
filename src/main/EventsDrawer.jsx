@@ -9,7 +9,6 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import { eventsActions } from '../store';
 import { formatNotificationTitle, formatTime } from '../common/util/formatter';
 import { useTranslation } from '../common/components/LocalizationProvider';
-import { eventsActions } from '../store';
 import SelectField from '../common/components/SelectField';
 
 const useStyles = makeStyles((theme) => ({

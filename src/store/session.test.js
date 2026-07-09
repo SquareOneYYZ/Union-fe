@@ -60,7 +60,7 @@ describe('session reducer — updatePositions / history', () => {
     });
     // Insert LIMIT + 2 unique points
     let s = state;
-    for (let i = 0; i < LIMIT + 2; i=i+1) {
+    for (let i = 0; i < LIMIT + 2; i += 1) {
       s = dispatch(s, [pos(1, i, i)]);
     }
     // slice(1 - LIMIT) before each append keeps the array at LIMIT entries
