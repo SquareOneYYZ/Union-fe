@@ -19,6 +19,13 @@ const TELEPORT_THRESHOLD_SQ = 0.0045 * 0.0045;
 const STALE_GAP_MS = 10000;
 const MIN_CHANGE_DEG = 0.000005;
 
+// Every setData re-tiles the source in the worker and restarts symbol
+// placement, which reads as fleet-wide marker flicker when it happens on
+// every animation frame. Above this fleet size, animation writes are
+// coalesced to one per interval; the final landing write always goes through.
+const PER_FRAME_WRITE_MAX_FLEET = 300;
+const ANIMATION_WRITE_INTERVAL_MS = 1000;
+
 const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleField }) => {
   const id = useId();
   const clusters = `${id}-clusters`;
@@ -46,6 +53,8 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
   const selectedPositionRef = useRef(selectedPosition);
   const lastUpdateTimeRef = useRef({});
   const lastCoordRef = useRef({});
+  const lastMapWriteRef = useRef(0);
+  const fixTimeCacheRef = useRef({});
 
   useEffect(() => {
     devicesRef.current = devices;
@@ -66,11 +75,20 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
       case 'all': showDirection = position.course > 0; break;
       default: showDirection = selectedPositionId === position.id && position.course > 0; break;
     }
+    // formatTime parses the ISO string through dayjs and Intl on every call;
+    // at fleet scale this dominates the main thread, so only re-format when
+    // the device actually has a new fix time.
+    const cache = fixTimeCacheRef.current;
+    let fixTimeEntry = cache[position.deviceId];
+    if (!fixTimeEntry || fixTimeEntry.raw !== position.fixTime) {
+      fixTimeEntry = { raw: position.fixTime, formatted: formatTime(position.fixTime, 'seconds') };
+      cache[position.deviceId] = fixTimeEntry;
+    }
     return {
       id: position.id,
       deviceId: position.deviceId,
       name: device.name,
-      fixTime: formatTime(position.fixTime, 'seconds'),
+      fixTime: fixTimeEntry.formatted,
       category: mapIconKey(device.category),
       color: showStatus ? position.attributes.color || getStatusColor(device.status) : 'neutral',
       rotation: position.course,
@@ -114,6 +132,8 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
 
       sourceObj.setData({ type: 'FeatureCollection', features });
     });
+
+    lastMapWriteRef.current = Date.now();
   }, [id, selected, createFeature]);
 
   const animate = useCallback(() => {
@@ -143,7 +163,13 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
       needsUpdate = true;
     });
 
-    if (needsUpdate) updateMapData(stateVals);
+    if (needsUpdate) {
+      const stillAnimating = stateVals.some((ds) => ds.target);
+      const writeInterval = stateVals.length > PER_FRAME_WRITE_MAX_FLEET ? ANIMATION_WRITE_INTERVAL_MS : 0;
+      if (!stillAnimating || now - lastMapWriteRef.current >= writeInterval) {
+        updateMapData(stateVals);
+      }
+    }
 
     if (hasTargets) {
       animationFrameRef.current = requestAnimationFrame(animate);
@@ -217,6 +243,7 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
         delete state[deviceId];
         delete lastUpdateTimeRef.current[deviceId];
         delete lastCoordRef.current[deviceId];
+        delete fixTimeCacheRef.current[deviceId];
       }
     });
 
