@@ -9,6 +9,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import { eventsActions } from '../store';
 import { formatNotificationTitle, formatTime } from '../common/util/formatter';
 import { useTranslation } from '../common/components/LocalizationProvider';
+import { eventsActions } from '../store';
 import SelectField from '../common/components/SelectField';
 
 const useStyles = makeStyles((theme) => ({
@@ -49,13 +50,10 @@ const EventsDrawer = ({ open, onClose }) => {
   });
 
   const eventDevices = useMemo(() => {
-    const map = new Map();
-    events.forEach((e) => {
-      if (devices[e.deviceId] && !map.has(e.deviceId)) {
-        map.set(e.deviceId, { id: e.deviceId, name: devices[e.deviceId].name });
-      }
-    });
-    return Array.from(map.values());
+    const seen = new Set();
+    return events
+      .filter((e) => devices[e.deviceId] && !seen.has(e.deviceId) && seen.add(e.deviceId))
+      .map((e) => ({ id: e.deviceId, name: devices[e.deviceId].name }));
   }, [events, devices]);
 
   const filteredEvents = useMemo(() => events.filter((event) => {
