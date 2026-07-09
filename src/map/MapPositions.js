@@ -26,10 +26,22 @@ const MIN_CHANGE_DEG = 0.000005;
 const PER_FRAME_WRITE_MAX_FLEET = 300;
 const ANIMATION_WRITE_INTERVAL_MS = 1000;
 
+// Smooth glide for large fleets: devices with a fresh position glide through a
+// small dedicated GeoJSON source written at ~15fps (cost is O(gliding devices),
+// not fleet size), while their static twin in the full source is hidden via
+// feature-state — a paint-only change with no worker round-trip. Only devices
+// rendered individually inside the padded viewport participate; everything
+// else keeps stepping at the reconcile cadence.
+const GLIDE_WRITE_INTERVAL_MS = 66;
+const GLIDE_VIEWPORT_PAD = 0.2;
+
+const hiddenWhenAnimating = (visible) => ['case', ['boolean', ['feature-state', 'animating'], false], 0, visible];
+
 const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleField }) => {
   const id = useId();
   const clusters = `${id}-clusters`;
   const selected = `${id}-selected`;
+  const animating = `${id}-animating`;
 
   const dispatch = useDispatch();
   const theme = useTheme();
@@ -55,6 +67,10 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
   const lastCoordRef = useRef({});
   const lastMapWriteRef = useRef(0);
   const fixTimeCacheRef = useRef({});
+  // deviceId -> 'entering' | 'active' | 'landed' | 'reconciling'
+  const glidePhaseRef = useRef({});
+  const glideLastWriteRef = useRef(0);
+  const writeGlideSourceRef = useRef(() => {});
 
   useEffect(() => {
     devicesRef.current = devices;
@@ -105,6 +121,67 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
     return Math.max(500, Math.min(gap * 0.8, 5000));
   }, [baseAnimationDuration, useAdaptiveTiming]);
 
+  const setTwinHidden = useCallback((deviceId, hidden) => {
+    [id, selected].forEach((source) => {
+      if (!map.getSource(source)) return;
+      if (hidden) {
+        map.setFeatureState({ source, id: deviceId }, { animating: true });
+      } else {
+        map.removeFeatureState({ source, id: deviceId }, 'animating');
+      }
+    });
+  }, [id, selected]);
+
+  const glideEligibleIds = useCallback((candidateIds) => {
+    const bounds = map.getBounds();
+    const padLng = (bounds.getEast() - bounds.getWest()) * GLIDE_VIEWPORT_PAD;
+    const padLat = (bounds.getNorth() - bounds.getSouth()) * GLIDE_VIEWPORT_PAD;
+    const within = (coord) => coord
+      && coord.longitude >= bounds.getWest() - padLng && coord.longitude <= bounds.getEast() + padLng
+      && coord.latitude >= bounds.getSouth() - padLat && coord.latitude <= bounds.getNorth() + padLat;
+    const layersToQuery = [id, selected].filter((layer) => map.getLayer(layer));
+    const rendered = layersToQuery.length
+      ? new Set(map.queryRenderedFeatures({ layers: layersToQuery }).map((f) => f.properties.deviceId))
+      : new Set();
+    return candidateIds.filter((deviceId) => {
+      const ds = animationStateRef.current[deviceId];
+      if (!ds || !(within(ds.current) || within(ds.target))) return false;
+      // devices absorbed into a cluster are not individually visible; let them
+      // snap at the reconcile cadence instead of surfacing a transient marker.
+      // Already-gliding devices stay eligible: their twin is transparent but
+      // still placed, and feature-state keeps it out of the rendered check.
+      return glidePhaseRef.current[deviceId] ? true : rendered.has(deviceId);
+    });
+  }, [id, selected]);
+
+  const writeGlideSource = useCallback(() => {
+    const sourceObj = map.getSource(animating);
+    if (!sourceObj) return;
+    const currentDevices = devicesRef.current;
+    const currentSelectedId = selectedDeviceIdRef.current;
+    const currentSelectedPos = selectedPositionRef.current;
+
+    const features = Object.keys(glidePhaseRef.current)
+      .map((key) => animationStateRef.current[key])
+      .filter((ds) => ds && Object.prototype.hasOwnProperty.call(currentDevices, ds.properties.deviceId))
+      .map((ds) => ({
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: [ds.current.longitude, ds.current.latitude] },
+        properties: {
+          ...createFeature(currentDevices, ds.properties, currentSelectedPos?.id),
+          rotation: ds.current.rotation,
+          selected: ds.properties.deviceId === currentSelectedId,
+        },
+      }));
+
+    sourceObj.setData({ type: 'FeatureCollection', features });
+    glideLastWriteRef.current = Date.now();
+  }, [animating, createFeature]);
+
+  useEffect(() => {
+    writeGlideSourceRef.current = writeGlideSource;
+  }, [writeGlideSource]);
+
   const updateMapData = useCallback((stateVals) => {
     const vals = stateVals ?? Object.values(animationStateRef.current);
     const currentDevices = devicesRef.current;
@@ -133,6 +210,14 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
       sourceObj.setData({ type: 'FeatureCollection', features });
     });
 
+    // landed gliders are part of this write; once it is loaded their twin
+    // shows the exact final position and the copy can be swapped out
+    Object.keys(glidePhaseRef.current).forEach((key) => {
+      if (glidePhaseRef.current[key] === 'landed') {
+        glidePhaseRef.current[key] = 'reconciling';
+      }
+    });
+
     lastMapWriteRef.current = Date.now();
   }, [id, selected, createFeature]);
 
@@ -159,6 +244,14 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
         ds.current = { ...ds.target };
         ds.target = null;
         ds.start = null;
+        const { deviceId } = ds.properties;
+        const phase = glidePhaseRef.current[deviceId];
+        if (phase === 'entering') {
+          // the twin was never hidden, so just drop out of the glide source
+          delete glidePhaseRef.current[deviceId];
+        } else if (phase === 'active') {
+          glidePhaseRef.current[deviceId] = 'landed';
+        }
       }
       needsUpdate = true;
     });
@@ -169,6 +262,12 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
       if (!stillAnimating || now - lastMapWriteRef.current >= writeInterval) {
         updateMapData(stateVals);
       }
+      if (Object.keys(glidePhaseRef.current).length
+        && (!stillAnimating || now - glideLastWriteRef.current >= GLIDE_WRITE_INTERVAL_MS)) {
+        // the !stillAnimating write parks every copy at its exact final
+        // coordinates for the reconcile handoff
+        writeGlideSource();
+      }
     }
 
     if (hasTargets) {
@@ -177,12 +276,13 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
       isAnimatingRef.current = false;
       animationFrameRef.current = null;
     }
-  }, [baseAnimationDuration, updateMapData]);
+  }, [baseAnimationDuration, updateMapData, writeGlideSource]);
 
   const updateAnimationState = useCallback((newPositions) => {
     const now = Date.now();
     const state = animationStateRef.current;
     let newTargetAdded = false;
+    const targetedIds = [];
 
     newPositions.forEach((position) => {
       const { deviceId, longitude, latitude, course } = position;
@@ -220,6 +320,12 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
       if (isJump || !enableSmoothing) {
         state[deviceId] = { current: { longitude, latitude, rotation }, target: null, startTime: now, properties: position };
         lastUpdateTimeRef.current[deviceId] = now;
+        const phase = glidePhaseRef.current[deviceId];
+        if (phase === 'entering') {
+          delete glidePhaseRef.current[deviceId];
+        } else if (phase === 'active') {
+          glidePhaseRef.current[deviceId] = 'landed';
+        }
         return;
       }
 
@@ -234,6 +340,7 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
         properties: position,
       };
       newTargetAdded = true;
+      targetedIds.push(deviceId);
     });
 
     const activeIds = new Set(newPositions.map((p) => p.deviceId));
@@ -244,14 +351,38 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
         delete lastUpdateTimeRef.current[deviceId];
         delete lastCoordRef.current[deviceId];
         delete fixTimeCacheRef.current[deviceId];
+        if (glidePhaseRef.current[deviceId]) {
+          setTwinHidden(deviceId, false);
+          delete glidePhaseRef.current[deviceId];
+        }
       }
     });
+
+    if (targetedIds.length && Object.keys(state).length > PER_FRAME_WRITE_MAX_FLEET) {
+      let entered = false;
+      glideEligibleIds(targetedIds).forEach((deviceId) => {
+        const phase = glidePhaseRef.current[deviceId];
+        if (!phase) {
+          glidePhaseRef.current[deviceId] = 'entering';
+          entered = true;
+        } else if (phase === 'landed' || phase === 'reconciling') {
+          // re-glide before the reconcile swap finished: the twin is still
+          // hidden, so the copy just keeps moving
+          glidePhaseRef.current[deviceId] = 'active';
+        }
+      });
+      if (entered) {
+        // write the copy immediately so its features exist before the loaded
+        // event that hides the twins; until then both render at the same spot
+        writeGlideSource();
+      }
+    }
 
     if (newTargetAdded && !isAnimatingRef.current) {
       isAnimatingRef.current = true;
       animationFrameRef.current = requestAnimationFrame(animate);
     }
-  }, [enableSmoothing, calculateAnimationDuration, animate]);
+  }, [enableSmoothing, calculateAnimationDuration, animate, glideEligibleIds, setTwinHidden, writeGlideSource]);
 
   const onMouseEnter = () => { map.getCanvas().style.cursor = 'pointer'; };
   const onMouseLeave = () => { map.getCanvas().style.cursor = ''; };
@@ -304,8 +435,15 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
       cluster: mapCluster,
       clusterMaxZoom: 14,
       clusterRadius: 50,
+      // stable per-device feature ids so feature-state can hide gliding twins
+      promoteId: 'deviceId',
     });
     map.addSource(selected, {
+      type: 'geojson',
+      data: { type: 'FeatureCollection', features: [] },
+      promoteId: 'deviceId',
+    });
+    map.addSource(animating, {
       type: 'geojson',
       data: { type: 'FeatureCollection', features: [] },
     });
@@ -332,7 +470,8 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
         paint: {
           'text-halo-color': 'white',
           'text-halo-width': 1,
-          'icon-opacity': 1,
+          'icon-opacity': hiddenWhenAnimating(1),
+          'text-opacity': hiddenWhenAnimating(1),
         },
       });
 
@@ -347,6 +486,9 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
           'icon-allow-overlap': true,
           'icon-rotate': ['get', 'rotation'],
           'icon-rotation-alignment': 'map',
+        },
+        paint: {
+          'icon-opacity': hiddenWhenAnimating(1),
         },
       });
       map.on('mouseenter', source, onMouseEnter);
@@ -376,14 +518,118 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
     map.on('click', clusters, onClusterClick);
     map.on('click', onMapClick);
 
+    // mirror of the marker layers fed by the small glide source; inserted
+    // below the clusters layer so stacking matches the static markers
+    map.addLayer({
+      id: animating,
+      type: 'symbol',
+      source: animating,
+      layout: {
+        'icon-image': '{category}-{color}',
+        'icon-size': ['case', ['==', ['get', 'selected'], true], iconScale * 1.3, iconScale],
+        'icon-allow-overlap': true,
+        'text-field': `{${titleField || 'name'}}`,
+        'text-allow-overlap': true,
+        'text-anchor': 'bottom',
+        'text-offset': [0, -2 * iconScale],
+        'text-font': findFonts(map),
+        'text-size': 12,
+      },
+      paint: {
+        'text-halo-color': 'white',
+        'text-halo-width': 1,
+      },
+    }, clusters);
+    map.addLayer({
+      id: `direction-${animating}`,
+      type: 'symbol',
+      source: animating,
+      filter: ['==', 'direction', true],
+      layout: {
+        'icon-image': 'direction',
+        'icon-size': ['case', ['==', ['get', 'selected'], true], iconScale * 1.3, iconScale],
+        'icon-allow-overlap': true,
+        'icon-rotate': ['get', 'rotation'],
+        'icon-rotation-alignment': 'map',
+      },
+    }, clusters);
+    map.on('mouseenter', animating, onMouseEnter);
+    map.on('mouseleave', animating, onMouseLeave);
+    map.on('click', animating, onMarkerClick);
+
+    const onGlideSourceData = (event) => {
+      if (!event.isSourceLoaded) return;
+      const phases = glidePhaseRef.current;
+      if (event.sourceId === animating) {
+        // the copy is rendered from here on; hiding the twin in the same
+        // frame swaps them without a gap
+        Object.keys(phases).forEach((key) => {
+          if (phases[key] === 'entering') {
+            setTwinHidden(Number(key), true);
+            phases[key] = 'active';
+          }
+        });
+      } else if ((event.sourceId === id || event.sourceId === selected)
+        && map.getSource(id) && map.isSourceLoaded(id)
+        && map.getSource(selected) && map.isSourceLoaded(selected)) {
+        let removed = false;
+        Object.keys(phases).forEach((key) => {
+          if (phases[key] === 'reconciling') {
+            setTwinHidden(Number(key), false);
+            delete phases[key];
+            removed = true;
+          }
+        });
+        if (removed) writeGlideSourceRef.current();
+      }
+    };
+    map.on('sourcedata', onGlideSourceData);
+
+    const onGlideMoveEnd = () => {
+      const phases = glidePhaseRef.current;
+      const state = animationStateRef.current;
+      if (Object.keys(state).length <= PER_FRAME_WRITE_MAX_FLEET) return;
+      let changed = false;
+      // gliders that left the padded viewport swap back invisibly off-screen
+      const eligibleNow = new Set(glideEligibleIds(Object.keys(phases).map(Number)));
+      Object.keys(phases).map(Number).forEach((deviceId) => {
+        if (!eligibleNow.has(deviceId)) {
+          setTwinHidden(deviceId, false);
+          delete phases[deviceId];
+          changed = true;
+        }
+      });
+      // mid-glide devices that scrolled into view join the glide source
+      const midGlide = Object.keys(state)
+        .map(Number)
+        .filter((deviceId) => state[deviceId].target && !phases[deviceId]);
+      glideEligibleIds(midGlide).forEach((deviceId) => {
+        phases[deviceId] = 'entering';
+        changed = true;
+      });
+      if (changed) writeGlideSourceRef.current();
+    };
+    map.on('moveend', onGlideMoveEnd);
+
     return () => {
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
 
+      map.off('sourcedata', onGlideSourceData);
+      map.off('moveend', onGlideMoveEnd);
       map.off('mouseenter', clusters, onMouseEnter);
       map.off('mouseleave', clusters, onMouseLeave);
       map.off('click', clusters, onClusterClick);
       map.off('click', onMapClick);
       if (map.getLayer(clusters)) map.removeLayer(clusters);
+
+      map.off('mouseenter', animating, onMouseEnter);
+      map.off('mouseleave', animating, onMouseLeave);
+      map.off('click', animating, onMarkerClick);
+      if (map.getLayer(animating)) map.removeLayer(animating);
+      if (map.getLayer(`direction-${animating}`)) map.removeLayer(`direction-${animating}`);
+      if (map.getSource(animating)) map.removeSource(animating);
+      glidePhaseRef.current = {};
+      glideLastWriteRef.current = 0;
 
       [id, selected].forEach((source) => {
         map.off('mouseenter', source, onMouseEnter);
@@ -391,10 +637,13 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
         map.off('click', source, onMarkerClick);
         if (map.getLayer(source)) map.removeLayer(source);
         if (map.getLayer(`direction-${source}`)) map.removeLayer(`direction-${source}`);
-        if (map.getSource(source)) map.removeSource(source);
+        if (map.getSource(source)) {
+          map.removeFeatureState({ source });
+          map.removeSource(source);
+        }
       });
     };
-  }, [mapCluster, clusters, onMarkerClick, onClusterClick, iconScale, titleField, id, selected, onMapClick]);
+  }, [mapCluster, clusters, onMarkerClick, onClusterClick, iconScale, titleField, id, selected, animating, onMapClick, setTwinHidden, glideEligibleIds]);
 
   useEffect(() => {
     const filtered = positions.filter((p) => Object.prototype.hasOwnProperty.call(devices, p.deviceId));
@@ -409,8 +658,14 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
   useEffect(() => {
     const faded = selectedPosition ? 0.5 : 1;
     if (map.getLayer(id)) {
-      map.setPaintProperty(id, 'icon-opacity', faded);
-      map.setPaintProperty(`direction-${id}`, 'icon-opacity', faded);
+      map.setPaintProperty(id, 'icon-opacity', hiddenWhenAnimating(faded));
+      map.setPaintProperty(`direction-${id}`, 'icon-opacity', hiddenWhenAnimating(faded));
+    }
+    if (map.getLayer(animating)) {
+      // the glide source mixes selected and non-selected devices; dim to match
+      const copyFaded = ['case', ['==', ['get', 'selected'], true], 1, faded];
+      map.setPaintProperty(animating, 'icon-opacity', copyFaded);
+      map.setPaintProperty(`direction-${animating}`, 'icon-opacity', copyFaded);
     }
   }, [selectedPosition?.deviceId]);
   return null;
