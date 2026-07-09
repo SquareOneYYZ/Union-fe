@@ -297,8 +297,12 @@ useEffect(() => {
   const startRow = totalCount === 0 ? 0 : page * rowsPerPage + 1;
   const endRow = Math.min((page + 1) * rowsPerPage, totalCount);
 
-  const handleSubmit = useCatch(async ({ deviceId, from, to, type }) => {
-    const query = new URLSearchParams({ deviceId, from, to });
+  const handleSubmit = useCatch(async ({ deviceIds, from, to, type }) => {
+    if (deviceIds && deviceIds.length === 0) {
+      return;
+    }
+    const query = new URLSearchParams({ from, to });
+    (deviceIds ?? []).forEach((id) => query.append('deviceId', id));
     eventTypes.forEach((it) => query.append('type', it));
     if (eventTypes[0] !== 'allEvents' && eventTypes.includes('alarm')) {
       alarmTypes.forEach((it) => query.append('alarm', it));
