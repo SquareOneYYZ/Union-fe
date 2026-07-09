@@ -39,16 +39,20 @@ class NotificationControl {
 }
 
 const MapNotification = ({
-  enabled, onClick, panic, onButtonReady,
+  enabled, onClick, panic, notificationButtonRef,
 }) => {
   const control = useMemo(() => new NotificationControl(onClick), [onClick]);
 
   useEffect(() => {
     map.addControl(control, 'top-right');
-    onButtonReady?.(control.button);
+    if (notificationButtonRef) {
+      notificationButtonRef.current = control.button;
+    }
     return () => {
       map.removeControl(control);
-      onButtonReady?.(null);
+      if (notificationButtonRef) {
+        notificationButtonRef.current = null;
+      }
     };
   }, [onClick]);
 
