@@ -1,4 +1,4 @@
-import { useId, useEffect } from 'react';
+import { useId, useEffect, useRef } from 'react';
 import circle from '@turf/circle';
 import { useTheme } from '@mui/styles';
 import { map } from '../core/MapView';
@@ -6,6 +6,7 @@ import { logMapWrite, registerMapWriteDebugSource, unregisterMapWriteDebugSource
 
 const MapAccuracy = ({ positions }) => {
   const id = useId();
+  const lastSignatureRef = useRef(null);
 
   const theme = useTheme();
 
@@ -45,10 +46,20 @@ const MapAccuracy = ({ positions }) => {
   }, []);
 
   useEffect(() => {
-    const features = positions
-      .filter((position) => position.accuracy > 0)
+    // the positions array gets a new identity every WS flush even when no
+    // device moved; every setData re-tiles the source, so skip the write (and
+    // the turf circle generation) unless an accuracy circle actually changed
+    const relevant = positions.filter((position) => position.accuracy > 0);
+    const signature = relevant
+      .map((p) => `${p.deviceId}:${p.longitude}:${p.latitude}:${p.accuracy}`)
+      .join('|');
+    if (signature === lastSignatureRef.current) return;
+    const sourceObj = map.getSource(id);
+    if (!sourceObj) return;
+    lastSignatureRef.current = signature;
+    const features = relevant
       .map((position) => circle([position.longitude, position.latitude], position.accuracy * 0.001));
-    map.getSource(id)?.setData({
+    sourceObj.setData({
       type: 'FeatureCollection',
       features,
     });
