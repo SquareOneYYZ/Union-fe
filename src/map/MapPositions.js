@@ -20,12 +20,20 @@ const TELEPORT_THRESHOLD_SQ = 0.0045 * 0.0045;
 const STALE_GAP_MS = 10000;
 const MIN_CHANGE_DEG = 0.000005;
 
-// Every setData re-tiles the source in the worker and restarts symbol
-// placement, which reads as fleet-wide marker flicker when it happens on
-// every animation frame. Above this fleet size, animation writes are
-// coalesced to one per interval; the final landing write always goes through.
+// Every content write to a GeoJSON source — setData AND updateData alike in
+// maplibre-gl 4.7.1 — re-tiles the whole source in the worker and restarts
+// symbol placement (SourceCache.reload reloads every tile on any 'content'
+// event), which reads as fleet-wide marker flicker. The only real lever is
+// writing the fleet source less. Above this fleet size, writes go through a
+// diff mirror: a write is skipped entirely when nothing render-relevant
+// changed, visible changes (adds/removes/status/jumps) flush within the
+// animation interval, and invisible geometry churn (clustered, off-viewport,
+// hidden gliding twins) batches into one reconcile write per deferred
+// interval, on moveend, or when motion stops. updateData carries the diffs so
+// the remaining writes serialize only changed features.
 const PER_FRAME_WRITE_MAX_FLEET = 300;
 const ANIMATION_WRITE_INTERVAL_MS = 1000;
+const DEFERRED_RECONCILE_INTERVAL_MS = 15000;
 
 // Smooth glide for large fleets: devices with a fresh position glide through a
 // small dedicated GeoJSON source written at ~15fps (cost is O(gliding devices),
@@ -37,6 +45,23 @@ const GLIDE_WRITE_INTERVAL_MS = 66;
 const GLIDE_VIEWPORT_PAD = 0.2;
 
 const hiddenWhenAnimating = (visible) => ['case', ['boolean', ['feature-state', 'animating'], false], 0, visible];
+
+// Render-relevant equality for the diff mirror. properties.id (per-fix
+// position id) and properties.fixTime are deliberately excluded: they refresh
+// on every fix even for a parked device, and comparing them would turn every
+// flush into a full-fleet rewrite — the exact symptom this diff exists to
+// remove. Neither is rendered on the live map (labels use titleField, default
+// 'name'); they ride along whenever a device is written for a real change.
+const propsRenderEqual = (a, b, titleKey) => a.properties.name === b.properties.name
+  && a.properties.category === b.properties.category
+  && a.properties.color === b.properties.color
+  && a.properties.direction === b.properties.direction
+  && a.properties[titleKey] === b.properties[titleKey];
+
+const renderEquals = (a, b, titleKey) => propsRenderEqual(a, b, titleKey)
+  && a.geometry.coordinates[0] === b.geometry.coordinates[0]
+  && a.geometry.coordinates[1] === b.geometry.coordinates[1]
+  && a.properties.rotation === b.properties.rotation;
 
 const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleField }) => {
   const id = useId();
@@ -72,6 +97,11 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
   const glidePhaseRef = useRef({});
   const glideLastWriteRef = useRef(0);
   const writeGlideSourceRef = useRef(() => {});
+  // per-source Map<deviceId, feature> mirroring what the map sources hold;
+  // null forces the next large-fleet write to be a full setData
+  const lastWrittenRef = useRef(null);
+  const lastDeferredWriteRef = useRef(0);
+  const updateMapDataRef = useRef(() => {});
 
   useEffect(() => {
     devicesRef.current = devices;
@@ -190,39 +220,159 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
     const currentSelectedId = selectedDeviceIdRef.current;
     const currentSelectedPos = selectedPositionRef.current;
 
-    [id, selected].forEach((source) => {
-      const sourceObj = map.getSource(source);
-      if (!sourceObj) return;
+    if (vals.length <= PER_FRAME_WRITE_MAX_FLEET) {
+      // small fleets and replay keep the original per-frame full-write path
+      lastWrittenRef.current = null;
+      [id, selected].forEach((source) => {
+        const sourceObj = map.getSource(source);
+        if (!sourceObj) return;
 
-      const features = vals
-        .filter((ds) => Object.prototype.hasOwnProperty.call(currentDevices, ds.properties.deviceId))
-        .filter((ds) => {
-          const isSel = ds.properties.deviceId === currentSelectedId;
-          return source === id ? !isSel : isSel;
-        })
-        .map((ds) => ({
-          type: 'Feature',
-          geometry: { type: 'Point', coordinates: [ds.current.longitude, ds.current.latitude] },
-          properties: {
-            ...createFeature(currentDevices, ds.properties, currentSelectedPos?.id),
-            rotation: ds.current.rotation,
-          },
-        }));
+        const features = vals
+          .filter((ds) => Object.prototype.hasOwnProperty.call(currentDevices, ds.properties.deviceId))
+          .filter((ds) => {
+            const isSel = ds.properties.deviceId === currentSelectedId;
+            return source === id ? !isSel : isSel;
+          })
+          .map((ds) => ({
+            type: 'Feature',
+            geometry: { type: 'Point', coordinates: [ds.current.longitude, ds.current.latitude] },
+            properties: {
+              ...createFeature(currentDevices, ds.properties, currentSelectedPos?.id),
+              rotation: ds.current.rotation,
+            },
+          }));
 
-      sourceObj.setData({ type: 'FeatureCollection', features });
-      logMapWrite(source, 'setData', features.length, trigger);
+        sourceObj.setData({ type: 'FeatureCollection', features });
+        logMapWrite(source, 'setData', features.length, trigger);
+      });
+
+      Object.keys(glidePhaseRef.current).forEach((key) => {
+        if (glidePhaseRef.current[key] === 'landed') {
+          glidePhaseRef.current[key] = 'reconciling';
+        }
+      });
+
+      lastMapWriteRef.current = Date.now();
+      return;
+    }
+
+    // Large-fleet incremental path. Stamp the attempt (not just the write) so
+    // the animation loop diffs at most once per ANIMATION_WRITE_INTERVAL_MS.
+    const now = Date.now();
+    lastMapWriteRef.current = now;
+    const titleKey = titleField || 'name';
+    const phases = glidePhaseRef.current;
+    const mirror = lastWrittenRef.current;
+    const next = { [id]: new Map(), [selected]: new Map() };
+    const urgent = { [id]: [], [selected]: [] };
+    const deferred = { [id]: [], [selected]: [] };
+    const removes = { [id]: [], [selected]: [] };
+    const jumpedDs = [];
+    let urgentCount = 0;
+    let deferredCount = 0;
+
+    vals.forEach((ds) => {
+      const position = ds.properties;
+      const { deviceId } = position;
+      if (!Object.prototype.hasOwnProperty.call(currentDevices, deviceId)) return;
+      const sourceKey = deviceId === currentSelectedId ? selected : id;
+      const feature = {
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: [ds.current.longitude, ds.current.latitude] },
+        properties: {
+          ...createFeature(currentDevices, position, currentSelectedPos?.id),
+          rotation: ds.current.rotation,
+        },
+      };
+      const prev = mirror?.[sourceKey]?.get(deviceId);
+      if (prev && renderEquals(prev, feature, titleKey)) {
+        next[sourceKey].set(deviceId, prev);
+        return;
+      }
+      const phase = phases[deviceId];
+      if (prev && (phase === 'entering' || phase === 'active')) {
+        // twin hidden, copy rendering live from the glide source: writing
+        // intermediate coordinates would be invisible churn
+        next[sourceKey].set(deviceId, prev);
+        return;
+      }
+      if (prev && sourceKey === id && !ds.jumped && propsRenderEqual(prev, feature, titleKey)) {
+        // pure motion of something not individually visible (clustered,
+        // off-viewport, or a hidden landed twin): slow reconcile lane
+        deferred[sourceKey].push(feature);
+        next[sourceKey].set(deviceId, prev);
+        deferredCount += 1;
+        return;
+      }
+      urgent[sourceKey].push(feature);
+      next[sourceKey].set(deviceId, feature);
+      urgentCount += 1;
+      if (ds.jumped) jumpedDs.push(ds);
     });
+
+    if (mirror) {
+      [id, selected].forEach((sourceKey) => {
+        mirror[sourceKey].forEach((feature, deviceId) => {
+          if (!next[sourceKey].has(deviceId)) {
+            removes[sourceKey].push(deviceId);
+            urgentCount += 1;
+          }
+        });
+      });
+    }
+
+    // 'landing' (fleet-wide quiescence) deliberately does NOT force the flush:
+    // the throttle middleware synchronizes flushes, so glides finish together
+    // between flushes and quiescence recurs every cycle — forcing here would
+    // reinstate a per-cycle full re-tile. Parked glide copies render the exact
+    // final coordinates until the interval (or a pan) reconciles them.
+    const deferredDue = deferredCount > 0 && (
+      trigger === 'moveend'
+      || now - lastDeferredWriteRef.current >= DEFERRED_RECONCILE_INTERVAL_MS
+    );
+    if (mirror && urgentCount === 0 && !deferredDue) return;
+
+    // any write flushes the deferred backlog too: the re-tile happens anyway
+    [id, selected].forEach((sourceKey) => {
+      deferred[sourceKey].forEach((feature) => next[sourceKey].set(feature.properties.deviceId, feature));
+    });
+    lastDeferredWriteRef.current = now;
+
+    [id, selected].forEach((sourceKey) => {
+      const sourceObj = map.getSource(sourceKey);
+      if (!sourceObj) return;
+      if (!mirror) {
+        const features = [...next[sourceKey].values()];
+        sourceObj.setData({ type: 'FeatureCollection', features });
+        logMapWrite(sourceKey, 'setData', features.length, trigger);
+        return;
+      }
+      const add = urgent[sourceKey].concat(deferred[sourceKey]);
+      const remove = removes[sourceKey];
+      if (!add.length && !remove.length) return; // untouched source: no re-tile
+      // 'add' with an existing promoteId (deviceId) replaces that feature
+      sourceObj.updateData({ add, remove });
+      logMapWrite(sourceKey, 'updateData', add.length + remove.length, trigger);
+    });
+
+    lastWrittenRef.current = next;
+    jumpedDs.forEach((ds) => { ds.jumped = false; });
 
     // landed gliders are part of this write; once it is loaded their twin
     // shows the exact final position and the copy can be swapped out
-    Object.keys(glidePhaseRef.current).forEach((key) => {
-      if (glidePhaseRef.current[key] === 'landed') {
-        glidePhaseRef.current[key] = 'reconciling';
+    Object.keys(phases).forEach((key) => {
+      if (phases[key] === 'landed') {
+        phases[key] = 'reconciling';
       }
     });
+  }, [id, selected, createFeature, titleField]);
 
-    lastMapWriteRef.current = Date.now();
-  }, [id, selected, createFeature]);
+  useEffect(() => {
+    updateMapDataRef.current = updateMapData;
+    // feature properties are derived through createFeature/titleField; when
+    // those change the mirror no longer matches the sources, so rebuild fully
+    lastWrittenRef.current = null;
+  }, [updateMapData]);
 
   const animate = useCallback(() => {
     const now = Date.now();
@@ -321,7 +471,9 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
 
       const isJump = (longitude - cLng) ** 2 + (latitude - cLat) ** 2 > TELEPORT_THRESHOLD_SQ;
       if (isJump || !enableSmoothing) {
-        state[deviceId] = { current: { longitude, latitude, rotation }, target: null, startTime: now, properties: position };
+        // jumped: a discontinuous (or unsmoothed) move may be visible, so the
+        // incremental writer treats it as urgent instead of deferring it
+        state[deviceId] = { current: { longitude, latitude, rotation }, target: null, startTime: now, properties: position, jumped: true };
         lastUpdateTimeRef.current[deviceId] = now;
         const phase = glidePhaseRef.current[deviceId];
         if (phase === 'entering') {
@@ -453,6 +605,8 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
     registerMapWriteDebugSource(id, 'fleet');
     registerMapWriteDebugSource(selected, 'selected');
     registerMapWriteDebugSource(animating, 'glide');
+    // sources were just (re)created empty: the diff mirror is void
+    lastWrittenRef.current = null;
 
     [id, selected].forEach((source) => {
       const isSelectedLayer = source === selected;
@@ -614,6 +768,9 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
         changed = true;
       });
       if (changed) writeGlideSourceRef.current();
+      // the pan/zoom may have revealed devices whose deferred coordinates are
+      // stale; flush the backlog while the repaint masks the re-tile
+      updateMapDataRef.current(undefined, 'moveend');
     };
     map.on('moveend', onGlideMoveEnd);
 
@@ -639,6 +796,7 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
       if (map.getSource(animating)) map.removeSource(animating);
       glidePhaseRef.current = {};
       glideLastWriteRef.current = 0;
+      lastWrittenRef.current = null;
 
       [id, selected].forEach((source) => {
         map.off('mouseenter', source, onMouseEnter);
