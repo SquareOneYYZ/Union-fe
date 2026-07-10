@@ -13,6 +13,7 @@ import usePersistedState, { savePersistedState } from '../../common/util/usePers
 import { mapImages } from './preloadImages';
 import useMapStyles, { mapBackgroundColor } from './useMapStyles';
 import { FullScreenControl } from '../controls/MapFullScreen';
+import { attachMapWriteDebug } from './mapWriteDebug';
 
 const element = document.createElement('div');
 element.style.width = '100%';
@@ -51,6 +52,8 @@ export const map = new maplibregl.Map({
     zoom: initialCamera.zoom,
   }),
 });
+
+attachMapWriteDebug(map);
 
 map.on('moveend', () => {
   const zoom = map.getZoom();

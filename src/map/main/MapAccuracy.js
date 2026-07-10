@@ -2,6 +2,7 @@ import { useId, useEffect } from 'react';
 import circle from '@turf/circle';
 import { useTheme } from '@mui/styles';
 import { map } from '../core/MapView';
+import { logMapWrite, registerMapWriteDebugSource, unregisterMapWriteDebugSource } from '../core/mapWriteDebug';
 
 const MapAccuracy = ({ positions }) => {
   const id = useId();
@@ -16,6 +17,7 @@ const MapAccuracy = ({ positions }) => {
         features: [],
       },
     });
+    registerMapWriteDebugSource(id, 'accuracy');
     map.addLayer({
       source: id,
       id,
@@ -32,6 +34,7 @@ const MapAccuracy = ({ positions }) => {
     });
 
     return () => {
+      unregisterMapWriteDebugSource(id);
       if (map.getLayer(id)) {
         map.removeLayer(id);
       }
@@ -42,12 +45,14 @@ const MapAccuracy = ({ positions }) => {
   }, []);
 
   useEffect(() => {
+    const features = positions
+      .filter((position) => position.accuracy > 0)
+      .map((position) => circle([position.longitude, position.latitude], position.accuracy * 0.001));
     map.getSource(id)?.setData({
       type: 'FeatureCollection',
-      features: positions
-        .filter((position) => position.accuracy > 0)
-        .map((position) => circle([position.longitude, position.latitude], position.accuracy * 0.001)),
+      features,
     });
+    logMapWrite(id, 'setData', features.length, 'flush');
   }, [positions]);
 
   return null;

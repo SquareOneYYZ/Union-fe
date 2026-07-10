@@ -12,6 +12,7 @@ import { useCatchCallback } from '../reactHelper';
 import { findFonts } from './core/mapUtil';
 import { lerp, easeInOutCubic, interpolateRotation } from '../common/util/useAnimation';
 import { clustersActions } from '../store/cluster';
+import { logMapWrite, registerMapWriteDebugSource, unregisterMapWriteDebugSource } from './core/mapWriteDebug';
 
 const CLUSTER_POPUP_MIN_ZOOM = 9;
 
@@ -80,7 +81,7 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
 
   useEffect(() => {
     selectedDeviceIdRef.current = selectedDeviceId;
-    if (map.getSource(id)) updateMapData(); // eslint-disable-line no-use-before-define
+    if (map.getSource(id)) updateMapData(undefined, 'selection'); // eslint-disable-line no-use-before-define
   }, [selectedDeviceId]);
 
   const createFeature = useCallback((devs, position, selectedPositionId) => {
@@ -175,6 +176,7 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
       }));
 
     sourceObj.setData({ type: 'FeatureCollection', features });
+    logMapWrite(animating, 'setData', features.length, 'glide');
     glideLastWriteRef.current = Date.now();
   }, [animating, createFeature]);
 
@@ -182,7 +184,7 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
     writeGlideSourceRef.current = writeGlideSource;
   }, [writeGlideSource]);
 
-  const updateMapData = useCallback((stateVals) => {
+  const updateMapData = useCallback((stateVals, trigger = 'flush') => {
     const vals = stateVals ?? Object.values(animationStateRef.current);
     const currentDevices = devicesRef.current;
     const currentSelectedId = selectedDeviceIdRef.current;
@@ -208,6 +210,7 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
         }));
 
       sourceObj.setData({ type: 'FeatureCollection', features });
+      logMapWrite(source, 'setData', features.length, trigger);
     });
 
     // landed gliders are part of this write; once it is loaded their twin
@@ -260,7 +263,7 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
       const stillAnimating = stateVals.some((ds) => ds.target);
       const writeInterval = stateVals.length > PER_FRAME_WRITE_MAX_FLEET ? ANIMATION_WRITE_INTERVAL_MS : 0;
       if (!stillAnimating || now - lastMapWriteRef.current >= writeInterval) {
-        updateMapData(stateVals);
+        updateMapData(stateVals, stillAnimating ? 'animation' : 'landing');
       }
       if (Object.keys(glidePhaseRef.current).length
         && (!stillAnimating || now - glideLastWriteRef.current >= GLIDE_WRITE_INTERVAL_MS)) {
@@ -447,6 +450,9 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
       type: 'geojson',
       data: { type: 'FeatureCollection', features: [] },
     });
+    registerMapWriteDebugSource(id, 'fleet');
+    registerMapWriteDebugSource(selected, 'selected');
+    registerMapWriteDebugSource(animating, 'glide');
 
     [id, selected].forEach((source) => {
       const isSelectedLayer = source === selected;
@@ -614,6 +620,9 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
     return () => {
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
 
+      unregisterMapWriteDebugSource(id);
+      unregisterMapWriteDebugSource(selected);
+      unregisterMapWriteDebugSource(animating);
       map.off('sourcedata', onGlideSourceData);
       map.off('moveend', onGlideMoveEnd);
       map.off('mouseenter', clusters, onMouseEnter);
