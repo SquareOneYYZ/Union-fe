@@ -19,12 +19,19 @@ const TELEPORT_THRESHOLD_SQ = 0.0045 * 0.0045;
 const STALE_GAP_MS = 10000;
 const MIN_CHANGE_DEG = 0.000005;
 
-const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleField }) => {
+const MapPositions = ({
+  positions, onClick, showStatus, selectedPosition, titleField,
+  customCategory, cluster,
+}) => {
   const id = useId();
   const clusters = `${id}-clusters`;
   const selected = `${id}-selected`;
+const mapClusterPref = useAttributePreference('mapCluster', true);
+const mapCluster = cluster === undefined
+  ? mapClusterPref
+  : cluster;
 
-  const dispatch = useDispatch();
+const dispatch = useDispatch();
   const theme = useTheme();
   const desktop = useMediaQuery(theme.breakpoints.up('md'));
   const iconScale = useAttributePreference('iconScale', desktop ? 0.75 : 1);
@@ -32,7 +39,6 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
   const devices = useSelector((state) => state.devices.items);
   const selectedDeviceId = useSelector((state) => state.devices.selectedId);
 
-  const mapCluster = useAttributePreference('mapCluster', true);
   const directionType = useAttributePreference('mapDirection', 'selected');
   const baseAnimationDuration = useAttributePreference('mapAnimationDuration', 2500);
   const enableSmoothing = useAttributePreference('mapEnableSmoothing', true);
@@ -53,31 +59,51 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
     selectedPositionRef.current = selectedPosition;
   }, [devices, selectedDeviceId, selectedPosition]);
 
-  useEffect(() => {
-    selectedDeviceIdRef.current = selectedDeviceId;
-    if (map.getSource(id)) updateMapData(); // eslint-disable-line no-use-before-define
-  }, [selectedDeviceId]);
+  const createFeature = (devicesMap, position, selectedPositionId) => {
+    const device = devicesMap[position.deviceId];
 
-  const createFeature = useCallback((devs, position, selectedPositionId) => {
-    const device = devs[position.deviceId];
+  if (position.iconKey) {
+  const [cat, ...rest] = position.iconKey.split('-');
+
+  return {
+    id: position.id,
+    deviceId: position.deviceId,
+    name: device?.name ?? '',
+    fixTime: formatTime(position.fixTime, 'seconds'),
+    category: cat,
+    color: rest.join('-'),
+    rotation: position.course,
+    direction: false,
+    isCurrent: position.isCurrent ? 1 : 0,
+  };
+}
+
+    const category = customCategory || mapIconKey(device?.category);
+    const color = showStatus
+      ? position.attributes?.color || getStatusColor(device?.status)
+      : 'neutral';
+
     let showDirection;
     switch (directionType) {
       case 'none': showDirection = false; break;
       case 'all': showDirection = position.course > 0; break;
       default: showDirection = selectedPositionId === position.id && position.course > 0; break;
     }
+
     return {
       id: position.id,
       deviceId: position.deviceId,
-      name: device.name,
+      name: device?.name ?? '',
       fixTime: formatTime(position.fixTime, 'seconds'),
-      category: mapIconKey(device.category),
-      color: showStatus ? position.attributes.color || getStatusColor(device.status) : 'neutral',
+      category,
+      color,
       rotation: position.course,
       direction: showDirection,
     };
-  }, [directionType, showStatus]);
+  }, [directionType, showStatus];
 
+  const onMouseEnter = () => { map.getCanvas().style.cursor = 'pointer'; };
+  const onMouseLeave = () => { map.getCanvas().style.cursor = ''; };
   const calculateAnimationDuration = useCallback((deviceId, now) => {
     if (!useAdaptiveTiming) return baseAnimationDuration;
     const lastUpdate = lastUpdateTimeRef.current[deviceId];
@@ -293,7 +319,12 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
         filter: ['!has', 'point_count'],
         layout: {
           'icon-image': '{category}-{color}',
-          'icon-size': isSelectedLayer ? iconScale * 1.3 : iconScale,
+'icon-size': [
+  'case',
+  ['==', ['get', 'isCurrent'], 1],
+  isSelectedLayer ? iconScale * 1.45 : iconScale * 1.45,
+  isSelectedLayer ? iconScale * 1.3 : iconScale,
+],
           'icon-allow-overlap': true,
           'text-field': `{${titleField || 'name'}}`,
           'text-allow-overlap': true,
@@ -372,10 +403,6 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
   useEffect(() => {
     const filtered = positions.filter((p) => Object.prototype.hasOwnProperty.call(devices, p.deviceId));
     updateAnimationState(filtered);
-    // Always push current state to the map sources. The animation loop only
-    // runs for devices that moved, so with smoothing enabled the initial
-    // positions would otherwise never reach the sources and no markers or
-    // clusters would render until something else called updateMapData.
     updateMapData();
   }, [positions, devices, enableSmoothing, updateAnimationState, updateMapData]);
 
