@@ -58,6 +58,14 @@ const propsRenderEqual = (a, b, titleKey) => a.properties.name === b.properties.
   && a.properties.direction === b.properties.direction
   && a.properties[titleKey] === b.properties[titleKey];
 
+// Field-verification trigger taxonomy: writes caused by a selection change or
+// a pan keep that label; anything else is labeled by the lane it took —
+// urgent diffs as 'flush-urgent', pure deferred backlog as 'reconcile-15s'.
+const laneTrigger = (reason, urgentHere) => {
+  if (reason === 'selection' || reason === 'moveend') return reason;
+  return urgentHere ? 'flush-urgent' : 'reconcile-15s';
+};
+
 const renderEquals = (a, b, titleKey) => propsRenderEqual(a, b, titleKey)
   && a.geometry.coordinates[0] === b.geometry.coordinates[0]
   && a.geometry.coordinates[1] === b.geometry.coordinates[1]
@@ -98,10 +106,19 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
   const glideLastWriteRef = useRef(0);
   const writeGlideSourceRef = useRef(() => {});
   // per-source Map<deviceId, feature> mirroring what the map sources hold;
-  // null forces the next large-fleet write to be a full setData
+  // null means the source content is unknown (small-fleet path wrote it)
   const lastWrittenRef = useRef(null);
+  // truthy = the mirror's features can't be trusted for diffing and the next
+  // large-fleet write must rewrite fully; the value is the trigger label
+  // ('load' after source creation, 'hard-reset' after derived-prop changes)
+  const fullRewriteReasonRef = useRef('load');
   const lastDeferredWriteRef = useRef(0);
   const updateMapDataRef = useRef(() => {});
+  const onClickRef = useRef(onClick);
+
+  useEffect(() => {
+    onClickRef.current = onClick;
+  }, [onClick]);
 
   useEffect(() => {
     devicesRef.current = devices;
@@ -214,15 +231,24 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
     writeGlideSourceRef.current = writeGlideSource;
   }, [writeGlideSource]);
 
-  const updateMapData = useCallback((stateVals, trigger = 'flush') => {
+  // 'reason' is the call site's cause ('data' for a positions/devices flush,
+  // 'animation'/'landing' from the loop, 'selection', 'moveend'); the logged
+  // trigger is derived from the lane a write actually takes: load,
+  // flush-urgent, reconcile-15s, moveend, selection, hard-reset.
+  const updateMapData = useCallback((stateVals, reason = 'data') => {
     const vals = stateVals ?? Object.values(animationStateRef.current);
     const currentDevices = devicesRef.current;
     const currentSelectedId = selectedDeviceIdRef.current;
     const currentSelectedPos = selectedPositionRef.current;
 
     if (vals.length <= PER_FRAME_WRITE_MAX_FLEET) {
-      // small fleets and replay keep the original per-frame full-write path
+      // small fleets and replay keep the original per-frame full-write path;
+      // it writes outside the mirror, so a later large-fleet write must
+      // rebuild without trusting it
+      const smallTrigger = lastMapWriteRef.current === 0 && reason === 'data'
+        ? 'load' : laneTrigger(reason, true);
       lastWrittenRef.current = null;
+      fullRewriteReasonRef.current = 'hard-reset';
       [id, selected].forEach((source) => {
         const sourceObj = map.getSource(source);
         if (!sourceObj) return;
@@ -243,7 +269,7 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
           }));
 
         sourceObj.setData({ type: 'FeatureCollection', features });
-        logMapWrite(source, 'setData', features.length, trigger);
+        logMapWrite(source, 'setData', features.length, smallTrigger);
       });
 
       Object.keys(glidePhaseRef.current).forEach((key) => {
@@ -263,6 +289,11 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
     const titleKey = titleField || 'name';
     const phases = glidePhaseRef.current;
     const mirror = lastWrittenRef.current;
+    const fullReason = fullRewriteReasonRef.current;
+    // diff only when the mirror exists AND still matches the sources; after a
+    // hard reset its features are stale, but its per-source sizes still say
+    // which sources hold content (used to skip empty->empty rewrites below)
+    const diffable = !!mirror && !fullReason;
     const next = { [id]: new Map(), [selected]: new Map() };
     const urgent = { [id]: [], [selected]: [] };
     const deferred = { [id]: [], [selected]: [] };
@@ -284,7 +315,7 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
           rotation: ds.current.rotation,
         },
       };
-      const prev = mirror?.[sourceKey]?.get(deviceId);
+      const prev = diffable ? mirror[sourceKey].get(deviceId) : undefined;
       if (prev && renderEquals(prev, feature, titleKey)) {
         next[sourceKey].set(deviceId, prev);
         return;
@@ -310,7 +341,7 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
       if (ds.jumped) jumpedDs.push(ds);
     });
 
-    if (mirror) {
+    if (diffable) {
       [id, selected].forEach((sourceKey) => {
         mirror[sourceKey].forEach((feature, deviceId) => {
           if (!next[sourceKey].has(deviceId)) {
@@ -327,10 +358,10 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
     // reinstate a per-cycle full re-tile. Parked glide copies render the exact
     // final coordinates until the interval (or a pan) reconciles them.
     const deferredDue = deferredCount > 0 && (
-      trigger === 'moveend'
+      reason === 'moveend'
       || now - lastDeferredWriteRef.current >= DEFERRED_RECONCILE_INTERVAL_MS
     );
-    if (mirror && urgentCount === 0 && !deferredDue) return;
+    if (diffable && urgentCount === 0 && !deferredDue) return;
 
     // any write flushes the deferred backlog too: the re-tile happens anyway
     [id, selected].forEach((sourceKey) => {
@@ -341,10 +372,14 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
     [id, selected].forEach((sourceKey) => {
       const sourceObj = map.getSource(sourceKey);
       if (!sourceObj) return;
-      if (!mirror) {
+      if (!diffable) {
         const features = [...next[sourceKey].values()];
+        // rewriting a known-empty source with zero features would re-tile for
+        // nothing (this was the recurring 0-feature write on the selected
+        // source); a null mirror means content is unknown, so still write
+        if (!features.length && mirror && mirror[sourceKey].size === 0) return;
         sourceObj.setData({ type: 'FeatureCollection', features });
-        logMapWrite(sourceKey, 'setData', features.length, trigger);
+        logMapWrite(sourceKey, 'setData', features.length, fullReason || 'hard-reset');
         return;
       }
       const add = urgent[sourceKey].concat(deferred[sourceKey]);
@@ -352,10 +387,12 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
       if (!add.length && !remove.length) return; // untouched source: no re-tile
       // 'add' with an existing promoteId (deviceId) replaces that feature
       sourceObj.updateData({ add, remove });
-      logMapWrite(sourceKey, 'updateData', add.length + remove.length, trigger);
+      const urgentHere = urgent[sourceKey].length + remove.length;
+      logMapWrite(sourceKey, 'updateData', add.length + remove.length, laneTrigger(reason, urgentHere));
     });
 
     lastWrittenRef.current = next;
+    fullRewriteReasonRef.current = null;
     jumpedDs.forEach((ds) => { ds.jumped = false; });
 
     // landed gliders are part of this write; once it is loaded their twin
@@ -370,8 +407,11 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
   useEffect(() => {
     updateMapDataRef.current = updateMapData;
     // feature properties are derived through createFeature/titleField; when
-    // those change the mirror no longer matches the sources, so rebuild fully
-    lastWrittenRef.current = null;
+    // those change the mirror's features no longer match the sources, so the
+    // next write rebuilds fully (the mirror maps are kept: their sizes still
+    // say which sources hold content). On mount this runs before the source
+    // effect, which overwrites the reason with 'load'.
+    fullRewriteReasonRef.current = 'hard-reset';
   }, [updateMapData]);
 
   const animate = useCallback(() => {
@@ -542,15 +582,21 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
   const onMouseEnter = () => { map.getCanvas().style.cursor = 'pointer'; };
   const onMouseLeave = () => { map.getCanvas().style.cursor = ''; };
 
+  // These handlers are dependencies of the structural effect that owns the
+  // sources and layers. They read everything per-render state through refs so
+  // their identities never change: if any of them picked up a new identity on
+  // a WS flush (the devices selector changes every flush), the structural
+  // effect would tear down and recreate the sources each cycle, destroying
+  // the diff mirror and re-tiling the fleet — the prod blink.
   const onMapClick = useCallback((event) => {
-    if (!event.defaultPrevented && onClick) onClick(event.lngLat.lat, event.lngLat.lng);
-  }, [onClick]);
+    if (!event.defaultPrevented && onClickRef.current) onClickRef.current(event.lngLat.lat, event.lngLat.lng);
+  }, []);
 
   const onMarkerClick = useCallback((event) => {
     event.preventDefault();
     const { id: fId, deviceId } = event.features[0].properties;
-    if (onClick) onClick(fId, deviceId);
-  }, [onClick]);
+    if (onClickRef.current) onClickRef.current(fId, deviceId);
+  }, []);
 
   const onClusterClick = useCatchCallback(async (event) => {
     event.preventDefault();
@@ -574,14 +620,14 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
     const leaves = await source.getClusterLeaves(clusterId, Infinity, 0);
 
     const clusterDevices = leaves
-      .map((feature) => devices[feature.properties.deviceId])
+      .map((feature) => devicesRef.current[feature.properties.deviceId])
       .filter(Boolean);
 
     dispatch(clustersActions.showClusterPopup({
       devices: clusterDevices,
       coordinates: clusterCoords,
     }));
-  }, [clusters, devices]);
+  }, [clusters, dispatch]);
 
   useEffect(() => {
     map.addSource(id, {
@@ -605,8 +651,10 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
     registerMapWriteDebugSource(id, 'fleet');
     registerMapWriteDebugSource(selected, 'selected');
     registerMapWriteDebugSource(animating, 'glide');
-    // sources were just (re)created empty: the diff mirror is void
-    lastWrittenRef.current = null;
+    // sources were just (re)created empty: start from a known-empty mirror so
+    // the first write is a 'load' setData and empty sources are never written
+    lastWrittenRef.current = { [id]: new Map(), [selected]: new Map() };
+    fullRewriteReasonRef.current = 'load';
 
     [id, selected].forEach((source) => {
       const isSelectedLayer = source === selected;

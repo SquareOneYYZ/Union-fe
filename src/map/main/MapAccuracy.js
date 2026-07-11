@@ -6,7 +6,10 @@ import { logMapWrite, registerMapWriteDebugSource, unregisterMapWriteDebugSource
 
 const MapAccuracy = ({ positions }) => {
   const id = useId();
-  const lastSignatureRef = useRef(null);
+  // starts as the signature of an empty collection: a fleet with no accuracy
+  // circles never writes at all (the source is created empty already)
+  const lastSignatureRef = useRef('');
+  const hasWrittenRef = useRef(false);
 
   const theme = useTheme();
 
@@ -63,7 +66,8 @@ const MapAccuracy = ({ positions }) => {
       type: 'FeatureCollection',
       features,
     });
-    logMapWrite(id, 'setData', features.length, 'flush');
+    logMapWrite(id, 'setData', features.length, hasWrittenRef.current ? 'flush-urgent' : 'load');
+    hasWrittenRef.current = true;
   }, [positions]);
 
   return null;

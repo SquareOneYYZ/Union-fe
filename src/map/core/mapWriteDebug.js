@@ -7,9 +7,16 @@
 //
 // When enabled it records, with timestamps:
 //  - every source write (setData/updateData): source label, feature count,
-//    trigger ('flush' / 'animation' / 'landing' / 'selection' / ...);
+//    trigger — one of 'load' (first full write after source creation),
+//    'flush-urgent' (visible change written within its flush),
+//    'reconcile-15s' (deferred invisible-motion backlog on its interval),
+//    'moveend', 'selection', 'glide', 'hard-reset' (derived-prop change or
+//    fleet-size branch crossing forced a full rewrite);
 //  - every 'sourcedata' event with sourceDataType === 'content' for the
 //    registered sources (one fires when the worker acknowledges each write);
+//  - every registered source add/remove (register/unregister run right where
+//    addSource/removeSource do), so "zero teardowns in steady state" is
+//    directly observable instead of inferred from blink character;
 //  - an on-screen flash indicator so blink moments can be matched to write
 //    moments by eye. The ring buffer is at mapWriteDebug.events.
 
@@ -100,12 +107,21 @@ export const attachMapWriteDebug = (map) => {
 
 // Sources register a stable human label ('fleet', 'selected', 'glide', ...)
 // so log lines and sourcedata events are readable despite useId-based ids.
+// Registration doubles as the source-lifecycle log: components call these in
+// the same effect that runs addSource/removeSource.
 export const registerMapWriteDebugSource = (sourceId, label) => {
   state.registry.set(sourceId, label);
+  if (!state.enabled) return;
+  record({ t: performance.now(), wall: wallClock(), kind: 'lifecycle', source: label, event: 'add' });
+  console.log(`[mapwrite] ${wallClock()} addSource ${label}`);
 };
 
 export const unregisterMapWriteDebugSource = (sourceId) => {
+  const label = state.registry.get(sourceId) || sourceId;
   state.registry.delete(sourceId);
+  if (!state.enabled) return;
+  record({ t: performance.now(), wall: wallClock(), kind: 'lifecycle', source: label, event: 'remove' });
+  console.log(`[mapwrite] ${wallClock()} removeSource ${label}`);
 };
 
 // The single hot-path hook: call at every setData/updateData call site.
@@ -120,16 +136,24 @@ export const logMapWrite = (sourceId, method, featureCount, trigger) => {
 
 const summary = (sinceSeconds = 60) => {
   const cutoff = performance.now() - sinceSeconds * 1000;
-  const recent = state.events.filter((e) => e.t >= cutoff && e.kind === 'write');
+  const recent = state.events.filter((e) => e.t >= cutoff);
+  const writes = recent.filter((e) => e.kind === 'write');
   const bySource = {};
-  recent.forEach((e) => {
+  writes.forEach((e) => {
     const key = `${e.source}/${e.method}`;
     bySource[key] = bySource[key] || { writes: 0, features: 0, triggers: {} };
     bySource[key].writes += 1;
     bySource[key].features += e.featureCount;
     bySource[key].triggers[e.trigger] = (bySource[key].triggers[e.trigger] || 0) + 1;
   });
-  return { windowSeconds: sinceSeconds, totalWrites: recent.length, bySource };
+  // steady state must show zero entries here; any '<label>/remove' means the
+  // structural effect tore a source down mid-session
+  const lifecycle = {};
+  recent.filter((e) => e.kind === 'lifecycle').forEach((e) => {
+    const key = `${e.source}/${e.event}`;
+    lifecycle[key] = (lifecycle[key] || 0) + 1;
+  });
+  return { windowSeconds: sinceSeconds, totalWrites: writes.length, bySource, lifecycle };
 };
 
 const controls = {
