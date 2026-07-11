@@ -241,7 +241,6 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
 
   const onClusterClick = useCatchCallback(async (event) => {
     event.preventDefault();
-
     const features = map.queryRenderedFeatures(event.point, {
       layers: [clusters],
     });
@@ -249,26 +248,43 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
     const clusterFeature = features[0];
     const clusterId = clusterFeature.properties.cluster_id;
     const clusterCoords = clusterFeature.geometry.coordinates;
-    const currentZoom = map.getZoom();
+    const pointCount = clusterFeature.properties.point_count; // ← already available
+
+    const metersPerPixel = (156543.03392 * Math.cos((clusterCoords[1] * Math.PI) / 180)) / (2 ** map.getZoom());
+    const visibleWidthKm = (map.getCanvas().width * metersPerPixel) / 1000;
+
     const zoom = await map.getSource(id).getClusterExpansionZoom(clusterId);
 
-    if (currentZoom < CLUSTER_POPUP_MIN_ZOOM) {
+    if (visibleWidthKm > 739 || pointCount < 10) {
       map.easeTo({ center: clusterCoords, zoom });
       return;
     }
 
-    const source = map.getSource(id);
-    const leaves = await source.getClusterLeaves(clusterId, Infinity, 0);
+    const clusterPoint = map.project(clusterCoords);
+    const radius = 50;
+    const bounds = [
+      map.unproject([clusterPoint.x - radius, clusterPoint.y - radius]),
+      map.unproject([clusterPoint.x + radius, clusterPoint.y + radius]),
+    ];
 
-    const clusterDevices = leaves
-      .map((feature) => devices[feature.properties.deviceId])
+    const clusterPositions = positions.filter((pos) =>
+      pos.longitude >= bounds[0].lng &&
+      pos.longitude <= bounds[1].lng &&
+      pos.latitude <= bounds[0].lat &&
+      pos.latitude >= bounds[1].lat
+    );
+
+    const clusterDevices = clusterPositions
+      .map((pos) => devices[pos.deviceId])
       .filter(Boolean);
 
     dispatch(clustersActions.showClusterPopup({
       devices: clusterDevices,
       coordinates: clusterCoords,
     }));
-  }, [clusters, devices]);
+
+    map.easeTo({ center: clusterCoords, zoom });
+  }, [clusters, positions, devices]);
 
   useEffect(() => {
     map.addSource(id, {
@@ -372,10 +388,6 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
   useEffect(() => {
     const filtered = positions.filter((p) => Object.prototype.hasOwnProperty.call(devices, p.deviceId));
     updateAnimationState(filtered);
-    // Always push current state to the map sources. The animation loop only
-    // runs for devices that moved, so with smoothing enabled the initial
-    // positions would otherwise never reach the sources and no markers or
-    // clusters would render until something else called updateMapData.
     updateMapData();
   }, [positions, devices, enableSmoothing, updateAnimationState, updateMapData]);
 
