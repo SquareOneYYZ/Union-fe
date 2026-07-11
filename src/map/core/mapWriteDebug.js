@@ -2,8 +2,11 @@
 
 // Instrumentation for correlating visible marker blinks with GeoJSON source
 // writes. Off by default; when off every exported hook is a single boolean
-// check. Enable with ?mapWriteDebug=1 (persisted to localStorage) or from the
-// console with mapWriteDebug.enable(); disable with mapWriteDebug.disable().
+// check, no listener does work, and no DOM exists. Enable for the current
+// session only with ?mapWriteDebug=1 or mapWriteDebug.enable(); surviving
+// reloads is an explicit opt-in via mapWriteDebug.enable({ persist: true }).
+// mapWriteDebug.disable() removes the on-screen indicator immediately and
+// clears any persisted opt-in (?mapWriteDebug=0 also clears it).
 //
 // When enabled it records, with timestamps:
 //  - every source write (setData/updateData): source label, feature count,
@@ -33,10 +36,10 @@ const SOURCE_COLORS = {
 const readInitialFlag = () => {
   try {
     const params = new URLSearchParams(window.location.search);
-    if (params.get(STORAGE_KEY) === '1') {
-      window.localStorage.setItem(STORAGE_KEY, '1');
-      return true;
-    }
+    // the query param is session-only by design: persisting it here is how a
+    // one-off field-verification run used to leave debug on for every later
+    // session in that browser. Only enable({ persist: true }) writes storage.
+    if (params.get(STORAGE_KEY) === '1') return true;
     if (params.get(STORAGE_KEY) === '0') {
       window.localStorage.removeItem(STORAGE_KEY);
       return false;
@@ -66,9 +69,12 @@ const record = (entry) => {
   }
 };
 
+// The indicator is created lazily on the first logged write while enabled,
+// so a disabled session never puts anything in the DOM.
 const flashIndicator = (label, text) => {
   if (!state.indicator) {
     const el = document.createElement('div');
+    el.setAttribute('data-mapwrite-indicator', '1');
     el.style.cssText = 'position:fixed;left:8px;bottom:8px;z-index:10000;'
       + 'font:11px/1.4 monospace;color:#fff;background:#616161;padding:2px 8px;'
       + 'border-radius:4px;pointer-events:none;opacity:0.9;';
@@ -81,6 +87,17 @@ const flashIndicator = (label, text) => {
   state.indicatorTimer = setTimeout(() => {
     if (state.indicator) state.indicator.style.background = '#333';
   }, 250);
+};
+
+const removeIndicator = () => {
+  if (state.indicatorTimer) {
+    clearTimeout(state.indicatorTimer);
+    state.indicatorTimer = null;
+  }
+  if (state.indicator) {
+    state.indicator.remove();
+    state.indicator = null;
+  }
 };
 
 const onSourceData = (event) => {
@@ -97,6 +114,12 @@ const attach = () => {
   if (state.attached || !state.map) return;
   state.map.on('sourcedata', onSourceData);
   state.attached = true;
+};
+
+const detach = () => {
+  if (!state.attached || !state.map) return;
+  state.map.off('sourcedata', onSourceData);
+  state.attached = false;
 };
 
 // Called once from MapView after the map singleton is created.
@@ -157,14 +180,20 @@ const summary = (sinceSeconds = 60) => {
 };
 
 const controls = {
-  enable: () => {
+  enable: (options = {}) => {
     state.enabled = true;
-    try { window.localStorage.setItem(STORAGE_KEY, '1'); } catch { /* private mode */ }
+    if (options.persist) {
+      try { window.localStorage.setItem(STORAGE_KEY, '1'); } catch { /* private mode */ }
+    }
     attach();
-    console.log('[mapwrite] enabled');
+    console.log(options.persist
+      ? '[mapwrite] enabled (persisted; survives reloads until disable())'
+      : '[mapwrite] enabled (this session only; enable({ persist: true }) to survive reloads)');
   },
   disable: () => {
     state.enabled = false;
+    removeIndicator();
+    detach();
     try { window.localStorage.removeItem(STORAGE_KEY); } catch { /* private mode */ }
     console.log('[mapwrite] disabled');
   },
