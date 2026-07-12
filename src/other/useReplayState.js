@@ -8,8 +8,59 @@ import { useTranslation } from '../common/components/LocalizationProvider';
 import { formatSpeed } from '../common/util/formatter';
 import { mapIconKey } from '../map/core/preloadImages';
 import { DEVICE_COLORS } from './ReplayStyles';
+import { isLongRange, CHUNK_SIZE } from '../reports/components/useChunkedReplay';
 
 const TARGET_PLAYBACK_MS = 60000;
+
+const fetchPositionsDirect = async (deviceId, from, to) => {
+  const query = new URLSearchParams({ deviceId, from, to });
+  const response = await fetch(`/api/positions?${query.toString()}`);
+  if (!response.ok) throw Error(await response.text());
+  return response.json();
+};
+
+const fetchPositionsChunked = async (deviceId, from, to) => {
+  const sessionResponse = await fetch('/api/replay/session', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ deviceId, from, to }),
+  });
+  if (!sessionResponse.ok) throw Error(await sessionResponse.text());
+  const session = await sessionResponse.json();
+  const sessionId = session.sessionId ?? session.id ?? session.session_id;
+  const totalCount = session.totalCount ?? session.total ?? session.count ?? session.size ?? 0;
+  if (!sessionId) throw Error('No sessionId in replay session response');
+  if (!totalCount) return [];
+
+  const positions = [];
+  for (let offset = 0; offset < totalCount; offset += CHUNK_SIZE) {
+    // eslint-disable-next-line no-await-in-loop
+    const response = await fetch(`/api/replay/session/${sessionId}/chunk?offset=${offset}&limit=${CHUNK_SIZE}`);
+    if (!response.ok) {
+      // eslint-disable-next-line no-await-in-loop
+      throw Error(await response.text());
+    }
+    // eslint-disable-next-line no-await-in-loop
+    const chunk = await response.json();
+    if (!chunk || !chunk.length) break;
+    positions.push(...chunk);
+  }
+  return positions;
+};
+
+// Multi-vehicle playback needs the full position set per device for the shared
+// timeline, so long ranges assemble all chunks instead of windowing like the
+// single-device chunked replay does.
+const fetchAllPositions = async (deviceId, from, to) => {
+  if (isLongRange(from, to)) {
+    try {
+      return await fetchPositionsChunked(deviceId, from, to);
+    } catch (e) {
+      return fetchPositionsDirect(deviceId, from, to);
+    }
+  }
+  return fetchPositionsDirect(deviceId, from, to);
+};
 
 const getSmoothPositionAtTime = (positions, currentTime) => {
   if (!positions || positions.length === 0) return null;
@@ -243,10 +294,7 @@ const useReplayState = () => {
     setCardDeviceId(null);
 
     try {
-      const query = new URLSearchParams({ deviceId, from: f, to: t2 });
-      const response = await fetch(`/api/positions?${query.toString()}`);
-      if (!response.ok) throw Error(await response.text());
-      const data = await response.json();
+      const data = await fetchAllPositions(deviceId, f, t2);
 
       if (!data.length) throw Error(t('sharedNoData'));
 
@@ -261,13 +309,10 @@ const useReplayState = () => {
     }
   });
 
-const handleAddCompareDevice = useCatch(async () => {
+  const handleAddCompareDevice = useCatch(async () => {
     if (!pendingCompareId || !from || !to) return;
 
-    const query = new URLSearchParams({ deviceId: pendingCompareId, from, to });
-    const response = await fetch(`/api/positions?${query.toString()}`);
-    if (!response.ok) throw Error(await response.text());
-    const data = await response.json();
+    const data = await fetchAllPositions(pendingCompareId, from, to);
     if (!data.length) {
       setNoDataDeviceId(pendingCompareId);
       setPendingCompareId('');
