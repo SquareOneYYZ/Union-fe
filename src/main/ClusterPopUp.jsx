@@ -95,7 +95,7 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 const INITIAL_BOTTOM = 16;
-const ROW_HEIGHT = 61;
+const ROW_HEIGHT = 68;
 const LIST_MAX_HEIGHT = 340;
 
 const ClusterDeviceRow = ({ data, index, style }) => {
