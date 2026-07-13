@@ -19,7 +19,7 @@ const TELEPORT_THRESHOLD_SQ = 0.0045 * 0.0045;
 const STALE_GAP_MS = 10000;
 const MIN_CHANGE_DEG = 0.000005;
 
-const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleField }) => {
+const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleField, customCategory, cluster }) => {
   const id = useId();
   const clusters = `${id}-clusters`;
   const selected = `${id}-selected`;
@@ -32,7 +32,8 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
   const devices = useSelector((state) => state.devices.items);
   const selectedDeviceId = useSelector((state) => state.devices.selectedId);
 
-  const mapCluster = useAttributePreference('mapCluster', true);
+  const mapClusterPref = useAttributePreference('mapCluster', true);
+  const mapCluster = cluster === undefined ? mapClusterPref : cluster;
   const directionType = useAttributePreference('mapDirection', 'selected');
   const baseAnimationDuration = useAttributePreference('mapAnimationDuration', 2500);
   const enableSmoothing = useAttributePreference('mapEnableSmoothing', true);
@@ -60,6 +61,22 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
 
   const createFeature = useCallback((devs, position, selectedPositionId) => {
     const device = devs[position.deviceId];
+    if (position.iconKey) {
+      // Synthetic replay positions carry a prebuilt icon key ("category-replayN")
+      // and a fixed per-device color instead of live status styling.
+      const [cat, ...rest] = position.iconKey.split('-');
+      return {
+        id: position.id,
+        deviceId: position.deviceId,
+        name: device?.name ?? position.name ?? '',
+        fixTime: formatTime(position.fixTime, 'seconds'),
+        category: cat,
+        color: rest.join('-'),
+        rotation: position.course,
+        direction: false,
+        isCurrent: position.isCurrent ? 1 : 0,
+      };
+    }
     let showDirection;
     switch (directionType) {
       case 'none': showDirection = false; break;
@@ -69,14 +86,14 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
     return {
       id: position.id,
       deviceId: position.deviceId,
-      name: device.name,
+      name: device?.name ?? '',
       fixTime: formatTime(position.fixTime, 'seconds'),
-      category: mapIconKey(device.category),
-      color: showStatus ? position.attributes.color || getStatusColor(device.status) : 'neutral',
+      category: customCategory || mapIconKey(device?.category),
+      color: showStatus ? position.attributes?.color || getStatusColor(device?.status) : 'neutral',
       rotation: position.course,
       direction: showDirection,
     };
-  }, [directionType, showStatus]);
+  }, [directionType, showStatus, customCategory]);
 
   const calculateAnimationDuration = useCallback((deviceId, now) => {
     if (!useAdaptiveTiming) return baseAnimationDuration;
@@ -293,7 +310,12 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
         filter: ['!has', 'point_count'],
         layout: {
           'icon-image': '{category}-{color}',
-          'icon-size': isSelectedLayer ? iconScale * 1.3 : iconScale,
+          'icon-size': [
+            'case',
+            ['==', ['get', 'isCurrent'], 1],
+            iconScale * 1.45,
+            isSelectedLayer ? iconScale * 1.3 : iconScale,
+          ],
           'icon-allow-overlap': true,
           'text-field': `{${titleField || 'name'}}`,
           'text-allow-overlap': true,
