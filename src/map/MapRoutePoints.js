@@ -10,7 +10,7 @@ import { useTranslation } from '../common/components/LocalizationProvider';
 import { useAttributePreference } from '../common/util/preferences';
 import { mapInteractionsActions } from '../store';
 
-const MapRoutePoints = ({ positions, onClick, useGlobalExpansion = false, showSpeedLegend = true }) => {
+const MapRoutePoints = ({ positions, onClick, useGlobalExpansion = false }) => {
   const id = useId();
   const t = useTranslation();
   const speedUnit = useAttributePreference('speedUnit');
@@ -144,7 +144,7 @@ const MapRoutePoints = ({ positions, onClick, useGlobalExpansion = false, showSp
 
   useEffect(() => {
     if (!positions.length) {
-      return () => { };
+      return () => {};
     }
 
     const maxSpeed = positions.reduce((a, b) => Math.max(a, b.speed), -Infinity);
@@ -157,9 +157,7 @@ const MapRoutePoints = ({ positions, onClick, useGlobalExpansion = false, showSp
       maxSpeed,
       minSpeed,
     );
-    if (showSpeedLegend) {
-      map.addControl(control, 'bottom-left');
-    }
+    map.addControl(control, 'bottom-left');
 
     showSimplifiedPoints();
 
@@ -178,12 +176,10 @@ const MapRoutePoints = ({ positions, onClick, useGlobalExpansion = false, showSp
     map.on('click', handleMapClick);
 
     return () => {
-      if (showSpeedLegend) {
-        map.removeControl(control);
-      }
+      map.removeControl(control);
       map.off('click', handleMapClick);
     };
-  }, [positions, simplifiedPositions, speedUnit, t, id, showSimplifiedPoints, useGlobalExpansion, dispatch, showSpeedLegend]);
+  }, [positions, simplifiedPositions, speedUnit, t, id, showSimplifiedPoints, useGlobalExpansion, dispatch]);
 
   return null;
 };

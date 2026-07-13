@@ -5,25 +5,21 @@ import { map } from './core/MapView';
 import { findFonts } from './core/mapUtil';
 import { useAttributePreference } from '../common/util/preferences';
 
-const MapRouteCoordinates = ({
-  name, coordinates, deviceId, color,
-}) => {
+const MapRouteCoordinates = ({ name, coordinates, deviceId }) => {
   const id = useId();
 
   const theme = useTheme();
 
-  const deviceReportColor = useSelector((state) => {
+  const reportColor = useSelector((state) => {
     const attributes = state.devices.items[deviceId]?.attributes;
     if (attributes) {
-      const attrColor = attributes['web.reportColor'];
-      if (attrColor) {
-        return attrColor;
+      const color = attributes['web.reportColor'];
+      if (color) {
+        return color;
       }
     }
-    return null;
+    return theme.palette.geometry.main;
   });
-
-  const reportColor = color || deviceReportColor || theme.palette.geometry.main;
 
   const mapLineWidth = useAttributePreference('mapLineWidth', 2);
   const mapLineOpacity = useAttributePreference('mapLineOpacity', 1);

@@ -270,13 +270,21 @@ useEffect(() => {
       }
 
       if (order === 'asc') {
-        if (aVal < bVal) return -1;
-        if (aVal > bVal) return 1;
+        if (aVal < bVal) {
+          return -1;
+        }
+        if (aVal > bVal) {
+          return 1;
+        }
         return 0;
       }
 
-      if (aVal > bVal) return -1;
-      if (aVal < bVal) return 1;
+      if (aVal > bVal) {
+        return -1;
+      }
+      if (aVal < bVal) {
+        return 1;
+      }
       return 0;
     };
 
@@ -325,16 +333,6 @@ useEffect(() => {
       navigate('/reports/scheduled');
     }
   });
-
-  // ── View on Map handler ─────────────────────────────────────────────────────
-  const handleViewOnMap = () => {
-    navigate('/reports/view-on-map', {
-      state: {
-        events: items,
-        deviceId: items[0]?.deviceId,
-      },
-    });
-  };
 
   const handleReplayStart = useCatch(async (item) => {
     setReplayLoading(true);
@@ -568,8 +566,6 @@ useEffect(() => {
               handleSubmit={handleSubmit}
               handleSchedule={handleSchedule}
               loading={loading}
-              onMapClick={handleViewOnMap}
-              mapButtonEnabled={items.length > 0}
               multiDevice
             >
               <div className={classes.filterItem}>
