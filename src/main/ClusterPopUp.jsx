@@ -103,41 +103,54 @@ const ClusterDeviceRow = ({ data, index, style }) => {
   const device = devices[index];
   return (
     <ListItem
-      component="div"
-      dense
       divider={index < devices.length - 1}
       style={style}
       className={classes.listItem}
-      secondaryAction={(
-        <>
-          <IconButton
-            size="small"
-            title={t('sharedShowDetails')}
-            onClick={() => onSelect(device.id)}
-          >
-            <InfoOutlinedIcon fontSize="small" />
-          </IconButton>
-          <IconButton
-            size="small"
-            title={t('startTracking')}
-            onClick={() => onSelect(device.id)}
-          >
-            <GpsFixedIcon fontSize="small" />
-          </IconButton>
-        </>
-      )}
     >
-      <ListItemText
-        primary={device.name}
-        secondary={formatStatus(device.status, t)}
-        primaryTypographyProps={{
-          noWrap: true,
-          className: classes.deviceName,
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          width: "100%",
+          gap: 1,
         }}
-        secondaryTypographyProps={{
-          noWrap: true,
-        }}
-      />
+      >
+        <Box
+          sx={{
+            flex: 1,
+            minWidth: 0,
+          }}
+        >
+          <Typography
+            noWrap
+            className={classes.deviceName}
+          >
+            {device.name}
+          </Typography>
+
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            noWrap
+          >
+            {formatStatus(device.status, t)}
+          </Typography>
+        </Box>
+
+        <IconButton
+          size="small"
+          onClick={() => onSelect(device.id)}
+        >
+          <InfoOutlinedIcon fontSize="small" />
+        </IconButton>
+
+        <IconButton
+          size="small"
+          onClick={() => onSelect(device.id)}
+        >
+          <GpsFixedIcon fontSize="small" />
+        </IconButton>
+      </Box>
     </ListItem>
   );
 };
