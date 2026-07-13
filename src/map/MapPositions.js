@@ -408,6 +408,14 @@ Object.keys(state).forEach((key) => {
     }
   }, [selectedPosition?.deviceId]);
   return null;
+
+  useEffect(() => {
+  if (map.getLayer(id)) map.moveLayer(id);
+  if (map.getLayer(`direction-${id}`)) map.moveLayer(`direction-${id}`);
+  if (map.getLayer(selected)) map.moveLayer(selected);
+  if (map.getLayer(`direction-${selected}`)) map.moveLayer(`direction-${selected}`);
+  if (map.getLayer(clusters)) map.moveLayer(clusters);
+}, [positions]);
 };
 
 export default MapPositions;
