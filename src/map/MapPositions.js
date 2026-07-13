@@ -227,14 +227,14 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
       newTargetAdded = true;
     });
 
- const activeIds = new Set(newPositions.map((p) => String(p.deviceId)));
-Object.keys(state).forEach((key) => {
-  if (!activeIds.has(key)) {
-    delete state[key];
-    delete lastUpdateTimeRef.current[key];
-    delete lastCoordRef.current[key];
-  }
-});
+    const activeIds = new Set(newPositions.map((p) => String(p.deviceId)));
+    Object.keys(state).forEach((key) => {
+      if (!activeIds.has(key)) {
+        delete state[key];
+        delete lastUpdateTimeRef.current[key];
+        delete lastCoordRef.current[key];
+      }
+    });
 
     if (newTargetAdded && !isAnimatingRef.current) {
       isAnimatingRef.current = true;
@@ -406,16 +406,20 @@ Object.keys(state).forEach((key) => {
       map.setPaintProperty(id, 'icon-opacity', faded);
       map.setPaintProperty(`direction-${id}`, 'icon-opacity', faded);
     }
+    if (map.getLayer(clusters)) {
+      map.setPaintProperty(clusters, 'icon-opacity', faded);
+    }
   }, [selectedPosition?.deviceId]);
-  return null;
 
   useEffect(() => {
-  if (map.getLayer(id)) map.moveLayer(id);
-  if (map.getLayer(`direction-${id}`)) map.moveLayer(`direction-${id}`);
-  if (map.getLayer(selected)) map.moveLayer(selected);
-  if (map.getLayer(`direction-${selected}`)) map.moveLayer(`direction-${selected}`);
-  if (map.getLayer(clusters)) map.moveLayer(clusters);
-}, [positions]);
+    if (map.getLayer(id)) map.moveLayer(id);
+    if (map.getLayer(`direction-${id}`)) map.moveLayer(`direction-${id}`);
+    if (map.getLayer(selected)) map.moveLayer(selected);
+    if (map.getLayer(`direction-${selected}`)) map.moveLayer(`direction-${selected}`);
+    if (map.getLayer(clusters)) map.moveLayer(clusters);
+  }, [positions]);
+
+  return null;
 };
 
 export default MapPositions;
