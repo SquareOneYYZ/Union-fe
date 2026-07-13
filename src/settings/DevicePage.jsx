@@ -11,11 +11,12 @@ import {
   Chip,
   IconButton,
   Tooltip,
+  Box,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { DropzoneArea } from 'react-mui-dropzone';
 import { useNavigate } from 'react-router-dom';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import GpsFixedIcon from '@mui/icons-material/GpsFixed';
 import { devicesActions } from '../store';
 import EditItemView from './components/EditItemView';
@@ -44,6 +45,8 @@ const DevicePage = () => {
 
   const [item, setItem] = useState(uniqueId ? { uniqueId } : null);
   const [vinDecodedData, setVinDecodedData] = useState(null);
+  const position = useSelector((state) => (item?.id ? state.session.positions[item.id] : null));
+  const hasPosition = Boolean(position);
 
   const handleFiles = useCatch(async (files) => {
     if (files.length > 0) {
@@ -66,10 +69,8 @@ const DevicePage = () => {
   });
 
   const handleLocateOnMap = () => {
+    dispatch(devicesActions.locateId(item.id));
     navigate('/');
-    setTimeout(() => {
-      dispatch(devicesActions.selectId(item.id));
-    }, 300);
   };
 
   const validate = () => item && item.name && item.uniqueId;
@@ -153,38 +154,43 @@ const DevicePage = () => {
     >
       {item && (
         <>
-          <Accordion defaultExpanded>
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography variant="subtitle1">{t('sharedRequired')}</Typography>
-              {item.id && (
-                <Tooltip title="Show on Map">
+          <Box sx={{ position: 'relative' }}>
+            <Accordion defaultExpanded>
+              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                <Typography variant="subtitle1">{t('sharedRequired')}</Typography>
+              </AccordionSummary>
+              <AccordionDetails className={classes.details}>
+                <TextField
+                  value={item.name || ''}
+                  onChange={(event) => setItem({ ...item, name: event.target.value })}
+                  label={t('sharedName')}
+                  sx={roundedFieldSx}
+                />
+                <TextField
+                  value={item.uniqueId || ''}
+                  onChange={(event) => setItem({ ...item, uniqueId: event.target.value })}
+                  label={t('deviceIdentifier')}
+                  helperText={t('deviceIdentifierHelp')}
+                  disabled={!admin || Boolean(uniqueId)}
+                  sx={roundedFieldSx}
+
+                />
+              </AccordionDetails>
+            </Accordion>
+            {item.id && (
+              <Tooltip title={hasPosition ? t('deviceShowOnMap') : t('deviceNoPositionReported')}>
+                <span style={{ position: 'absolute', top: 20, left: 80 }}>
                   <IconButton
                     size="small"
                     onClick={handleLocateOnMap}
+                    disabled={!hasPosition}
                   >
                     <GpsFixedIcon fontSize="small" />
                   </IconButton>
-                </Tooltip>
-              )}
-            </AccordionSummary>
-            <AccordionDetails className={classes.details}>
-              <TextField
-                value={item.name || ''}
-                onChange={(event) => setItem({ ...item, name: event.target.value })}
-                label={t('sharedName')}
-                sx={roundedFieldSx}
-              />
-              <TextField
-                value={item.uniqueId || ''}
-                onChange={(event) => setItem({ ...item, uniqueId: event.target.value })}
-                label={t('deviceIdentifier')}
-                helperText={t('deviceIdentifierHelp')}
-                disabled={!admin || Boolean(uniqueId)}
-                sx={roundedFieldSx}
-
-              />
-            </AccordionDetails>
-          </Accordion>
+                </span>
+              </Tooltip>
+            )}
+          </Box>
 
           <Accordion>
             <AccordionSummary expandIcon={<ExpandMoreIcon />}>
