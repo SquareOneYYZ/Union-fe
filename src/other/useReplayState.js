@@ -48,9 +48,6 @@ const fetchPositionsChunked = async (deviceId, from, to) => {
   return positions;
 };
 
-// Multi-vehicle playback needs the full position set per device for the shared
-// timeline, so long ranges assemble all chunks instead of windowing like the
-// single-device chunked replay does.
 const fetchAllPositions = async (deviceId, from, to) => {
   if (isLongRange(from, to)) {
     try {
@@ -60,6 +57,28 @@ const fetchAllPositions = async (deviceId, from, to) => {
     }
   }
   return fetchPositionsDirect(deviceId, from, to);
+};
+
+const GAP_MS = 30 * 60 * 1000;
+
+const buildSegments = (positions) => {
+  const segments = [];
+  let current = [];
+
+  positions.forEach((p, i) => {
+    if (i > 0) {
+      const prevMs = new Date(positions[i - 1].fixTime).getTime();
+      const curMs = new Date(p.fixTime).getTime();
+      if (curMs - prevMs > GAP_MS) {
+        if (current.length > 1) segments.push(current);
+        current = [];
+      }
+    }
+    current.push([p.longitude, p.latitude]);
+  });
+
+  if (current.length > 1) segments.push(current);
+  return segments;
 };
 
 const getSmoothPositionAtTime = (positions, currentTime) => {

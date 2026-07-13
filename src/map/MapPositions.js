@@ -227,15 +227,14 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
       newTargetAdded = true;
     });
 
-    const activeIds = new Set(newPositions.map((p) => p.deviceId));
-    Object.keys(state).forEach((key) => {
-      const deviceId = Number(key);
-      if (!activeIds.has(deviceId)) {
-        delete state[deviceId];
-        delete lastUpdateTimeRef.current[deviceId];
-        delete lastCoordRef.current[deviceId];
-      }
-    });
+ const activeIds = new Set(newPositions.map((p) => String(p.deviceId)));
+Object.keys(state).forEach((key) => {
+  if (!activeIds.has(key)) {
+    delete state[key];
+    delete lastUpdateTimeRef.current[key];
+    delete lastCoordRef.current[key];
+  }
+});
 
     if (newTargetAdded && !isAnimatingRef.current) {
       isAnimatingRef.current = true;
