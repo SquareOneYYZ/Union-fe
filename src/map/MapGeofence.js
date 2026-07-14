@@ -1,6 +1,5 @@
-import { useId, useEffect, createElement } from 'react';
+import { useId, useEffect } from 'react';
 import { useSelector } from 'react-redux';
-import { createPortal } from 'react-dom';
 import { useTheme } from '@mui/styles';
 import { map } from './core/MapView';
 import { findFonts, geofenceToFeature } from './core/mapUtil';
@@ -94,10 +93,7 @@ const MapGeofence = () => {
     }
   }, [mapGeofences, geofences]);
 
-  return createPortal(
-    createElement(GeofenceTooltip, tooltip),
-    document.body,
-  );
+  return <GeofenceTooltip {...tooltip} />;
 };
 
 export default MapGeofence;

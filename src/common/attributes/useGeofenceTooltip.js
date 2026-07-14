@@ -3,6 +3,9 @@ import {
 } from 'react';
 import { useSelector } from 'react-redux';
 
+const CACHE_TTL_MS = 90 * 1000;r
+const HOVER_DEBOUNCE_MS = 200;
+
 const useGeofenceTooltip = (map, layerId = 'geofences-fill') => {
   const devices = useSelector((state) => state.devices.items);
 
@@ -20,17 +23,23 @@ const useGeofenceTooltip = (map, layerId = 'geofences-fill') => {
   const cache = useRef({});
   const hoveredId = useRef(null);
   const sourceId = useRef(null);
+  const debounceTimerRef = useRef(null);
 
   const getTodayRange = () => {
     const now = new Date();
-    const from = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0).toISOString();
-    const to = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59).toISOString();
+    const from = new Date(Date.UTC(
+      now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0,
+    )).toISOString();
+    const to = new Date(Date.UTC(
+      now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999,
+    )).toISOString();
     return { from, to };
   };
 
   const fetchActivity = useCallback(async (geofenceId) => {
-    if (cache.current[geofenceId]) {
-      return cache.current[geofenceId];
+    const cached = cache.current[geofenceId];
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+      return cached.data;
     }
 
     const { from, to } = getTodayRange();
@@ -51,7 +60,7 @@ const useGeofenceTooltip = (map, layerId = 'geofences-fill') => {
     const lastDeviceId = sorted[0]?.deviceId ?? null;
 
     const result = { entries, exits, lastDeviceId };
-    cache.current[geofenceId] = result;
+    cache.current[geofenceId] = { data: result, timestamp: Date.now() };
     return result;
   }, []);
 
@@ -64,10 +73,23 @@ const useGeofenceTooltip = (map, layerId = 'geofences-fill') => {
     }
   }, [map]);
 
+  const resetTooltip = useCallback(() => {
+    setTooltip({
+      visible: false,
+      x: 0,
+      y: 0,
+      geofenceName: '',
+      entries: null,
+      exits: null,
+      lastVehicle: null,
+      loading: false,
+    });
+  }, []);
+
   useEffect(() => {
     if (!map) return undefined;
 
-    const handleMouseMove = async (e) => {
+    const handleMouseMove = (e) => {
       const x = e.originalEvent.clientX;
       const y = e.originalEvent.clientY;
 
@@ -75,19 +97,14 @@ const useGeofenceTooltip = (map, layerId = 'geofences-fill') => {
 
       if (!feature) {
         if (hoveredId.current !== null) {
+          if (debounceTimerRef.current) {
+            clearTimeout(debounceTimerRef.current);
+            debounceTimerRef.current = null;
+          }
           clearHoveredFeature();
           hoveredId.current = null;
           map.getCanvas().style.cursor = '';
-          setTooltip({
-            visible: false,
-            x: 0,
-            y: 0,
-            geofenceName: '',
-            entries: null,
-            exits: null,
-            lastVehicle: null,
-            loading: false,
-          });
+          resetTooltip();
         }
         return;
       }
@@ -100,6 +117,11 @@ const useGeofenceTooltip = (map, layerId = 'geofences-fill') => {
       if (hoveredId.current === featureId) {
         setTooltip((prev) => ({ ...prev, x, y }));
         return;
+      }
+
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
       }
 
       clearHoveredFeature();
@@ -122,48 +144,49 @@ const useGeofenceTooltip = (map, layerId = 'geofences-fill') => {
         loading: true,
       });
 
-      try {
-        const { entries, exits, lastDeviceId } = await fetchActivity(geofenceId);
+      debounceTimerRef.current = setTimeout(async () => {
+        debounceTimerRef.current = null;
+        try {
+          const { entries, exits, lastDeviceId } = await fetchActivity(geofenceId);
 
-        if (hoveredId.current !== featureId) return;
+          if (hoveredId.current !== featureId) return;
 
-        const lastVehicle = lastDeviceId
-          ? (devices[lastDeviceId]?.name ?? `Device ${lastDeviceId}`)
-          : null;
+          const lastVehicle = lastDeviceId
+            ? (devices[lastDeviceId]?.name ?? `Device ${lastDeviceId}`)
+            : null;
 
-        setTooltip((prev) => ({
-          ...prev, entries, exits, lastVehicle, loading: false,
-        }));
-      } catch {
-        if (hoveredId.current !== featureId) return;
-        setTooltip((prev) => ({ ...prev, loading: false, entries: 0, exits: 0 }));
-      }
+          setTooltip((prev) => ({
+            ...prev, entries, exits, lastVehicle, loading: false,
+          }));
+        } catch {
+          if (hoveredId.current !== featureId) return;
+          setTooltip((prev) => ({ ...prev, loading: false, entries: 0, exits: 0 }));
+        }
+      }, HOVER_DEBOUNCE_MS);
     };
 
     const handleMouseLeave = () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
+      }
       clearHoveredFeature();
       hoveredId.current = null;
       map.getCanvas().style.cursor = '';
-      setTooltip({
-        visible: false,
-        x: 0,
-        y: 0,
-        geofenceName: '',
-        entries: null,
-        exits: null,
-        lastVehicle: null,
-        loading: false,
-      });
+      resetTooltip();
     };
 
     map.on('mousemove', layerId, handleMouseMove);
     map.on('mouseleave', layerId, handleMouseLeave);
 
     return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
       map.off('mousemove', layerId, handleMouseMove);
       map.off('mouseleave', layerId, handleMouseLeave);
     };
-  }, [map, layerId, fetchActivity, devices, clearHoveredFeature]);
+  }, [map, layerId, fetchActivity, devices, clearHoveredFeature, resetTooltip]);
 
   return tooltip;
 };
