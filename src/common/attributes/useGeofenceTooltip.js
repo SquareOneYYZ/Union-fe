@@ -3,7 +3,7 @@ import {
 } from 'react';
 import { useSelector } from 'react-redux';
 
-const CACHE_TTL_MS = 90 * 1000;r
+const CACHE_TTL_MS = 90 * 1000;
 const HOVER_DEBOUNCE_MS = 200;
 
 const useGeofenceTooltip = (map, layerId = 'geofences-fill') => {

@@ -1,4 +1,4 @@
-import { useId, useEffect } from 'react';
+import { useId, useEffect, createElement } from 'react';
 import { useSelector } from 'react-redux';
 import { useTheme } from '@mui/styles';
 import { map } from './core/MapView';
@@ -93,7 +93,7 @@ const MapGeofence = () => {
     }
   }, [mapGeofences, geofences]);
 
-  return <GeofenceTooltip {...tooltip} />;
+  return createElement(GeofenceTooltip, tooltip);
 };
 
 export default MapGeofence;
