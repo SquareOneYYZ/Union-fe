@@ -1,14 +1,15 @@
 import React, { useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
 import {
   Container, Button, Accordion, AccordionDetails, AccordionSummary,
-  Skeleton, Typography, TextField, Snackbar,
+  Skeleton, Typography, TextField,
 } from '@mui/material';
 import { useCatch, useEffectAsync } from '../../reactHelper';
 import { useTranslation } from '../../common/components/LocalizationProvider';
 import PageLayout from '../../common/components/PageLayout';
 import useSettingsStyles from '../common/useSettingsStyles';
-import useUndoAction from '../../common/util/useUndoAction';
+import { enqueueSave } from '../../UpdateController';
 
 const EditItemView = ({
   children, endpoint, item, setItem, defaultItem, validate, onItemSaved, menu, breadcrumbs,
@@ -17,11 +18,8 @@ const EditItemView = ({
   const classes = useSettingsStyles();
   const t = useTranslation();
   const { id } = useParams();
-
-  const previousItemRef = useRef(null);
+  const dispatch = useDispatch();
   const originalItemRef = useRef(null);
-
-  const { executeWithUndo, handleUndo, snackbarOpen, snackbarMessage } = useUndoAction();
 
   useEffectAsync(async () => {
     if (!item) {
@@ -64,69 +62,63 @@ const EditItemView = ({
 
   const handleSave = () => {
     const snapshot = { ...item };
-    previousItemRef.current = snapshot;
+    const url = `/api/${endpoint}${id ? `/${id}` : ''}`;
+    const method = id ? 'PUT' : 'POST';
 
-    executeWithUndo(
+    enqueueSave(
+      dispatch,
       t('sharedSaved'),
       () => performSave(snapshot),
       () => setItem({ ...originalItemRef.current }),
+      {
+        url,
+        method,
+        body: JSON.stringify(snapshot),
+      },
     );
   };
 
   return (
-    <>
-      <PageLayout menu={menu} breadcrumbs={breadcrumbs}>
-        <Container maxWidth="xs" className={classes.container}>
-          {item ? children : (
-            <Accordion defaultExpanded>
-              <AccordionSummary>
-                <Typography variant="subtitle1">
-                  <Skeleton width="10em" />
-                </Typography>
-              </AccordionSummary>
-              <AccordionDetails>
-                {[...Array(3)].map((_, i) => (
-                  <Skeleton key={-i} width="100%">
-                    <TextField />
-                  </Skeleton>
-                ))}
-              </AccordionDetails>
-            </Accordion>
-          )}
-          <div className={classes.buttons}>
-            <Button
-              type="button"
-              color="primary"
-              variant="outlined"
-              onClick={() => navigate(-1)}
-              disabled={!item}
-            >
-              {t('sharedCancel')}
-            </Button>
-            <Button
-              type="button"
-              color="primary"
-              variant="contained"
-              onClick={handleSave}
-              disabled={!item || !validate()}
-            >
-              {t('sharedSave')}
-            </Button>
-          </div>
-        </Container>
-      </PageLayout>
-
-      <Snackbar
-        open={snackbarOpen}
-        message={snackbarMessage}
-        autoHideDuration={10000}
-        action={(
-          <Button color="inherit" size="small" onClick={handleUndo}>
-            {t('sharedUndo')}
-          </Button>
+    <PageLayout menu={menu} breadcrumbs={breadcrumbs}>
+      <Container maxWidth="xs" className={classes.container}>
+        {item ? children : (
+          <Accordion defaultExpanded>
+            <AccordionSummary>
+              <Typography variant="subtitle1">
+                <Skeleton width="10em" />
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              {[...Array(3)].map((_, i) => (
+                <Skeleton key={-i} width="100%">
+                  <TextField />
+                </Skeleton>
+              ))}
+            </AccordionDetails>
+          </Accordion>
         )}
-      />
-    </>
+        <div className={classes.buttons}>
+          <Button
+            type="button"
+            color="primary"
+            variant="outlined"
+            onClick={() => navigate(-1)}
+            disabled={!item}
+          >
+            {t('sharedCancel')}
+          </Button>
+          <Button
+            type="button"
+            color="primary"
+            variant="contained"
+            onClick={handleSave}
+            disabled={!item || !validate()}
+          >
+            {t('sharedSave')}
+          </Button>
+        </div>
+      </Container>
+    </PageLayout>
   );
 };
 
