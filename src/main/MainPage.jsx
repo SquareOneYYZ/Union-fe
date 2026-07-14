@@ -1,11 +1,14 @@
 import React, {
   useState, useCallback, useEffect,
+  useRef,
 } from 'react';
 import { Paper } from '@mui/material';
 import { makeStyles } from '@mui/styles';
 import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useDispatch, useSelector } from 'react-redux';
+import usePanicMonitor from '../common/util/usePanicMonitor';
+import PanicAlertOverlay from '../common/components/PanicAlertOverlay';
 import DeviceList from './DeviceList';
 import BottomMenu from '../common/components/BottomMenu';
 import StatusCard from '../common/components/StatusCard';
@@ -15,7 +18,10 @@ import EventsDrawer from './EventsDrawer';
 import useFilter from './useFilter';
 import MainToolbar from './MainToolbar';
 import MainMap from './MainMap';
+import ClusterPopup from './ClusterPopUp';
 import { useAttributePreference } from '../common/util/preferences';
+import WhatsNewPopup from '../common/components/WhatsNewPopup';
+import VinFAB from '../settings/VinFab';
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -66,16 +72,14 @@ const MainPage = () => {
   const classes = useStyles();
   const dispatch = useDispatch();
   const theme = useTheme();
-
+  const { panicEvent, dismiss } = usePanicMonitor();
   const desktop = useMediaQuery(theme.breakpoints.up('md'));
-
   const mapOnSelect = useAttributePreference('mapOnSelect', true);
-
   const selectedDeviceId = useSelector((state) => state.devices.selectedId);
   const positions = useSelector((state) => state.session.positions);
   const [filteredPositions, setFilteredPositions] = useState([]);
   const selectedPosition = filteredPositions.find((position) => selectedDeviceId && position.deviceId === selectedDeviceId);
-
+  const notificationButtonRef = useRef(null);
   const [filteredDevices, setFilteredDevices] = useState([]);
 
   const [keyword, setKeyword] = useState('');
@@ -89,7 +93,7 @@ const MainPage = () => {
   const [devicesOpen, setDevicesOpen] = useState(desktop);
   const [eventsOpen, setEventsOpen] = useState(false);
 
-  const onEventsClick = useCallback(() => setEventsOpen(true), [setEventsOpen]);
+  const onEventsClick = useCallback(() => setEventsOpen(true), []);
 
   useEffect(() => {
     if (!desktop && mapOnSelect && selectedDeviceId) {
@@ -106,6 +110,8 @@ const MainPage = () => {
           filteredPositions={filteredPositions}
           selectedPosition={selectedPosition}
           onEventsClick={onEventsClick}
+          panic={!!panicEvent}
+          notificationButtonRef={notificationButtonRef}
         />
       )}
       <div className={classes.sidebar}>
@@ -131,6 +137,7 @@ const MainPage = () => {
                 filteredPositions={filteredPositions}
                 selectedPosition={selectedPosition}
                 onEventsClick={onEventsClick}
+                panic={!!panicEvent}
               />
             </div>
           )}
@@ -145,6 +152,7 @@ const MainPage = () => {
         )}
       </div>
       <EventsDrawer open={eventsOpen} onClose={() => setEventsOpen(false)} />
+      <WhatsNewPopup />
       {selectedDeviceId && (
         <StatusCard
           deviceId={selectedDeviceId}
@@ -153,6 +161,14 @@ const MainPage = () => {
           desktopPadding={theme.dimensions.drawerWidthDesktop}
         />
       )}
+      <PanicAlertOverlay
+        panicEvent={panicEvent}
+        onDismiss={dismiss}
+        eventsOpen={eventsOpen}
+        notificationButtonRef={notificationButtonRef}
+      />
+      <VinFAB />
+      <ClusterPopup />
     </div>
   );
 };
