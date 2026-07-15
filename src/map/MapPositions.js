@@ -19,6 +19,8 @@ const CLUSTER_POPUP_MIN_ZOOM = 9;
 // too large an area to be meaningful, so cluster clicks zoom in instead.
 export const CLUSTER_POPUP_MAX_METERS_PER_PIXEL = 50;
 
+const CLUSTER_MAX_ZOOM = 14;
+
 const TELEPORT_THRESHOLD_SQ = 0.0045 * 0.0045;
 const STALE_GAP_MS = 10000;
 const MIN_CHANGE_DEG = 0.000005;
@@ -258,7 +260,11 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
 
     const zoom = await map.getSource(id).getClusterExpansionZoom(clusterId);
 
-    if (metersPerPixel > CLUSTER_POPUP_MAX_METERS_PER_PIXEL || pointCount < 10) {
+    // Co-located devices never separate: past clusterMaxZoom the cluster only
+    // breaks into overlapping markers, so the popup is the only useful action.
+    const expandableByZooming = zoom <= CLUSTER_MAX_ZOOM;
+
+    if (expandableByZooming && (metersPerPixel > CLUSTER_POPUP_MAX_METERS_PER_PIXEL || pointCount < 10)) {
       map.easeTo({ center: clusterCoords, zoom });
       return;
     }
@@ -277,7 +283,7 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
       type: 'geojson',
       data: { type: 'FeatureCollection', features: [] },
       cluster: mapCluster,
-      clusterMaxZoom: 14,
+      clusterMaxZoom: CLUSTER_MAX_ZOOM,
       clusterRadius: 50,
     });
     map.addSource(selected, {
