@@ -227,13 +227,12 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
       newTargetAdded = true;
     });
 
-    const activeIds = new Set(newPositions.map((p) => p.deviceId));
+    const activeIds = new Set(newPositions.map((p) => String(p.deviceId)));
     Object.keys(state).forEach((key) => {
-      const deviceId = Number(key);
-      if (!activeIds.has(deviceId)) {
-        delete state[deviceId];
-        delete lastUpdateTimeRef.current[deviceId];
-        delete lastCoordRef.current[deviceId];
+      if (!activeIds.has(key)) {
+        delete state[key];
+        delete lastUpdateTimeRef.current[key];
+        delete lastCoordRef.current[key];
       }
     });
 
@@ -407,7 +406,19 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
       map.setPaintProperty(id, 'icon-opacity', faded);
       map.setPaintProperty(`direction-${id}`, 'icon-opacity', faded);
     }
+    if (map.getLayer(clusters)) {
+      map.setPaintProperty(clusters, 'icon-opacity', faded);
+    }
   }, [selectedPosition?.deviceId]);
+
+  useEffect(() => {
+    if (map.getLayer(id)) map.moveLayer(id);
+    if (map.getLayer(`direction-${id}`)) map.moveLayer(`direction-${id}`);
+    if (map.getLayer(selected)) map.moveLayer(selected);
+    if (map.getLayer(`direction-${selected}`)) map.moveLayer(`direction-${selected}`);
+    if (map.getLayer(clusters)) map.moveLayer(clusters);
+  }, [positions]);
+
   return null;
 };
 
