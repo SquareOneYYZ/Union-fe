@@ -15,6 +15,10 @@ import { clustersActions } from '../store/cluster';
 
 const CLUSTER_POPUP_MIN_ZOOM = 9;
 
+// Coarser than this scale (~5 km across a typical viewport) the popup covers
+// too large an area to be meaningful, so cluster clicks zoom in instead.
+export const CLUSTER_POPUP_MAX_METERS_PER_PIXEL = 50;
+
 const TELEPORT_THRESHOLD_SQ = 0.0045 * 0.0045;
 const STALE_GAP_MS = 10000;
 const MIN_CHANGE_DEG = 0.000005;
@@ -251,11 +255,10 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
     const pointCount = clusterFeature.properties.point_count; // ← already available
 
     const metersPerPixel = (156543.03392 * Math.cos((clusterCoords[1] * Math.PI) / 180)) / (2 ** map.getZoom());
-    const visibleWidthKm = (map.getCanvas().width * metersPerPixel) / 1000;
 
     const zoom = await map.getSource(id).getClusterExpansionZoom(clusterId);
 
-    if (visibleWidthKm > 739 || pointCount < 10) {
+    if (metersPerPixel > CLUSTER_POPUP_MAX_METERS_PER_PIXEL || pointCount < 10) {
       map.easeTo({ center: clusterCoords, zoom });
       return;
     }
@@ -282,8 +285,6 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
       devices: clusterDevices,
       coordinates: clusterCoords,
     }));
-
-    map.easeTo({ center: clusterCoords, zoom });
   }, [clusters, positions, devices]);
 
   useEffect(() => {

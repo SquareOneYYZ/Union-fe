@@ -14,6 +14,7 @@ import { makeStyles } from '@mui/styles';
 import { clustersActions } from '../store/cluster';
 import { devicesActions } from '../store/devices';
 import { map } from '../map/core/MapView';
+import { CLUSTER_POPUP_MAX_METERS_PER_PIXEL } from '../map/MapPositions';
 import { useTranslation } from '../common/components/LocalizationProvider';
 import { formatStatus } from '../common/util/formatter';
 
@@ -187,8 +188,7 @@ const ClusterPopup = () => {
 
     const handleZoomOut = () => {
       const metersPerPixel = (156543.03392 * Math.cos((map.getCenter().lat * Math.PI) / 180)) / (2 ** map.getZoom());
-      const visibleWidthKm = (map.getCanvas().width * metersPerPixel) / 1000;
-      if (visibleWidthKm > 739) hide();
+      if (metersPerPixel > CLUSTER_POPUP_MAX_METERS_PER_PIXEL) hide();
     };
 
     map.on('click', hide);
