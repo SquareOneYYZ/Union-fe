@@ -50,7 +50,7 @@ const EditItemView = ({
     const response = await fetch(url, {
       method: !id ? 'POST' : 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(savedItem),  
+      body: JSON.stringify(savedItem),
     });
 
     if (response.ok) {

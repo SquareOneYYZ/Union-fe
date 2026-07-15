@@ -5,7 +5,6 @@ import {
 } from './store';
 import { useEffectAsync } from './reactHelper';
 
-const CDN_BASE_URL ='https://cdn.iotrides.com';
 const CDN_CONCURRENCY = 10;
 
 const runWithConcurrency = async (items, limit, task) => {
@@ -16,6 +15,7 @@ const runWithConcurrency = async (items, limit, task) => {
     while (cursor < items.length) {
       const index = cursor;
       cursor += 1;
+      // eslint-disable-next-line no-await-in-loop
       results[index] = await task(items[index], index);
     }
   };
@@ -37,7 +37,7 @@ const fetchGeofenceFallback = async (id) => {
 
 const fetchGeofenceFromCdn = async (id) => {
   try {
-    const response = await fetch(`${CDN_BASE_URL}/geofence/${id}/data.json`);
+    const response = await fetch(`https://cdn.iotrides.com/geofence/${id}/data.json`);
     if (!response.ok) return null;
     return await response.json();
   } catch (e) {

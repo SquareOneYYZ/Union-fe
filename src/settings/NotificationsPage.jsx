@@ -48,6 +48,14 @@ const NotificationsPage = () => {
     return '';
   };
 
+  const capitalize = (value) => (value ? value.charAt(0).toUpperCase() + value.slice(1) : null);
+
+  const formatZoneDescription = (item) => {
+    const zone = item.type === 'geofence' ? 'Geofence' : capitalize(item.attributes?.zoneTypes);
+    const violation = capitalize(item.attributes?.violationTypes);
+    return [zone, violation].filter(Boolean).join(' ');
+  };
+
   return (
     <PageLayout menu={<SettingsMenu />} breadcrumbs={['settingsTitle', 'sharedNotifications']}>
       <SearchHeader keyword={searchKeyword} setKeyword={setSearchKeyword} />
@@ -68,19 +76,7 @@ const NotificationsPage = () => {
               <TableCell>{item.description}</TableCell>
               <TableCell>
                 {item.type === 'zoneViolation' || item.type === 'geofence'
-                  ? (() => {
-                    const zone = item.type === 'geofence'
-                      ? 'Geofence'
-                      : item.attributes?.zoneTypes
-                        ? item.attributes.zoneTypes.charAt(0).toUpperCase() + item.attributes.zoneTypes.slice(1)
-                        : null;
-
-                    const violation = item.attributes?.violationTypes
-                      ? item.attributes.violationTypes.charAt(0).toUpperCase() + item.attributes.violationTypes.slice(1)
-                      : null;
-
-                    return [zone, violation].filter(Boolean).join(' ');
-                  })()
+                  ? formatZoneDescription(item)
                   : t(prefixString('event', item.type))}
               </TableCell>
               <TableCell>{formatBoolean(item.always, t)}</TableCell>
