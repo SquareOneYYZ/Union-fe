@@ -16,23 +16,23 @@ const usePanicMonitor = () => {
   const [panicEvent, setPanicEvent] = useState(null);
   const lastSeenIdRef = useRef(events[0]?.id);
 
-useEffect(() => {
-  if (!events.length) return;
-  const newEvents = [];
-  for (const event of events) {
-    if (event.id === lastSeenIdRef.current) {
-      break;
-    }
-    newEvents.push(event);
-  }
+  useEffect(() => {
+    if (!events.length) return;
+    const index = events.findIndex(
+      (event) => event.id === lastSeenIdRef.current,
+    );
 
-  if (!newEvents.length) return;
-  lastSeenIdRef.current = newEvents[0].id;
-  const panic = newEvents.find(isPanicEvent);
-  if (panic) {
-    setPanicEvent(panic);
-  }
-}, [events]);
+    const newEvents = index === -1
+      ? events
+      : events.slice(0, index);
+
+    if (!newEvents.length) return;
+    lastSeenIdRef.current = newEvents[0].id;
+    const panic = newEvents.find(isPanicEvent);
+    if (panic) {
+      setPanicEvent(panic);
+    }
+  }, [events]);
 
   const dismiss = useCallback(() => setPanicEvent(null), []);
 

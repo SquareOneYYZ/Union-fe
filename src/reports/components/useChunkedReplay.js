@@ -252,7 +252,6 @@ const useReplaySession = () => {
         return false;
       }
 
-
       fetchOverview(sessionId);
       const firstChunk = await fetchChunk(0, 'append');
 

@@ -27,12 +27,8 @@ const useGeofenceTooltip = (map, layerId = 'geofences-fill') => {
 
   const getTodayRange = () => {
     const now = new Date();
-    const from = new Date(Date.UTC(
-      now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0,
-    )).toISOString();
-    const to = new Date(Date.UTC(
-      now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999,
-    )).toISOString();
+    const from = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0).toISOString();
+    const to = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999).toISOString();
     return { from, to };
   };
 
