@@ -378,6 +378,10 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
   useEffect(() => {
     const filtered = positions.filter((p) => Object.prototype.hasOwnProperty.call(devices, p.deviceId));
     updateAnimationState(filtered);
+    // Always push current state to the map sources. The animation loop only
+    // runs for devices that moved, so with smoothing enabled the initial
+    // positions would otherwise never reach the sources and no markers or
+    // clusters would render until something else called updateMapData.
     updateMapData();
   }, [positions, devices, enableSmoothing, updateAnimationState, updateMapData]);
 
