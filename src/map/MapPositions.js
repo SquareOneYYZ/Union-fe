@@ -263,29 +263,14 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
       return;
     }
 
-    const clusterPoint = map.project(clusterCoords);
-    const radius = 50;
-    const bounds = [
-      map.unproject([clusterPoint.x - radius, clusterPoint.y - radius]),
-      map.unproject([clusterPoint.x + radius, clusterPoint.y + radius]),
-    ];
-
-    const clusterPositions = positions.filter((pos) =>
-      pos.longitude >= bounds[0].lng &&
-      pos.longitude <= bounds[1].lng &&
-      pos.latitude <= bounds[0].lat &&
-      pos.latitude >= bounds[1].lat
-    );
-
-    const clusterDevices = clusterPositions
-      .map((pos) => devices[pos.deviceId])
-      .filter(Boolean);
+    const leaves = await map.getSource(id).getClusterLeaves(clusterId, Infinity, 0);
+    const clusterDevices = leaves.map((f) => devices[f.properties.deviceId]).filter(Boolean);
 
     dispatch(clustersActions.showClusterPopup({
       devices: clusterDevices,
       coordinates: clusterCoords,
     }));
-  }, [clusters, positions, devices]);
+  }, [clusters, devices]);
 
   useEffect(() => {
     map.addSource(id, {
