@@ -3,17 +3,17 @@ import React, {
 } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
-  Box, Typography, IconButton, Paper, ListItem, ListItemText,
+  Box, Typography, IconButton, Paper, ListItem,
 } from '@mui/material';
 import { FixedSizeList } from 'react-window';
 import CloseIcon from '@mui/icons-material/Close';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
-import GpsFixedIcon from '@mui/icons-material/GpsFixed';
 import { makeStyles } from '@mui/styles';
 import { clustersActions } from '../store/cluster';
 import { devicesActions } from '../store/devices';
 import { map } from '../map/core/MapView';
+import { CLUSTER_POPUP_MAX_METERS_PER_PIXEL } from '../map/MapPositions';
 import { useTranslation } from '../common/components/LocalizationProvider';
 import { formatStatus } from '../common/util/formatter';
 
@@ -95,7 +95,7 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 const INITIAL_BOTTOM = 16;
-const ROW_HEIGHT = 61;
+const ROW_HEIGHT = 68;
 const LIST_MAX_HEIGHT = 340;
 
 const ClusterDeviceRow = ({ data, index, style }) => {
@@ -103,41 +103,48 @@ const ClusterDeviceRow = ({ data, index, style }) => {
   const device = devices[index];
   return (
     <ListItem
-      component="div"
-      dense
       divider={index < devices.length - 1}
       style={style}
       className={classes.listItem}
-      secondaryAction={(
-        <>
-          <IconButton
-            size="small"
-            title={t('sharedShowDetails')}
-            onClick={() => onSelect(device.id)}
-          >
-            <InfoOutlinedIcon fontSize="small" />
-          </IconButton>
-          <IconButton
-            size="small"
-            title={t('startTracking')}
-            onClick={() => onSelect(device.id)}
-          >
-            <GpsFixedIcon fontSize="small" />
-          </IconButton>
-        </>
-      )}
     >
-      <ListItemText
-        primary={device.name}
-        secondary={formatStatus(device.status, t)}
-        primaryTypographyProps={{
-          noWrap: true,
-          className: classes.deviceName,
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          width: '100%',
+          gap: 1,
         }}
-        secondaryTypographyProps={{
-          noWrap: true,
-        }}
-      />
+      >
+        <Box
+          sx={{
+            flex: 1,
+            minWidth: 0,
+          }}
+        >
+          <Typography
+            noWrap
+            className={classes.deviceName}
+          >
+            {device.name}
+          </Typography>
+
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            noWrap
+          >
+            {formatStatus(device.status, t)}
+          </Typography>
+        </Box>
+
+        <IconButton
+          size="small"
+          title={t('sharedShowDetails')}
+          onClick={() => onSelect(device.id)}
+        >
+          <InfoOutlinedIcon fontSize="small" />
+        </IconButton>
+      </Box>
     </ListItem>
   );
 };
@@ -174,8 +181,7 @@ const ClusterPopup = () => {
 
     const handleZoomOut = () => {
       const metersPerPixel = (156543.03392 * Math.cos((map.getCenter().lat * Math.PI) / 180)) / (2 ** map.getZoom());
-      const visibleWidthKm = (map.getCanvas().width * metersPerPixel) / 1000;
-      if (visibleWidthKm > 739) hide();
+      if (metersPerPixel > CLUSTER_POPUP_MAX_METERS_PER_PIXEL) hide();
     };
 
     map.on('click', hide);
