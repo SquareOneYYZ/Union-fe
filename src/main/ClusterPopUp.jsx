@@ -3,7 +3,7 @@ import React, {
 } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
-  Box, Typography, IconButton, Paper, ListItem, ListItemText,
+  Box, Typography, IconButton, Paper, ListItem,
 } from '@mui/material';
 import { FixedSizeList } from 'react-window';
 import CloseIcon from '@mui/icons-material/Close';
