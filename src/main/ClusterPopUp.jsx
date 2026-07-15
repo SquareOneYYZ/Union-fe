@@ -9,7 +9,6 @@ import { FixedSizeList } from 'react-window';
 import CloseIcon from '@mui/icons-material/Close';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
-import GpsFixedIcon from '@mui/icons-material/GpsFixed';
 import { makeStyles } from '@mui/styles';
 import { clustersActions } from '../store/cluster';
 import { devicesActions } from '../store/devices';
@@ -110,9 +109,9 @@ const ClusterDeviceRow = ({ data, index, style }) => {
     >
       <Box
         sx={{
-          display: "flex",
-          alignItems: "center",
-          width: "100%",
+          display: 'flex',
+          alignItems: 'center',
+          width: '100%',
           gap: 1,
         }}
       >
@@ -140,16 +139,10 @@ const ClusterDeviceRow = ({ data, index, style }) => {
 
         <IconButton
           size="small"
+          title={t('sharedShowDetails')}
           onClick={() => onSelect(device.id)}
         >
           <InfoOutlinedIcon fontSize="small" />
-        </IconButton>
-
-        <IconButton
-          size="small"
-          onClick={() => onSelect(device.id)}
-        >
-          <GpsFixedIcon fontSize="small" />
         </IconButton>
       </Box>
     </ListItem>
