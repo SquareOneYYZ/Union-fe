@@ -44,6 +44,7 @@ import { devicesActions } from '../../store';
 import { useCatch, useCatchCallback } from '../../reactHelper';
 import { useAttributePreference } from '../util/preferences';
 import RecentEventsSection from './RecentEventsSection';
+import usePersistedState from '../util/usePersistedState';
 
 const DRAWER_WIDTH = 240;
 
@@ -51,6 +52,7 @@ const useStyles = makeStyles((theme) => ({
   card: {
     pointerEvents: 'auto',
     position: 'relative',
+    width: theme.dimensions.popupMaxWidth,
   },
   media: {
     height: theme.dimensions.popupImageHeight,
@@ -184,11 +186,14 @@ const useStyles = makeStyles((theme) => ({
     },
   },
   eventsPanelClosed: {
+    boxShadow: 'none',
     [theme.breakpoints.up('md')]: {
       maxWidth: 0,
+      marginLeft: 0,
     },
     [theme.breakpoints.down('md')]: {
       maxHeight: 0,
+      marginTop: 0,
     },
   },
   eventsPanelHeader: {
@@ -243,7 +248,8 @@ const StatusCard = ({
   const dispatch = useDispatch();
 
   const [eventCount, setEventCount] = useState(0);
-  const [drawerOpen, setDrawerOpen] = useState(null);
+  const [drawerOpenMap, setDrawerOpenMap] = usePersistedState('statusCardAlertsOpen', {});
+  const drawerOpen = drawerOpenMap[deviceId] ?? true;
 
   const t = useTranslation();
   const admin = useAdministrator();
@@ -259,50 +265,12 @@ const StatusCard = ({
   const [anchorEl, setAnchorEl] = useState(null);
   const [removing, setRemoving] = useState(false);
 
-  useEffect(() => {
-    setDrawerOpen(null);
-    if (device) {
-      const dismissed = Object.prototype.hasOwnProperty.call(
-        device.attributes ?? {},
-        'PanelAlert',
-      );
-      setDrawerOpen(!dismissed);
-    }
-  }, [deviceId]);
-
-  const handleCloseDrawer = async () => {
-    setDrawerOpen(false);
-    try {
-      await fetch(`/api/devices/${deviceId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...device,
-          attributes: { ...device.attributes, PanelAlert: true },
-        }),
-      });
-      const refreshed = await fetch('/api/devices');
-      if (refreshed.ok) dispatch(devicesActions.refresh(await refreshed.json()));
-    } catch (e) {
-      console.error('Failed to persist PanelAlert:', e);
-    }
+  const handleCloseDrawer = () => {
+    setDrawerOpenMap((prev) => ({ ...prev, [deviceId]: false }));
   };
 
-  const handleOpenDrawer = async () => {
-    setDrawerOpen(true);
-    try {
-      const updatedAttributes = { ...device.attributes };
-      delete updatedAttributes.PanelAlert;
-      await fetch(`/api/devices/${deviceId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...device, attributes: updatedAttributes }),
-      });
-      const refreshed = await fetch('/api/devices');
-      if (refreshed.ok) dispatch(devicesActions.refresh(await refreshed.json()));
-    } catch (e) {
-      console.error('Failed to remove PanelAlert:', e);
-    }
+  const handleOpenDrawer = () => {
+    setDrawerOpenMap((prev) => ({ ...prev, [deviceId]: true }));
   };
 
   const handleRemove = useCatch(async (removed) => {
@@ -340,8 +308,6 @@ const StatusCard = ({
       throw Error(await response.text());
     }
   }, [navigate, position]);
-
-  if (drawerOpen === null) return null;
 
   return (
     <>
