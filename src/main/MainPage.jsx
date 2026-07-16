@@ -84,20 +84,11 @@ const MainPage = () => {
       const bounds = map.getBounds();
       setViewportBounds(bounds);
 
-      // console trace — remove when confirmed working
       const devicesInBounds = filteredDevices.filter((device) => {
         const position = positions[device.id];
         if (!position) return false;
         return bounds.contains([position.longitude, position.latitude]);
       });
-
-      console.log('=== Viewport Bounds ===', bounds);
-      console.log('=== Devices in bounds ===', devicesInBounds.map((d) => ({
-        id: d.id,
-        name: d.name,
-        lat: positions[d.id]?.latitude,
-        lng: positions[d.id]?.longitude,
-      })));
     };
     map.on('moveend', updateBounds);
     map.on('load', updateBounds);
