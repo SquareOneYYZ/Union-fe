@@ -16,8 +16,10 @@ import EventsDrawer from './EventsDrawer';
 import useFilter from './useFilter';
 import MainToolbar from './MainToolbar';
 import MainMap from './MainMap';
+import ClusterPopup from './ClusterPopUp';
 import { useAttributePreference } from '../common/util/preferences';
 import WhatsNewPopup from '../common/components/WhatsNewPopup';
+import VinFAB from '../settings/VinFab';
 
 const useStyles = makeStyles((theme) => ({
   root: { height: '100%' },
@@ -165,6 +167,8 @@ const MainPage = () => {
           desktopPadding={theme.dimensions.drawerWidthDesktop}
         />
       )}
+      <VinFAB />
+      <ClusterPopup />
     </div>
   );
 };
