@@ -5,7 +5,7 @@ import { googleProtocol } from 'maplibre-google-maps';
 import React, {
   useRef, useLayoutEffect, useEffect, useState, useCallback,
 } from 'react';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { SwitcherControl } from '../switcher/switcher';
 import { useAttributePreference, usePreference } from '../../common/util/preferences';
@@ -15,6 +15,7 @@ import useMapStyles from './useMapStyles';
 import { FullScreenControl } from '../controls/MapFullScreen';
 import ContextMenu from './ContextMenu';
 import measureControlRef from '../controls/MeasureControlRef';
+import { devicesActions } from '../../store';
 
 const element = document.createElement('div');
 element.style.width = '100%';
@@ -93,6 +94,7 @@ const haversineDistance = (lat1, lng1, lat2, lng2) => {
 const MapView = ({ children }) => {
   const containerEl = useRef(null);
   const navigate = useNavigate();
+  const dispatch = useDispatch();
 
   const [mapReady, setMapReady] = useState(false);
   const [contextMenu, setContextMenu] = useState({
@@ -111,7 +113,18 @@ const MapView = ({ children }) => {
   const [defaultMapStyle] = usePersistedState('selectedMapStyle', usePreference('map', 'locationIqStreets'));
   const mapboxAccessToken = useAttributePreference('mapboxAccessToken');
   const maxZoom = useAttributePreference('web.maxZoom');
-
+  const findNearestPosition = (positions, lat, lng) => {
+    let nearest = null;
+    let minDist = Infinity;
+    Object.values(positions).forEach((pos) => {
+      const dist = haversineDistance(lat, lng, pos.latitude, pos.longitude);
+      if (dist < minDist) {
+        minDist = dist;
+        nearest = pos;
+      }
+    });
+    return nearest;
+  };
   useEffect(() => {
     map.setMaxZoom(maxZoom || 22);
   }, [maxZoom]);
@@ -138,17 +151,8 @@ const MapView = ({ children }) => {
       const rect = containerEl.current?.getBoundingClientRect();
       const { lat, lng } = e.lngLat;
 
-      let nearestDeviceName = null;
-      let minDist = Infinity;
-
-      Object.values(positions).forEach((pos) => {
-        const dist = haversineDistance(lat, lng, pos.latitude, pos.longitude);
-        if (dist < minDist) {
-          minDist = dist;
-          const device = devices[pos.deviceId];
-          nearestDeviceName = device?.name ?? null;
-        }
-      });
+      const nearestPos = findNearestPosition(positions, lat, lng);
+      const nearestDeviceName = nearestPos ? (devices[nearestPos.deviceId]?.name ?? null) : null;
 
       setContextMenu({
         visible: true,
@@ -166,6 +170,7 @@ const MapView = ({ children }) => {
   useEffect(() => {
     let isMiddleDown = false;
     let lastX = 0;
+    let lastY = 0;
     const canvas = map.getCanvas();
 
     const onMouseDown = (e) => {
@@ -173,15 +178,19 @@ const MapView = ({ children }) => {
         e.preventDefault();
         isMiddleDown = true;
         lastX = e.clientX;
+        lastY = e.clientY;
         canvas.style.cursor = 'grabbing';
       }
     };
 
     const onMouseMove = (e) => {
       if (!isMiddleDown) return;
-      const delta = e.clientX - lastX;
+      const deltaX = e.clientX - lastX;
+      const deltaY = e.clientY - lastY;
       lastX = e.clientX;
-      map.setBearing(map.getBearing() + delta * 0.3);
+      lastY = e.clientY;
+      map.setBearing(map.getBearing() + deltaX * 0.3);
+      map.setPitch(Math.min(85, Math.max(0, map.getPitch() - deltaY * 0.3)));
     };
 
     const onMouseUp = (e) => {
@@ -218,36 +227,18 @@ const MapView = ({ children }) => {
 
   const handleNearestVehicle = useCallback((lngLat) => {
     const { lat, lng } = lngLat;
-    let nearestPos = null;
-    let minDist = Infinity;
-
-    Object.values(positions).forEach((pos) => {
-      const dist = haversineDistance(lat, lng, pos.latitude, pos.longitude);
-      if (dist < minDist) {
-        minDist = dist;
-        nearestPos = pos;
-      }
-    });
-
+    const nearestPos = findNearestPosition(positions, lat, lng);
     if (!nearestPos) return;
     map.flyTo({
       center: [nearestPos.longitude, nearestPos.latitude],
       zoom: Math.max(map.getZoom(), 14),
     });
-  }, [positions]);
+    dispatch(devicesActions.selectId(nearestPos.deviceId));
+  }, [positions, dispatch]);
 
   const handleMeasure = useCallback((lngLat) => {
     const { lat, lng } = lngLat;
-    let nearestPos = null;
-    let minDist = Infinity;
-
-    Object.values(positions).forEach((pos) => {
-      const dist = haversineDistance(lat, lng, pos.latitude, pos.longitude);
-      if (dist < minDist) {
-        minDist = dist;
-        nearestPos = pos;
-      }
-    });
+    const nearestPos = findNearestPosition(positions, lat, lng);
 
     if (!nearestPos || !measureControlRef.current) return;
 
