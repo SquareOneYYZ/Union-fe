@@ -60,8 +60,6 @@ const CombinedReportPage = () => {
     setPage(0);
   };
 
-  // FIX: Removed isFirstForDevice — it was based on pre-sort order causing
-  // device name to disappear when sorting changed row positions
   const flattenedData = useMemo(() => items.flatMap((item) => item.events.map((event) => ({
     id: event.id,
     deviceId: item.deviceId,
@@ -143,8 +141,6 @@ const CombinedReportPage = () => {
       </TableRow>
     );
   } else {
-    // FIX: Device name visibility computed after sorting based on adjacent rows,
-    // not a pre-sort flag. Shows name whenever device changes in current sorted order.
     tableBodyContent = sortedAndPaginatedData.map((row, index, arr) => {
       const showDeviceName = index === 0 || arr[index - 1].deviceId !== row.deviceId;
       return (
