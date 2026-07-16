@@ -2,15 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Box, Skeleton, Typography } from '@mui/material';
 import makeStyles from '@mui/styles/makeStyles';
 import { formatTime } from '../util/formatter';
-
-const ALL_EVENT_TYPES = [
-  'deviceOnline', 'deviceUnknown', 'deviceOffline',
-  'deviceInactive', 'deviceMoving', 'deviceStopped',
-  'deviceOverspeed', 'deviceFuelDrop', 'deviceFuelIncrease',
-  'commandResult', 'geofenceEnter', 'geofenceExit',
-  'alarm', 'ignitionOn', 'ignitionOff',
-  'maintenance', 'textMessage', 'driverChanged',
-];
+import { useTranslation } from './LocalizationProvider';
+import { prefixString } from '../util/stringUtils';
 
 const useStyles = makeStyles((theme) => ({
   eventsSection: {},
@@ -47,22 +40,34 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-const formatEventType = (type = '') => type
-  .replace(/([A-Z])/g, ' $1')
-  .replace(/^./, (c) => c.toUpperCase())
-  .trim();
+let cachedEventTypes = null;
+
+const fetchEventTypes = async () => {
+  if (cachedEventTypes) return cachedEventTypes;
+  const response = await fetch('/api/notifications/types', {
+    headers: { Accept: 'application/json' },
+  });
+  if (!response.ok) throw new Error(await response.text());
+  const data = await response.json();
+  cachedEventTypes = data.map((item) => item.type);
+  return cachedEventTypes;
+};
 
 const RecentEventsSection = ({ deviceId, onCountChange }) => {
   const classes = useStyles();
+  const t = useTranslation();
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
 
-    const fetchEvents = async () => {
+    const run = async () => {
       setLoading(true);
       try {
+        const eventTypes = await fetchEventTypes();
+        if (cancelled) return;
+
         const to = new Date();
         const from = new Date(to.getTime() - 24 * 60 * 60 * 1000);
 
@@ -71,7 +76,7 @@ const RecentEventsSection = ({ deviceId, onCountChange }) => {
           from: from.toISOString(),
           to: to.toISOString(),
         });
-        ALL_EVENT_TYPES.forEach((type) => params.append('type', type));
+        eventTypes.forEach((type) => params.append('type', type));
 
         const response = await fetch(`/api/reports/events?${params.toString()}`, {
           headers: { Accept: 'application/json' },
@@ -97,7 +102,7 @@ const RecentEventsSection = ({ deviceId, onCountChange }) => {
       }
     };
 
-    if (deviceId) fetchEvents();
+    if (deviceId) run();
 
     return () => { cancelled = true; };
   }, [deviceId]);
@@ -127,7 +132,7 @@ const RecentEventsSection = ({ deviceId, onCountChange }) => {
       {events.map((event) => (
         <Box key={event.id} className={classes.eventRow}>
           <Typography className={classes.eventType}>
-            {formatEventType(event.type)}
+            {t(prefixString('event', event.type))}
           </Typography>
           <Typography className={classes.eventTime}>
             {formatTime(event.eventTime, 'minutes')}
