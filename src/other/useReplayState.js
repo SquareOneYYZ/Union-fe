@@ -8,7 +8,7 @@ import { useTranslation } from '../common/components/LocalizationProvider';
 import { formatSpeed } from '../common/util/formatter';
 import { mapIconKey } from '../map/core/preloadImages';
 import { DEVICE_COLORS } from './ReplayStyles';
-import { isLongRange, CHUNK_SIZE } from '../reports/components/useChunkedReplay';
+import useReplaySession from '../reports/components/useChunkedReplay';
 
 const TARGET_PLAYBACK_MS = 60000;
 
@@ -17,68 +17,6 @@ const fetchPositionsDirect = async (deviceId, from, to) => {
   const response = await fetch(`/api/positions?${query.toString()}`);
   if (!response.ok) throw Error(await response.text());
   return response.json();
-};
-
-const fetchPositionsChunked = async (deviceId, from, to) => {
-  const sessionResponse = await fetch('/api/replay/session', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ deviceId, from, to }),
-  });
-  if (!sessionResponse.ok) throw Error(await sessionResponse.text());
-  const session = await sessionResponse.json();
-  const sessionId = session.sessionId ?? session.id ?? session.session_id;
-  const totalCount = session.totalCount ?? session.total ?? session.count ?? session.size ?? 0;
-  if (!sessionId) throw Error('No sessionId in replay session response');
-  if (!totalCount) return [];
-
-  const positions = [];
-  for (let offset = 0; offset < totalCount; offset += CHUNK_SIZE) {
-    // eslint-disable-next-line no-await-in-loop
-    const response = await fetch(`/api/replay/session/${sessionId}/chunk?offset=${offset}&limit=${CHUNK_SIZE}`);
-    if (!response.ok) {
-      // eslint-disable-next-line no-await-in-loop
-      throw Error(await response.text());
-    }
-    // eslint-disable-next-line no-await-in-loop
-    const chunk = await response.json();
-    if (!chunk || !chunk.length) break;
-    positions.push(...chunk);
-  }
-  return positions;
-};
-
-const fetchAllPositions = async (deviceId, from, to) => {
-  if (isLongRange(from, to)) {
-    try {
-      return await fetchPositionsChunked(deviceId, from, to);
-    } catch (e) {
-      return fetchPositionsDirect(deviceId, from, to);
-    }
-  }
-  return fetchPositionsDirect(deviceId, from, to);
-};
-
-const GAP_MS = 30 * 60 * 1000;
-
-const buildSegments = (positions) => {
-  const segments = [];
-  let current = [];
-
-  positions.forEach((p, i) => {
-    if (i > 0) {
-      const prevMs = new Date(positions[i - 1].fixTime).getTime();
-      const curMs = new Date(p.fixTime).getTime();
-      if (curMs - prevMs > GAP_MS) {
-        if (current.length > 1) segments.push(current);
-        current = [];
-      }
-    }
-    current.push([p.longitude, p.latitude]);
-  });
-
-  if (current.length > 1) segments.push(current);
-  return segments;
 };
 
 const getSmoothPositionAtTime = (positions, currentTime) => {
@@ -120,12 +58,17 @@ const getSmoothPositionAtTime = (positions, currentTime) => {
 
 const useReplayState = () => {
   const timerRef = useRef();
+  const currentTimeRef = useRef(0);
+  const lastResetKeyRef = useRef(null);
   const t = useTranslation();
   const speedUnit = useAttributePreference('speedUnit');
   const defaultDeviceId = useSelector((state) => state.devices.selectedId);
   const devices = useSelector((state) => state.devices.items);
+
+  const replaySession = useReplaySession();
+
   const [noDataDeviceId, setNoDataDeviceId] = useState(null);
-  const [devicePositions, setDevicePositions] = useState({});
+  const [comparePositions, setComparePositions] = useState({});
   const [deviceColors, setDeviceColors] = useState({});
   const [primaryDeviceId, setPrimaryDeviceId] = useState(defaultDeviceId);
   const [compareDeviceIds, setCompareDeviceIds] = useState([]);
@@ -133,19 +76,45 @@ const useReplayState = () => {
   const [from, setFrom] = useState(null);
   const [to, setTo] = useState(null);
   const [expanded, setExpanded] = useState(true);
-  const [loading, setLoading] = useState(false);
   const [titleExpanded, setTitleExpanded] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
   const [showCard, setShowCard] = useState(false);
   const [cardDeviceId, setCardDeviceId] = useState(null);
-  const hasData = Object.keys(devicePositions).length > 0;
+
   const primaryName = devices[primaryDeviceId]?.name || null;
-  const allDeviceIds = useMemo(() => Object.keys(devicePositions), [devicePositions]);
+
+  useEffect(() => {
+    currentTimeRef.current = currentTime;
+  }, [currentTime]);
+
+  const primaryRouteSource = replaySession.isLongRangeMode
+    ? replaySession.overviewPositions
+    : replaySession.positions;
+
+  const positionsForRoutes = useMemo(() => {
+    const map = { ...comparePositions };
+    if (primaryDeviceId && primaryRouteSource && primaryRouteSource.length) {
+      map[primaryDeviceId] = primaryRouteSource;
+    }
+    return map;
+  }, [comparePositions, primaryDeviceId, primaryRouteSource]);
+
+  const positionsForMarkers = useMemo(() => {
+    const map = { ...comparePositions };
+    if (primaryDeviceId && replaySession.positions && replaySession.positions.length) {
+      map[primaryDeviceId] = replaySession.positions;
+    }
+    return map;
+  }, [comparePositions, primaryDeviceId, replaySession.positions]);
+
+  const allDeviceIds = useMemo(() => Object.keys(positionsForRoutes), [positionsForRoutes]);
   const usedDeviceIds = useMemo(() => new Set(allDeviceIds), [allDeviceIds]);
+  const hasData = allDeviceIds.length > 0;
+
   const { timelineStart, timelineEnd } = useMemo(() => {
-    const allTimes = Object.values(devicePositions)
+    const allTimes = Object.values(positionsForRoutes)
       .flat()
       .map((p) => new Date(p.fixTime).getTime());
     if (allTimes.length === 0) return { timelineStart: 0, timelineEnd: 0 };
@@ -153,7 +122,7 @@ const useReplayState = () => {
       timelineStart: Math.min(...allTimes),
       timelineEnd: Math.max(...allTimes),
     };
-  }, [devicePositions]);
+  }, [positionsForRoutes]);
 
   const timelineDuration = timelineEnd - timelineStart;
 
@@ -163,7 +132,7 @@ const useReplayState = () => {
   }, [currentTime, timelineStart, timelineDuration]);
 
   const deviceMarkers = useMemo(() => allDeviceIds.map((deviceId) => {
-    const positions = devicePositions[deviceId];
+    const positions = positionsForMarkers[deviceId];
     if (!positions || positions.length === 0) return null;
 
     const color = deviceColors[deviceId] || DEVICE_COLORS[0];
@@ -193,22 +162,22 @@ const useReplayState = () => {
       iconKey,
       name: devices[deviceId]?.name || `Device ${deviceId}`,
     };
-  }).filter(Boolean), [allDeviceIds, devicePositions, deviceColors, currentTime, devices]);
+  }).filter(Boolean), [allDeviceIds, positionsForMarkers, deviceColors, currentTime, devices]);
 
   const deviceRoutes = useMemo(() => allDeviceIds.map((deviceId) => {
-    const positions = devicePositions[deviceId];
-    if (!positions) return null;
+    const positions = positionsForRoutes[deviceId];
+    if (!positions || !positions.length) return null;
     return {
       deviceId,
       name: devices[deviceId]?.name || `Device ${deviceId}`,
       coordinates: positions.map((p) => [p.longitude, p.latitude]),
       color: deviceColors[deviceId] || DEVICE_COLORS[0],
     };
-  }).filter(Boolean), [allDeviceIds, devicePositions, deviceColors, devices]);
+  }).filter(Boolean), [allDeviceIds, positionsForRoutes, deviceColors, devices]);
 
-  const allCoordinates = useMemo(() => Object.values(devicePositions)
+  const allCoordinates = useMemo(() => Object.values(positionsForRoutes)
     .flat()
-    .map((p) => [p.longitude, p.latitude]), [devicePositions]);
+    .map((p) => [p.longitude, p.latitude]), [positionsForRoutes]);
 
   const allSpeeds = useMemo(() => deviceMarkers.map((m) => ({
     deviceId: m.deviceId,
@@ -234,13 +203,13 @@ const useReplayState = () => {
       const time = timelineStart + (i / POINTS) * timelineDuration;
       const point = { index: i };
       allDeviceIds.forEach((deviceId) => {
-        const pos = getSmoothPositionAtTime(devicePositions[deviceId], time);
+        const pos = getSmoothPositionAtTime(positionsForRoutes[deviceId], time);
         point[`speed_${deviceId}`] = pos ? +(pos.speed ?? 0).toFixed(2) : 0;
       });
       result.push(point);
     }
     return result;
-  }, [allDeviceIds, devicePositions, timelineStart, timelineDuration]);
+  }, [allDeviceIds, positionsForRoutes, timelineStart, timelineDuration]);
 
   const playheadPercent = sliderValue;
 
@@ -249,24 +218,46 @@ const useReplayState = () => {
     [deviceMarkers, cardDeviceId],
   );
 
+  const isAtEnd = currentTime >= timelineEnd;
+
+  useEffect(() => {
+    const key = `${primaryDeviceId}|${from}|${to}`;
+    if (timelineStart && lastResetKeyRef.current !== key) {
+      lastResetKeyRef.current = key;
+      setCurrentTime(timelineStart);
+      setExpanded(false);
+    }
+  }, [primaryDeviceId, from, to, timelineStart]);
+
   useEffect(() => {
     if (playing && timelineDuration > 0) {
       timerRef.current = setInterval(() => {
-        setCurrentTime((prev) => {
-          const increment = 16 * speed * (timelineDuration / TARGET_PLAYBACK_MS);
-          const next = prev + increment;
-          if (next >= timelineEnd) {
+        const prev = currentTimeRef.current;
+
+        if (replaySession.isLongRangeMode && replaySession.totalCount > 0) {
+          const progress = (prev - timelineStart) / timelineDuration;
+          const approxIndex = Math.max(0, Math.floor(progress * replaySession.totalCount));
+          const needsBuffering = replaySession.checkAndPrefetch(approxIndex, () => setPlaying(true));
+          if (needsBuffering) {
             setPlaying(false);
-            return timelineEnd;
+            return;
           }
-          return next;
-        });
+        }
+
+        const increment = 16 * speed * (timelineDuration / TARGET_PLAYBACK_MS);
+        const next = prev + increment;
+        if (next >= timelineEnd) {
+          setPlaying(false);
+          setCurrentTime(timelineEnd);
+          return;
+        }
+        setCurrentTime(next);
       }, 16);
     } else {
       clearInterval(timerRef.current);
     }
     return () => clearInterval(timerRef.current);
-  }, [playing, speed, timelineEnd, timelineDuration]);
+  }, [playing, speed, timelineEnd, timelineDuration, timelineStart, replaySession]);
 
   useEffect(() => {
     const STRIP_HEIGHT = 82;
@@ -291,7 +282,12 @@ const useReplayState = () => {
   const handleSliderChange = useCallback((_, value) => {
     setPlaying(false);
     setCurrentTime(timelineStart + (value / 100) * timelineDuration);
-  }, [timelineStart, timelineDuration]);
+
+    if (replaySession.isLongRangeMode && replaySession.totalCount > 0) {
+      const approxIndex = Math.round((value / 100) * replaySession.totalCount);
+      replaySession.sliderSeek(approxIndex);
+    }
+  }, [timelineStart, timelineDuration, replaySession]);
 
   const handleStepBack = useCallback(() => {
     setPlaying(false);
@@ -304,34 +300,26 @@ const useReplayState = () => {
   }, [timelineEnd]);
 
   const handleSubmit = useCatch(async ({ deviceId, from: f, to: t2 }) => {
-    setLoading(true);
     setPrimaryDeviceId(deviceId);
     setFrom(f);
     setTo(t2);
     setCompareDeviceIds([]);
+    setComparePositions({});
+    setDeviceColors({ [deviceId]: DEVICE_COLORS[0] });
     setShowCard(false);
     setCardDeviceId(null);
+    setCurrentTime(0);
 
-    try {
-      const data = await fetchAllPositions(deviceId, f, t2);
-
-      if (!data.length) throw Error(t('sharedNoData'));
-
-      setDevicePositions({ [deviceId]: data });
-      setDeviceColors({ [deviceId]: DEVICE_COLORS[0] });
-
-      const times = data.map((p) => new Date(p.fixTime).getTime());
-      setCurrentTime(Math.min(...times));
-      setExpanded(false);
-    } finally {
-      setLoading(false);
+    const ok = await replaySession.init(deviceId, f, t2);
+    if (!ok) {
+      throw Error(replaySession.error || t('sharedNoData'));
     }
   });
 
   const handleAddCompareDevice = useCatch(async () => {
     if (!pendingCompareId || !from || !to) return;
 
-    const data = await fetchAllPositions(pendingCompareId, from, to);
+    const data = await fetchPositionsDirect(pendingCompareId, from, to);
     if (!data.length) {
       setNoDataDeviceId(pendingCompareId);
       setPendingCompareId('');
@@ -339,19 +327,16 @@ const useReplayState = () => {
     }
     const usedCount = compareDeviceIds.length + 1;
     const colorIndex = usedCount % DEVICE_COLORS.length;
-    const colorReused = usedCount >= DEVICE_COLORS.length;
-    setDevicePositions((prev) => ({ ...prev, [pendingCompareId]: data }));
+    setComparePositions((prev) => ({ ...prev, [pendingCompareId]: data }));
     setDeviceColors((prev) => ({ ...prev, [pendingCompareId]: DEVICE_COLORS[colorIndex] }));
     setCompareDeviceIds((prev) => [...prev, pendingCompareId]);
     setPendingCompareId('');
-    if (colorReused) {
-      setNoDataDeviceId(null);
-    }
+    setNoDataDeviceId(null);
   });
 
   const handleRemoveCompareDevice = useCallback((deviceId) => {
     setCompareDeviceIds((prev) => prev.filter((id) => id !== deviceId));
-    setDevicePositions((prev) => {
+    setComparePositions((prev) => {
       const next = { ...prev };
       delete next[deviceId];
       return next;
@@ -387,7 +372,8 @@ const useReplayState = () => {
     to,
     expanded,
     setExpanded,
-    loading,
+    loading: replaySession.loadingSession,
+    buffering: replaySession.isBuffering,
     titleExpanded,
     setTitleExpanded,
     playing,
@@ -427,6 +413,7 @@ const useReplayState = () => {
     handleMarkerClick,
     handleCloseCard,
     noDataDeviceId,
+    isAtEnd,
   };
 };
 
