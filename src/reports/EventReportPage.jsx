@@ -3,7 +3,7 @@ import React, {
   useMemo,
   useEffect,
 } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   FormControl,
   InputLabel,
@@ -53,7 +53,6 @@ import scheduleReport from './common/scheduleReport';
 import MapScale from '../map/MapScale';
 import SelectField from '../common/components/SelectField';
 import ReplayControl from './components/ReplayControl';
-import { useSearchParams } from 'react-router-dom';
 
 const columnsArray = [
   ['eventTime', 'positionFixTime'],
@@ -196,37 +195,36 @@ const EventReportPage = () => {
     }
   }, []);
 
-useEffect(() => {
-  const deviceId = searchParams.get('deviceId');
-  const from = searchParams.get('from');
-  const to = searchParams.get('to');
+  useEffect(() => {
+    const deviceId = searchParams.get('deviceId');
+    const from = searchParams.get('from');
+    const to = searchParams.get('to');
 
-  if (!deviceId || !from || !to) return;
+    if (!deviceId || !from || !to) return;
 
-  const eventType = searchParams.get('eventType');
+    const eventType = searchParams.get('eventType');
 
-  const query = new URLSearchParams({
-    deviceId,
-    from,
-    to,
-  });
+    const query = new URLSearchParams({
+      deviceId,
+      from,
+      to,
+    });
 
-  if (eventType) {
-    query.append('type', eventType);
-    setEventTypes([eventType]);
-  }
-
-  fetchEvents(query).then((filtered) => {
-    const matched =
-      filtered.find((i) => i.type === eventType) || filtered[0];
-
-    if (matched?.positionId) {
-      setSelectedItem(matched);
+    if (eventType) {
+      query.append('type', eventType);
+      setEventTypes([eventType]);
     }
-  });
+
+    fetchEvents(query).then((filtered) => {
+      const matched = filtered.find((i) => i.type === eventType) || filtered[0];
+
+      if (matched?.positionId) {
+        setSelectedItem(matched);
+      }
+    });
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [searchParams]);
+  }, [searchParams]);
 
   const handleRequestSort = (property) => {
     const isAsc = orderBy === property && order === 'asc';

@@ -27,7 +27,6 @@ import { useTranslation } from '../../common/components/LocalizationProvider';
 import { prefixString } from '../../common/util/stringUtils';
 import { EVENT_TYPE_COLORS } from '../../map/core/preloadImages';
 
-
 const useStyles = makeStyles((theme) => ({
   root: {
     height: '100vh',

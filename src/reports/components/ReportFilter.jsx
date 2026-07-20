@@ -14,7 +14,7 @@ import { useRestriction } from '../../common/util/permissions';
 
 const ReportFilter = ({
   children, handleSubmit, handleSchedule, showOnly, ignoreDevice, multiDevice, includeGroups, loading,
-  onMapClick, mapButtonEnabled,sx,
+  onMapClick, mapButtonEnabled, sx,
 }) => {
   const classes = useReportStyles();
   const dispatch = useDispatch();
