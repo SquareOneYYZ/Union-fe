@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  Route, Routes, useLocation, useNavigate,
+  Route, Routes, useLocation, useNavigate
 } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import MainPage from './main/MainPage';
@@ -65,6 +65,8 @@ import EmulatorPage from './other/EmulatorPage';
 import Loader from './common/components/Loader';
 import { generateLoginToken } from './common/components/NativeInterface';
 import { useLocalization } from './common/components/LocalizationProvider';
+import DriversBehaviour from './settings/DriversBehaviour';
+import DriverBehaviourPage from './settings/DriverBehaviourPage';
 
 const Navigation = () => {
   const navigate = useNavigate();
@@ -174,6 +176,10 @@ const Navigation = () => {
           <Route path="maintenances" element={<MaintenancesPage />} />
           <Route path="maintenance/:id" element={<MaintenancePage />} />
           <Route path="maintenance" element={<MaintenancePage />} />
+
+          <Route path="behaviours" element={<DriversBehaviour />} />
+          <Route path="behaviour" element={<DriverBehaviourPage />} />
+
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="notification/:id" element={<NotificationPage />} />
           <Route path="notification" element={<NotificationPage />} />

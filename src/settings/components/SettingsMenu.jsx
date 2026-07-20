@@ -9,6 +9,7 @@ import StorageIcon from '@mui/icons-material/Storage';
 import BuildIcon from '@mui/icons-material/Build';
 import PeopleIcon from '@mui/icons-material/People';
 import TodayIcon from '@mui/icons-material/Today';
+import PsychologyIcon from '@mui/icons-material/Psychology';
 import PublishIcon from '@mui/icons-material/Publish';
 import TapAndPlayIcon from '@mui/icons-material/TapAndPlay';
 import SmartphoneIcon from '@mui/icons-material/Smartphone';
@@ -35,7 +36,7 @@ const SettingsMenu = () => {
   const manager = useManager();
   const userId = useSelector((state) => state.session.user.id);
   const supportLink = useSelector(
-    (state) => state.session.server.attributes.support,
+    (state) => state.session.server.attributes.support
   );
 
   const features = useFeatures();
@@ -89,7 +90,7 @@ const SettingsMenu = () => {
                 link="/settings/organizations"
                 icon={<CorporateFareIcon />}
                 selected={location.pathname.startsWith(
-                  '/settings/organization',
+                  '/settings/organization'
                 )}
               />
             )}
@@ -131,6 +132,14 @@ const SettingsMenu = () => {
                 link="/settings/maintenances"
                 icon={<BuildIcon />}
                 selected={location.pathname.startsWith('/settings/maintenance')}
+              />
+            )}
+            {!features.disableDriversBehaviour && (
+              <MenuItem
+                title={t('sharedDriverBehaviour')}
+                link="/settings/behaviours"
+                icon={<PsychologyIcon />}
+                selected={location.pathname.startsWith('/settings/behaviours')}
               />
             )}
             {!features.disableSavedCommands && (
@@ -175,8 +184,8 @@ const SettingsMenu = () => {
               link="/settings/users"
               icon={<PeopleIcon />}
               selected={
-                location.pathname.startsWith('/settings/user')
-                && location.pathname !== `/settings/user/${userId}`
+                location.pathname.startsWith('/settings/user') &&
+                location.pathname !== `/settings/user/${userId}`
               }
             />
           </List>
