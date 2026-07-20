@@ -19,6 +19,7 @@ import {
 import LogoImage from './LogoImage';
 import { useCatch } from '../reactHelper';
 import Loader from '../common/components/Loader';
+import OTPInput from './OtpInputComponent';
 
 const useStyles = makeStyles((theme) => ({
   options: {
@@ -26,24 +27,37 @@ const useStyles = makeStyles((theme) => ({
     top: theme.spacing(2),
     right: theme.spacing(2),
     display: 'flex',
-    flexDirection: 'row',
     gap: theme.spacing(1),
+    zIndex: 10,
   },
+
   container: {
     display: 'flex',
     flexDirection: 'column',
     gap: theme.spacing(2),
+    width: '120%',
+    maxWidth: '420px',
+    borderRadius: '20px',
+    padding: theme.spacing(4),
+    background: 'rgba(180, 175, 175, 0.07)',
+    backdropFilter: 'blur(14px)',
+    WebkitBackdropFilter: 'blur(14px)',
+    boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+    [theme.breakpoints.down('sm')]: {
+      padding: theme.spacing(3),
+      borderRadius: '16px',
+      maxWidth: '100%',
+    },
   },
+
   extraContainer: {
     display: 'flex',
-    flexDirection: 'row',
     justifyContent: 'center',
     gap: theme.spacing(4),
     marginTop: theme.spacing(2),
+    flexWrap: 'wrap',
   },
-  registerButton: {
-    minWidth: 'unset',
-  },
+
   link: {
     cursor: 'pointer',
   },
@@ -55,12 +69,9 @@ const LoginPage = () => {
   const navigate = useNavigate();
   const theme = useTheme();
   const t = useTranslation();
-
   const { languages, language, setLanguage } = useLocalization();
   const languageList = Object.entries(languages).map((values) => ({ code: values[0], country: values[1].country, name: values[1].name }));
-
   const [failed, setFailed] = useState(false);
-
   const [email, setEmail] = usePersistedState('loginEmail', '');
   const [password, setPassword] = useState('');
   const [code, setCode] = useState('');
@@ -155,7 +166,7 @@ const LoginPage = () => {
         )}
       </div>
       <div className={classes.container}>
-        {useMediaQuery(theme.breakpoints.down('lg')) && <LogoImage color={theme.palette.primary.main} />}
+        <LogoImage width={120} style={{ margin: '0 auto 16px auto' }} />
         <TextField
           required
           error={failed}
@@ -179,15 +190,14 @@ const LoginPage = () => {
           onChange={(e) => setPassword(e.target.value)}
         />
         {codeEnabled && (
-          <TextField
-            required
-            error={failed}
-            label={t('loginTotpCode')}
-            name="code"
+        <Box sx={{ my: 1 }}>
+          <OTPInput
             value={code}
-            type="number"
-            onChange={(e) => setCode(e.target.value)}
+            onChange={setCode}
+            error={failed}
+            disabled={false}
           />
+        </Box>
         )}
         <Button
           onClick={handlePasswordLogin}
