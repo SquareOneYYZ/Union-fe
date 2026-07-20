@@ -21,6 +21,7 @@ import MainMap from './MainMap';
 import ClusterPopup from './ClusterPopUp';
 import { useAttributePreference } from '../common/util/preferences';
 import WhatsNewPopup from '../common/components/WhatsNewPopup';
+import GeofenceToggle from '../common/components/GeofenceToggle';
 import VinFAB from '../settings/VinFab';
 
 const useStyles = makeStyles((theme) => ({
@@ -142,6 +143,7 @@ const MainPage = () => {
             </div>
           )}
           <Paper square className={classes.contentList} style={devicesOpen ? {} : { visibility: 'hidden' }}>
+            <GeofenceToggle />
             <DeviceList devices={filteredDevices} />
           </Paper>
         </div>
