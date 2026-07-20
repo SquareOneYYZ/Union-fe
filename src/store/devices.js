@@ -6,6 +6,7 @@ const { reducer, actions } = createSlice({
     items: {},
     selectedId: null,
     selectedIds: [],
+     locateId: null,
   },
   reducers: {
     refresh(state, action) {
@@ -27,6 +28,12 @@ const { reducer, actions } = createSlice({
     },
     remove(state, action) {
       delete state.items[action.payload];
+    },
+    locateId(state, action) {
+      state.locateId = action.payload;
+    },
+    clearLocateId(state) {
+      state.locateId = null;
     },
   },
 });
