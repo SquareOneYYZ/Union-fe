@@ -47,6 +47,7 @@ import MapMarkers from '../map/MapMarkers';
 import MapCamera from '../map/MapCamera';
 import MapScale from '../map/MapScale';
 import useResizableMap from './common/useResizableMap';
+import deviceEquality from '../common/util/deviceEquality';
 
 const columnsArray = [
   ['deviceId', 'sharedDevice'],
@@ -73,14 +74,15 @@ const segmentTypes = [
   ['reentry', 'Re-Entries Only'],
 ];
 
-const GeofenceDistanceReportPage = () => {
+const GeofenceActivityReportPage = () => {
   const navigate = useNavigate();
   const classes = useReportStyles();
   const t = useTranslation();
   const { containerRef, mapHeight, handleMouseDown } = useResizableMap(60, 20, 80);
-
-  const devices = useSelector((state) => state.devices.items);
-
+  const devices = useSelector(
+    (state) => state.devices.items,
+    deviceEquality(['id', 'name', 'uniqueId']),
+  );
   const distanceUnit = useAttributePreference('distanceUnit');
   const [filterRange, setFilterRange] = useState({ from: null, to: null });
 
@@ -774,4 +776,4 @@ const GeofenceDistanceReportPage = () => {
   );
 };
 
-export default GeofenceDistanceReportPage;
+export default GeofenceActivityReportPage;

@@ -3,7 +3,6 @@ import react from '@vitejs/plugin-react';
 import svgr from 'vite-plugin-svgr';
 import { VitePWA } from 'vite-plugin-pwa';
 
-/* eslint-disable no-template-curly-in-string */
 export default defineConfig(() => ({
   server: {
     port: 3000,
@@ -14,6 +13,23 @@ export default defineConfig(() => ({
   },
   build: {
     outDir: 'build',
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-redux': ['@reduxjs/toolkit', 'react-redux'],
+          'vendor-mui': [
+            '@mui/material',
+            '@mui/icons-material',
+            '@mui/styles',
+            '@mui/utils',
+          ],
+
+          'vendor-map': ['maplibre-gl'],
+          'vendor-utils': ['dayjs', 'reselect'],
+        },
+      },
+    },
   },
   plugins: [
     svgr(),

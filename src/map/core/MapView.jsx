@@ -19,7 +19,9 @@ element.style.width = '100%';
 element.style.height = '100%';
 element.style.boxSizing = 'initial';
 
-maplibregl.setRTLTextPlugin(mapboxglRtlTextUrl);
+if (document.documentElement.dir === 'rtl' || document.documentElement.lang?.startsWith('ar') || document.documentElement.lang?.startsWith('he')) {
+  maplibregl.setRTLTextPlugin(mapboxglRtlTextUrl);
+}
 maplibregl.addProtocol('google', googleProtocol);
 
 const initialCamera = (() => {

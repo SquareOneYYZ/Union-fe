@@ -31,6 +31,7 @@ import { useCatch } from '../reactHelper';
 import useReportStyles from './common/useReportStyles';
 import TableShimmer from '../common/components/TableShimmer';
 import scheduleReport from './common/scheduleReport';
+import deviceEquality from '../common/util/deviceEquality';
 
 const columnsArray = [
   ['startTime', 'reportStartDate'],
@@ -51,7 +52,10 @@ const SummaryReportPage = () => {
   const classes = useReportStyles();
   const t = useTranslation();
 
-  const devices = useSelector((state) => state.devices.items);
+  const devices = useSelector(
+    (state) => state.devices.items,
+    deviceEquality(['id', 'name', 'uniqueId']),
+  );
 
   const distanceUnit = useAttributePreference('distanceUnit');
   const speedUnit = useAttributePreference('speedUnit');

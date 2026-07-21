@@ -28,6 +28,7 @@ import scheduleReport from './common/scheduleReport';
 import MapScale from '../map/MapScale';
 import { useRestriction } from '../common/util/permissions';
 import CollectionActions from '../settings/components/CollectionActions';
+import deviceEquality from '../common/util/deviceEquality';
 
 const RouteReportPage = () => {
   const navigate = useNavigate();
@@ -36,7 +37,10 @@ const RouteReportPage = () => {
 
   const positionAttributes = usePositionAttributes(t);
 
-  const devices = useSelector((state) => state.devices.items);
+  const devices = useSelector(
+    (state) => state.devices.items,
+    deviceEquality(['id', 'name', 'uniqueId']),
+  );
   const readonly = useRestriction('readonly');
 
   const [available, setAvailable] = useState([]);

@@ -52,6 +52,7 @@ import scheduleReport from './common/scheduleReport';
 import MapScale from '../map/MapScale';
 import SelectField from '../common/components/SelectField';
 import ReplayControl from './components/ReplayControl';
+import deviceEquality from '../common/util/deviceEquality';
 
 const columnsArray = [
   ['eventTime', 'positionFixTime'],
@@ -74,7 +75,10 @@ const EventReportPage = () => {
   const classes = useReportStyles();
   const t = useTranslation();
 
-  const devices = useSelector((state) => state.devices.items);
+  const devices = useSelector(
+    (state) => state.devices.items,
+    deviceEquality(['id', 'name', 'uniqueId']),
+  );
   const geofences = useSelector((state) => state.geofences.items);
 
   const speedUnit = useAttributePreference('speedUnit');
@@ -482,13 +486,13 @@ const EventReportPage = () => {
 
           <TableCell className={classes.columnAction} padding="none">
             {hasPositionId && (
-            <IconButton
-              size="small"
-              onClick={() => handleReplayStart(item)}
-              disabled={replayLoading}
-            >
-              <ReplayIcon fontSize="small" />
-            </IconButton>
+              <IconButton
+                size="small"
+                onClick={() => handleReplayStart(item)}
+                disabled={replayLoading}
+              >
+                <ReplayIcon fontSize="small" />
+              </IconButton>
             )}
           </TableCell>
 

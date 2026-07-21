@@ -1,70 +1,67 @@
-import { useDispatch, useSelector, connect } from 'react-redux';
-
+import { useDispatch, useSelector } from 'react-redux';
 import {
   geofencesActions, groupsActions, driversActions, maintenancesActions, calendarsActions,
 } from './store';
 import { useEffectAsync } from './reactHelper';
+import { useAttributePreference } from './common/util/preferences';
 
 const CachingController = () => {
   const authenticated = useSelector((state) => !!state.session.user);
   const dispatch = useDispatch();
+  const mapGeofences = useAttributePreference('mapGeofences', true);
 
   useEffectAsync(async () => {
     if (authenticated) {
-      const response = await fetch('/api/geofences');
-      if (response.ok) {
-        dispatch(geofencesActions.refresh(await response.json()));
-      } else {
-        throw Error(await response.text());
-      }
-    }
-  }, [authenticated]);
+      const requests = [
+        fetch('/api/groups'),
+        fetch('/api/drivers'),
+        fetch('/api/maintenance'),
+        fetch('/api/calendars'),
+      ];
 
-  useEffectAsync(async () => {
-    if (authenticated) {
-      const response = await fetch('/api/groups');
-      if (response.ok) {
-        dispatch(groupsActions.refresh(await response.json()));
-      } else {
-        throw Error(await response.text());
+      if (mapGeofences) {
+        requests.push(fetch('/api/geofences'));
       }
-    }
-  }, [authenticated]);
 
-  useEffectAsync(async () => {
-    if (authenticated) {
-      const response = await fetch('/api/drivers');
-      if (response.ok) {
-        dispatch(driversActions.refresh(await response.json()));
-      } else {
-        throw Error(await response.text());
-      }
-    }
-  }, [authenticated]);
+      const [
+        groupsResponse,
+        driversResponse,
+        maintenancesResponse,
+        calendarsResponse,
+        geofencesResponse,
+      ] = await Promise.all(requests);
 
-  useEffectAsync(async () => {
-    if (authenticated) {
-      const response = await fetch('/api/maintenance');
-      if (response.ok) {
-        dispatch(maintenancesActions.refresh(await response.json()));
+      if (groupsResponse.ok) {
+        dispatch(groupsActions.refresh(await groupsResponse.json()));
       } else {
-        throw Error(await response.text());
+        throw Error(await groupsResponse.text());
       }
-    }
-  }, [authenticated]);
 
-  useEffectAsync(async () => {
-    if (authenticated) {
-      const response = await fetch('/api/calendars');
-      if (response.ok) {
-        dispatch(calendarsActions.refresh(await response.json()));
+      if (driversResponse.ok) {
+        dispatch(driversActions.refresh(await driversResponse.json()));
       } else {
-        throw Error(await response.text());
+        throw Error(await driversResponse.text());
+      }
+
+      if (maintenancesResponse.ok) {
+        dispatch(maintenancesActions.refresh(await maintenancesResponse.json()));
+      } else {
+        throw Error(await maintenancesResponse.text());
+      }
+
+      if (calendarsResponse.ok) {
+        dispatch(calendarsActions.refresh(await calendarsResponse.json()));
+      } else {
+        throw Error(await calendarsResponse.text());
+      }
+
+      if (geofencesResponse?.ok) {
+        dispatch(geofencesActions.refresh(await geofencesResponse.json()));
       }
     }
-  }, [authenticated]);
+  }, [authenticated, mapGeofences]);
 
   return null;
 };
 
-export default connect()(CachingController);
+export default CachingController;

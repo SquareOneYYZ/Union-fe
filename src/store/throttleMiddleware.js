@@ -1,15 +1,12 @@
 import { sessionActions } from './session';
 import { devicesActions } from './devices';
-import { eventsActions } from './events';
 
 const threshold = 3;
 const minInterval = 1500;
-const maxInterval = 5000;
-const scaleFactor = 20;
+const maxInterval = 30000;
+const scaleFactor = 1000;
 
-// eslint-disable-next-line no-console
-const debugMode = process.env.NODE_ENV === 'development';
-const debugLog = (message) => debugMode && console.log(message);
+const debugMode = import.meta.env.DEV;
 
 export default () => (next) => {
   const buffer = [];

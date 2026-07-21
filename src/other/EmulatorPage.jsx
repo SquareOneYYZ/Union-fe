@@ -19,6 +19,7 @@ import { devicesActions } from '../store';
 import MapPositions from '../map/MapPositions';
 import { useCatch } from '../reactHelper';
 import MapScale from '../map/MapScale';
+import deviceEquality from '../common/util/deviceEquality';
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -64,7 +65,10 @@ const EmulatorPage = () => {
 
   const isPhone = useMediaQuery(theme.breakpoints.down('sm'));
 
-  const devices = useSelector((state) => state.devices.items);
+  const devices = useSelector(
+    (state) => state.devices.items,
+    deviceEquality(['id', 'name', 'uniqueId']),
+  );
   const deviceId = useSelector((state) => state.devices.selectedId);
   const positions = useSelector((state) => state.session.positions);
 

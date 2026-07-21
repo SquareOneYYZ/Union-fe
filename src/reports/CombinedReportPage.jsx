@@ -20,11 +20,15 @@ import MapMarkers from '../map/MapMarkers';
 import MapRouteCoordinates from '../map/MapRouteCoordinates';
 import MapScale from '../map/MapScale';
 import useResizableMap from './common/useResizableMap';
+import deviceEquality from '../common/util/deviceEquality';
 
 const CombinedReportPage = () => {
   const classes = useReportStyles();
   const t = useTranslation();
-  const devices = useSelector((state) => state.devices.items);
+  const devices = useSelector(
+    (state) => state.devices.items,
+    deviceEquality(['id', 'name', 'uniqueId']),
+  );
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -254,9 +258,9 @@ const CombinedReportPage = () => {
                   >
                     {t('sharedDevice')}
                     {orderBy === 'deviceName' && (
-                    <Box component="span" sx={visuallyHidden}>
-                      {order === 'desc' ? 'sorted descending' : 'sorted ascending'}
-                    </Box>
+                      <Box component="span" sx={visuallyHidden}>
+                        {order === 'desc' ? 'sorted descending' : 'sorted ascending'}
+                      </Box>
                     )}
                   </TableSortLabel>
                 </TableCell>
@@ -269,9 +273,9 @@ const CombinedReportPage = () => {
                   >
                     {t('positionFixTime')}
                     {orderBy === 'eventTime' && (
-                    <Box component="span" sx={visuallyHidden}>
-                      {order === 'desc' ? 'sorted descending' : 'sorted ascending'}
-                    </Box>
+                      <Box component="span" sx={visuallyHidden}>
+                        {order === 'desc' ? 'sorted descending' : 'sorted ascending'}
+                      </Box>
                     )}
                   </TableSortLabel>
                 </TableCell>
@@ -284,9 +288,9 @@ const CombinedReportPage = () => {
                   >
                     {t('sharedType')}
                     {orderBy === 'eventType' && (
-                    <Box component="span" sx={visuallyHidden}>
-                      {order === 'desc' ? 'sorted descending' : 'sorted ascending'}
-                    </Box>
+                      <Box component="span" sx={visuallyHidden}>
+                        {order === 'desc' ? 'sorted descending' : 'sorted ascending'}
+                      </Box>
                     )}
                   </TableSortLabel>
                 </TableCell>
