@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import {
-  FormControl, InputLabel, Select, MenuItem, Button, TextField, Typography, Tooltip,
+  FormControl, InputLabel, Select, MenuItem, Button, TextField, Typography, Tooltip, IconButton,
 } from '@mui/material';
+import MapIcon from '@mui/icons-material/Map';
 import { useDispatch, useSelector } from 'react-redux';
 import dayjs from 'dayjs';
 import { useTranslation } from '../../common/components/LocalizationProvider';
@@ -13,6 +14,7 @@ import { useRestriction } from '../../common/util/permissions';
 
 const ReportFilter = ({
   children, handleSubmit, handleSchedule, showOnly, ignoreDevice, multiDevice, includeGroups, loading,
+  onMapClick, mapButtonEnabled, sx,
 }) => {
   const classes = useReportStyles();
   const dispatch = useDispatch();
@@ -101,6 +103,13 @@ const ReportFilter = ({
           onChange={(e) => dispatch(multiDevice ? devicesActions.selectIds(e.target.value) : devicesActions.selectId(e.target.value))}
           multiple={multiDevice}
           fullWidth
+          sx={{
+            '& .MuiOutlinedInput-root': {
+              borderRadius: '13px',
+              '& fieldset': { borderRadius: '13px' },
+            },
+            ...sx,
+          }}
           renderValue={(selected) => {
             if (multiDevice && Array.isArray(selected)) {
               const selectedDevices = selected.map((id) => devices[id]?.name || id).join(', ');
@@ -152,6 +161,13 @@ const ReportFilter = ({
             onChange={(e) => dispatch(reportsActions.updateGroupIds(e.target.value))}
             multiple
             fullWidth
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                borderRadius: '13px',
+                '& fieldset': { borderRadius: '13px' },
+              },
+              ...sx,
+            }}
           />
         </div>
       )}
@@ -160,7 +176,18 @@ const ReportFilter = ({
           <div className={classes.filterItem}>
             <FormControl fullWidth>
               <InputLabel>{t('reportPeriod')}</InputLabel>
-              <Select label={t('reportPeriod')} value={period} onChange={(e) => dispatch(reportsActions.updatePeriod(e.target.value))}>
+              <Select
+                sx={{ // ← ADD THIS
+                  borderRadius: '13px',
+                  '& .MuiOutlinedInput-notchedOutline': { borderRadius: '13px' },
+                }}
+                MenuProps={{ // ← ADD THIS
+                  PaperProps: { sx: { borderRadius: '13px' } },
+                }}
+                label={t('reportPeriod')}
+                value={period}
+                onChange={(e) => dispatch(reportsActions.updatePeriod(e.target.value))}
+              >
                 <MenuItem value="today">{t('reportToday')}</MenuItem>
                 <MenuItem value="yesterday">{t('reportYesterday')}</MenuItem>
                 <MenuItem value="thisWeek">{t('reportThisWeek')}</MenuItem>
@@ -179,6 +206,13 @@ const ReportFilter = ({
                 value={from}
                 onChange={(e) => dispatch(reportsActions.updateFrom(e.target.value))}
                 fullWidth
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: '13px',
+                    '& fieldset': { borderRadius: '13px' },
+                  },
+                  ...sx,
+                }}
               />
             </div>
           )}
@@ -190,6 +224,13 @@ const ReportFilter = ({
                 value={to}
                 onChange={(e) => dispatch(reportsActions.updateTo(e.target.value))}
                 fullWidth
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: '13px',
+                    '& fieldset': { borderRadius: '13px' },
+                  },
+                  ...sx,
+                }}
               />
             </div>
           )}
@@ -202,6 +243,13 @@ const ReportFilter = ({
               onChange={(event) => setDescription(event.target.value)}
               label={t('sharedDescription')}
               fullWidth
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '13px',
+                  '& fieldset': { borderRadius: '13px' },
+                },
+                ...sx,
+              }}
             />
           </div>
           <div className={classes.filterItem}>
@@ -211,43 +259,74 @@ const ReportFilter = ({
               endpoint="/api/calendars"
               label={t('sharedCalendar')}
               fullWidth
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '13px',
+                  '& fieldset': { borderRadius: '13px' },
+                },
+                ...sx,
+              }}
             />
           </div>
         </>
       )}
       {children}
       <div className={classes.filterItem}>
-        {showOnly ? (
-          <Button
-            fullWidth
-            variant="outlined"
-            color="secondary"
-            disabled={disabled}
-            onClick={() => handleClick('json')}
-          >
-            <Typography variant="button" noWrap>{t(loading ? 'sharedLoading' : 'reportShow')}</Typography>
-          </Button>
-        ) : (
-          <SplitButton
-            fullWidth
-            variant="outlined"
-            color="secondary"
-            disabled={disabled}
-            onClick={handleClick}
-            selected={button}
-            setSelected={(value) => setButton(value)}
-            options={readonly ? {
-              json: t('reportShow'),
-              export: t('reportExport'),
-              mail: t('reportEmail'),
-            } : {
-              json: t('reportShow'),
-              export: t('reportExport'),
-              mail: t('reportEmail'),
-              schedule: t('reportSchedule'),
-            }}
-          />
-        )}
+        {/* Show button + optional Map icon next to it */}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {showOnly ? (
+            <Button
+              fullWidth
+              variant="outlined"
+              color="secondary"
+              disabled={disabled}
+              onClick={() => handleClick('json')}
+            >
+              <Typography variant="button" noWrap>{t(loading ? 'sharedLoading' : 'reportShow')}</Typography>
+            </Button>
+          ) : (
+            <SplitButton
+              fullWidth
+              variant="outlined"
+              color="secondary"
+              disabled={disabled}
+              onClick={handleClick}
+              selected={button}
+              setSelected={(value) => setButton(value)}
+              options={readonly ? {
+                json: t('reportShow'),
+                export: t('reportExport'),
+                mail: t('reportEmail'),
+              } : {
+                json: t('reportShow'),
+                export: t('reportExport'),
+                mail: t('reportEmail'),
+                schedule: t('reportSchedule'),
+              }}
+            />
+          )}
+
+          {/* Map icon — only visible when onMapClick prop is passed (EventReportPage) */}
+          {onMapClick && (
+            <Tooltip title="View on Map">
+              <span>
+                <IconButton
+                  color="primary"
+                  onClick={onMapClick}
+                  disabled={!mapButtonEnabled}
+                  sx={{
+                    border: '1px solid',
+                    borderColor: mapButtonEnabled ? 'primary.main' : 'action.disabled',
+                    borderRadius: 1,
+                    padding: '7px',
+                  }}
+                >
+                  <MapIcon />
+                </IconButton>
+              </span>
+            </Tooltip>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -5,21 +5,25 @@ import { map } from './core/MapView';
 import { findFonts } from './core/mapUtil';
 import { useAttributePreference } from '../common/util/preferences';
 
-const MapRouteCoordinates = ({ name, coordinates, deviceId }) => {
+const MapRouteCoordinates = ({
+  name, coordinates, deviceId, color,
+}) => {
   const id = useId();
 
   const theme = useTheme();
 
-  const reportColor = useSelector((state) => {
+  const deviceReportColor = useSelector((state) => {
     const attributes = state.devices.items[deviceId]?.attributes;
     if (attributes) {
-      const color = attributes['web.reportColor'];
-      if (color) {
-        return color;
+      const attrColor = attributes['web.reportColor'];
+      if (attrColor) {
+        return attrColor;
       }
     }
-    return theme.palette.geometry.main;
+    return null;
   });
+
+  const reportColor = color || deviceReportColor || theme.palette.geometry.main;
 
   const mapLineWidth = useAttributePreference('mapLineWidth', 2);
   const mapLineOpacity = useAttributePreference('mapLineOpacity', 1);
@@ -47,20 +51,6 @@ const MapRouteCoordinates = ({ name, coordinates, deviceId }) => {
         'line-color': ['get', 'color'],
         'line-width': ['get', 'width'],
         'line-opacity': ['get', 'opacity'],
-      },
-    });
-    map.addLayer({
-      source: id,
-      id: `${id}-title`,
-      type: 'symbol',
-      layout: {
-        'text-field': '{name}',
-        'text-font': findFonts(map),
-        'text-size': 12,
-      },
-      paint: {
-        'text-halo-color': 'white',
-        'text-halo-width': 1,
       },
     });
 

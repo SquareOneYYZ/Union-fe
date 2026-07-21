@@ -281,6 +281,69 @@ const DevicesPage = () => {
     handler: (deviceId) => navigate(`/settings/device/${deviceId}/connections`),
   };
 
+  const getSortLabel = (column) => (
+    <TableSortLabel
+      active={sortConfig.key === column}
+      direction={sortConfig.key === column ? sortConfig.direction : 'asc'}
+      onClick={() => handleSort(column)}
+    >
+      {column === 'name' && t('sharedName')}
+      {column === 'uniqueId' && t('deviceIdentifier')}
+      {column === 'groupId' && t('groupParent')}
+      {column === 'phone' && t('sharedPhone')}
+      {column === 'model' && t('deviceModel')}
+      {column === 'contact' && t('deviceContact')}
+      {column === 'expirationTime' && t('userExpirationTime')}
+      {column === 'status' && 'Status'}
+      {column === 'lastUpdate' && 'Last Update'}
+      {column === 'vin' && 'VIN'}
+    </TableSortLabel>
+  );
+
+  const getRelativeTime = (timestamp) => {
+    if (!timestamp) return '-';
+
+    const now = new Date();
+    const past = new Date(timestamp);
+    const diffInSeconds = Math.floor((now - past) / 1000);
+
+    if (diffInSeconds < 60) {
+      return `${diffInSeconds} sec ago`;
+    }
+
+    const diffInMinutes = Math.floor(diffInSeconds / 60);
+    if (diffInMinutes < 60) {
+      return `${diffInMinutes} min ago`;
+    }
+
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    if (diffInHours < 24) {
+      return `${diffInHours} hour${diffInHours > 1 ? 's' : ''} ago`;
+    }
+
+    const diffInDays = Math.floor(diffInHours / 24);
+    if (diffInDays < 30) {
+      return `${diffInDays} day${diffInDays > 1 ? 's' : ''} ago`;
+    }
+
+    const diffInMonths = Math.floor(diffInDays / 30);
+    if (diffInMonths < 12) {
+      return `${diffInMonths} month${diffInMonths > 1 ? 's' : ''} ago`;
+    }
+
+    const diffInYears = Math.floor(diffInMonths / 12);
+    return `${diffInYears} year${diffInYears > 1 ? 's' : ''} ago`;
+  };
+
+  const roundedFieldSx = {
+    '& .MuiOutlinedInput-root': {
+      borderRadius: '13px',
+      '& fieldset': { borderRadius: '13px', borderColor: 'rgba(255,255,255,0.23)' },
+      '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.5)' },
+      '&.Mui-focused fieldset': { borderColor: 'primary.main' },
+    },
+  };
+
   return (
     <PageLayout menu={<SettingsMenu />} breadcrumbs={['settingsTitle', 'deviceTitle']}>
       <Box sx={{ minHeight: '100vh', overflowY: 'auto' }}>
@@ -297,6 +360,7 @@ const DevicesPage = () => {
                 onChange={(e) => { setGlobalSearch(e.target.value); setPage(1); }}
                 variant="outlined"
                 size="small"
+                sx={roundedFieldSx}
               />
             </Grid>
             <Grid item xs={12} md={6}>
@@ -324,9 +388,14 @@ const DevicesPage = () => {
 
           <Grid container spacing={2}>
             <Grid item xs={12} sm={6} md={2}>
-              <FormControl fullWidth size="small">
+              <FormControl fullWidth size="small" sx={roundedFieldSx}>
                 <InputLabel>Group</InputLabel>
-                <Select value={filters.group} onChange={(e) => handleFilterChange('group', e.target.value)} label="Group">
+                <Select
+                  value={filters.group}
+                  onChange={(e) => handleFilterChange('group', e.target.value)}
+                  label="Group"
+
+                >
                   <MenuItem value="">All Groups</MenuItem>
                   {Object.entries(groups || {}).map(([id, group]) => (
                     <MenuItem key={id} value={id}>{group.name}</MenuItem>
@@ -334,24 +403,38 @@ const DevicesPage = () => {
                 </Select>
               </FormControl>
             </Grid>
-            {[
-              { label: 'Model', key: 'model' },
-              { label: 'Name', key: 'name' },
-              { label: 'Identifier', key: 'identifier' },
-              { label: 'VIN', key: 'vin' },
-            ].map(({ label, key }) => (
-              <Grid item xs={12} sm={6} md={2} key={key}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  label={label}
-                  value={filters[key]}
-                  onChange={(e) => handleFilterChange(key, e.target.value)}
-                />
-              </Grid>
-            ))}
-            <Grid item xs={12} sm={6} md={2}>
+
+            {/* <Grid item xs={12} sm={6} md={2}>
               <FormControl fullWidth size="small">
+                <InputLabel>Model</InputLabel>
+                <Select
+                  value={filters.model}
+                  onChange={(e) => handleFilterChange('model', e.target.value)}
+                  label="Model"
+                >
+                  <MenuItem value="">All Models</MenuItem>
+                  {uniqueModels.map((model) => (
+                    <MenuItem key={model} value={model}>
+                      {model}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid> */}
+
+            <Grid item xs={12} sm={6} md={2}>
+              <TextField
+                fullWidth
+                size="small"
+                label="Model"
+                value={filters.model}
+                onChange={(e) => handleFilterChange('model', e.target.value)}
+                sx={roundedFieldSx}
+              />
+            </Grid>
+
+            <Grid item xs={12} sm={6} md={2}>
+              <FormControl fullWidth size="small" sx={roundedFieldSx}>
                 <InputLabel>Status</InputLabel>
                 <Select value={filters.status} onChange={(e) => handleFilterChange('status', e.target.value)} label="Status">
                   <MenuItem value="">All Status</MenuItem>
@@ -360,6 +443,39 @@ const DevicesPage = () => {
                   <MenuItem value="unknown">Unknown</MenuItem>
                 </Select>
               </FormControl>
+            </Grid>
+
+            <Grid item xs={12} sm={6} md={2}>
+              <TextField
+                fullWidth
+                size="small"
+                label="Name"
+                value={filters.name}
+                onChange={(e) => handleFilterChange('name', e.target.value)}
+                sx={roundedFieldSx}
+              />
+            </Grid>
+
+            <Grid item xs={12} sm={6} md={2}>
+              <TextField
+                fullWidth
+                size="small"
+                label="Identifier"
+                value={filters.identifier}
+                onChange={(e) => handleFilterChange('identifier', e.target.value)}
+                sx={roundedFieldSx}
+              />
+            </Grid>
+
+            <Grid item xs={12} sm={6} md={2}>
+              <TextField
+                fullWidth
+                size="small"
+                label="VIN"
+                value={filters.vin}
+                onChange={(e) => handleFilterChange('vin', e.target.value)}
+                sx={roundedFieldSx}
+              />
             </Grid>
           </Grid>
 
