@@ -29,6 +29,7 @@ const SelectField = ({
   data,
   keyGetter = (item) => item.id,
   titleGetter = (item) => item.name,
+  filter,
   renderValue,
   MenuProps,
   sx,
@@ -67,13 +68,8 @@ const SelectField = ({
     if (endpoint) {
       const response = await fetch(endpoint);
       if (response.ok) {
-        const fetchedData = await response.json();
-        if (endpoint === '/api/notifications/types') {
-          const FilteredTypes = ['deviceFuelDrop', 'deviceFuelIncrease', 'textMessage', 'driverChanged', 'media'];
-          setItems(fetchedData.filter((item) => !FilteredTypes.includes(item.type)));
-        } else {
-          setItems(fetchedData);
-        }
+        const data = await response.json();
+        setItems(filter ? filter(data) : data);
       } else {
         throw Error(await response.text());
       }
@@ -160,6 +156,13 @@ const SelectField = ({
           onChange={handleVinSelect}
           onInputChange={handleVinInputChange}
           onBlur={handleVinBlur}
+          sx={{
+            '& .MuiOutlinedInput-root': {
+              borderRadius: '13px',
+              '& fieldset': { borderRadius: '13px' },
+            },
+            ...sx,
+          }}
           renderOption={(props, option) => (
             <MenuItem {...props} key={option.vin}>
               <div>
@@ -225,7 +228,14 @@ const SelectField = ({
               multiple
               value={value}
               onChange={onChange}
-              renderValue={renderValue}
+              renderValue={(selected) => (renderValue
+                ? renderValue(selected)
+                : selected
+                  .map((val) => {
+                    const item = items.find((i) => keyGetter(i) === val);
+                    return item ? titleGetter(item) : val;
+                  })
+                  .join(', '))}
               MenuProps={MenuProps}
               sx={{
                 borderRadius: '13px',
@@ -256,6 +266,13 @@ const SelectField = ({
             size="small"
             options={items}
             getOptionLabel={getOptionLabel}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                borderRadius: '13px',
+                '& fieldset': { borderRadius: '13px' },
+              },
+              ...sx,
+            }}
             renderOption={(props, option) => (
               <MenuItem {...props} key={keyGetter(option)} value={keyGetter(option)}>
                 <Tooltip title={titleGetter(option)} placement="right" arrow>

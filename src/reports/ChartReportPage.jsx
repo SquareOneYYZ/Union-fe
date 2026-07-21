@@ -211,6 +211,13 @@ const ChartReportPage = () => {
               multiple
               renderValue={(selected) => selected.join(', ')}
               disabled={!displayData.length}
+              sx={{ // ← ADD THIS
+                borderRadius: '13px',
+                '& .MuiOutlinedInput-notchedOutline': { borderRadius: '13px' },
+              }}
+              MenuProps={{ // ← ADD THIS
+                PaperProps: { sx: { borderRadius: '13px' } },
+              }}
             >
               {types.map((key) => (
                 <MenuItem key={key} value={key}>{positionAttributes[key]?.name || key}</MenuItem>
@@ -226,6 +233,13 @@ const ChartReportPage = () => {
               value={timeType}
               onChange={(e) => setTimeType(e.target.value)}
               disabled={!displayData.length}
+              sx={{ // ← ADD THIS
+                borderRadius: '13px',
+                '& .MuiOutlinedInput-notchedOutline': { borderRadius: '13px' },
+              }}
+              MenuProps={{ // ← ADD THIS
+                PaperProps: { sx: { borderRadius: '13px' } },
+              }}
             >
               <MenuItem value="fixTime">{t('positionFixTime')}</MenuItem>
               <MenuItem value="deviceTime">{t('positionDeviceTime')}</MenuItem>

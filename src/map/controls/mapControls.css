@@ -309,3 +309,46 @@
     width: 100% !important;
     height: 100% !important;
 }
+
+.maplibre-measure-tooltip {
+    position: absolute;
+    pointer-events: none;
+    z-index: 999;
+    background: #121212;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 4px;
+    padding: 4px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    white-space: nowrap;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="light"] .maplibre-measure-tooltip {
+    background: #ffffff;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.measure-tooltip-segment {
+    font-size: 12px;
+    font-weight: 700;
+    font-family: Roboto, Arial, sans-serif;
+    color: #4fc3f7;
+}
+
+[data-theme="light"] .measure-tooltip-segment {
+    color: #0288d1;
+}
+
+.measure-tooltip-total {
+    font-size: 10px;
+    font-weight: 500;
+    font-family: Roboto, Arial, sans-serif;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+[data-theme="light"] .measure-tooltip-total {
+    color: rgba(0, 0, 0, 0.5);
+}

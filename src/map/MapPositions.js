@@ -1,7 +1,7 @@
 import {
   useId, useCallback, useEffect, useRef,
 } from 'react';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { useMediaQuery } from '@mui/material';
 import { useTheme } from '@mui/styles';
 import { map } from './core/MapView';
@@ -10,15 +10,25 @@ import { mapIconKey } from './core/preloadImages';
 import { useAttributePreference } from '../common/util/preferences';
 import { useCatchCallback } from '../reactHelper';
 import { findFonts } from './core/mapUtil';
+import { lerp, easeInOutCubic, interpolateRotation } from '../common/util/useAnimation';
+import { clustersActions } from '../store/cluster';
 
-const TELEPORT_THRESHOLD_DEG = 0.0045; // ~500 m
-const TELEPORT_THRESHOLD_SQ = TELEPORT_THRESHOLD_DEG * TELEPORT_THRESHOLD_DEG;
+// Coarser than this scale (~5 km across a typical viewport) the popup covers
+// too large an area to be meaningful, so cluster clicks zoom in instead.
+export const CLUSTER_POPUP_MAX_METERS_PER_PIXEL = 50;
 
-const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleField }) => {
+const CLUSTER_MAX_ZOOM = 14;
+
+const TELEPORT_THRESHOLD_SQ = 0.0045 * 0.0045;
+const STALE_GAP_MS = 10000;
+const MIN_CHANGE_DEG = 0.000005;
+
+const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleField, customCategory, cluster }) => {
   const id = useId();
   const clusters = `${id}-clusters`;
   const selected = `${id}-selected`;
 
+  const dispatch = useDispatch();
   const theme = useTheme();
   const desktop = useMediaQuery(theme.breakpoints.up('md'));
   const iconScale = useAttributePreference('iconScale', desktop ? 0.75 : 1);
@@ -26,9 +36,9 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
   const devices = useSelector((state) => state.devices.items);
   const selectedDeviceId = useSelector((state) => state.devices.selectedId);
 
-  const mapCluster = useAttributePreference('mapCluster', true);
+  const mapClusterPref = useAttributePreference('mapCluster', true);
+  const mapCluster = cluster === undefined ? mapClusterPref : cluster;
   const directionType = useAttributePreference('mapDirection', 'selected');
-
   const baseAnimationDuration = useAttributePreference('mapAnimationDuration', 2500);
   const enableSmoothing = useAttributePreference('mapEnableSmoothing', true);
   const useAdaptiveTiming = useAttributePreference('mapAdaptiveTiming', true);
@@ -40,6 +50,7 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
   const selectedDeviceIdRef = useRef(selectedDeviceId);
   const selectedPositionRef = useRef(selectedPosition);
   const lastUpdateTimeRef = useRef({});
+  const lastCoordRef = useRef({});
 
   useEffect(() => {
     devicesRef.current = devices;
@@ -49,166 +60,113 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
 
   useEffect(() => {
     selectedDeviceIdRef.current = selectedDeviceId;
-    if (map.getSource(id)) {
-      updateMapData(); // eslint-disable-line no-use-before-define
-    }
+    if (map.getSource(id)) updateMapData(); // eslint-disable-line no-use-before-define
   }, [selectedDeviceId]);
 
-  const createFeature = useCallback((devices, position, selectedPositionId) => {
-    const device = devices[position.deviceId];
+  const createFeature = useCallback((devs, position, selectedPositionId) => {
+    const device = devs[position.deviceId];
+    if (position.iconKey) {
+      // Synthetic replay positions carry a prebuilt icon key ("category-replayN")
+      // and a fixed per-device color instead of live status styling.
+      const [cat, ...rest] = position.iconKey.split('-');
+      return {
+        id: position.id,
+        deviceId: position.deviceId,
+        name: device?.name ?? position.name ?? '',
+        fixTime: formatTime(position.fixTime, 'seconds'),
+        category: cat,
+        color: rest.join('-'),
+        rotation: position.course,
+        direction: false,
+        isCurrent: position.isCurrent ? 1 : 0,
+      };
+    }
     let showDirection;
     switch (directionType) {
-      case 'none':
-        showDirection = false;
-        break;
-      case 'all':
-        showDirection = position.course > 0;
-        break;
-      default:
-        showDirection = selectedPositionId === position.id && position.course > 0;
-        break;
+      case 'none': showDirection = false; break;
+      case 'all': showDirection = position.course > 0; break;
+      default: showDirection = selectedPositionId === position.id && position.course > 0; break;
     }
     return {
       id: position.id,
       deviceId: position.deviceId,
-      name: device.name,
+      name: device?.name ?? '',
       fixTime: formatTime(position.fixTime, 'seconds'),
-      category: mapIconKey(device.category),
-      color: showStatus ? position.attributes.color || getStatusColor(device.status) : 'neutral',
+      category: customCategory || mapIconKey(device?.category),
+      color: showStatus ? position.attributes?.color || getStatusColor(device?.status) : 'neutral',
       rotation: position.course,
       direction: showDirection,
     };
-  }, [directionType, showStatus]);
-
-  const lerp = (start, end, t) => start + (end - start) * t;
-
-  const easeInOutQuad = (t) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
-
-  const interpolateCoordinates = (startLng, startLat, endLng, endLat, progress) => [
-    lerp(startLng, endLng, progress),
-    lerp(startLat, endLat, progress),
-  ];
-
-  const interpolateRotation = (startRotation, endRotation, progress) => {
-    let diff = endRotation - startRotation;
-
-    if (diff > 180) {
-      diff -= 360;
-    } else if (diff < -180) {
-      diff += 360;
-    }
-
-    let result = startRotation + diff * progress;
-    if (result < 0) result += 360;
-    if (result >= 360) result -= 360;
-
-    return result;
-  };
+  }, [directionType, showStatus, customCategory]);
 
   const calculateAnimationDuration = useCallback((deviceId, now) => {
-    if (!useAdaptiveTiming) {
-      return baseAnimationDuration;
-    }
-
+    if (!useAdaptiveTiming) return baseAnimationDuration;
     const lastUpdate = lastUpdateTimeRef.current[deviceId];
-    if (!lastUpdate) {
-      return baseAnimationDuration;
-    }
-    const timeBetweenUpdates = now - lastUpdate;
-    const adaptiveDuration = Math.min(timeBetweenUpdates * 0.8, 5000);
-    return Math.max(1000, Math.min(adaptiveDuration, 5000));
+    if (!lastUpdate) return baseAnimationDuration;
+    const gap = now - lastUpdate;
+    if (gap > STALE_GAP_MS) return 300;
+    return Math.max(500, Math.min(gap * 0.8, 5000));
   }, [baseAnimationDuration, useAdaptiveTiming]);
 
   const updateMapData = useCallback((stateVals) => {
     const vals = stateVals ?? Object.values(animationStateRef.current);
     const currentDevices = devicesRef.current;
-    const currentSelectedDeviceId = selectedDeviceIdRef.current;
-    const currentSelectedPosition = selectedPositionRef.current;
+    const currentSelectedId = selectedDeviceIdRef.current;
+    const currentSelectedPos = selectedPositionRef.current;
 
     [id, selected].forEach((source) => {
       const sourceObj = map.getSource(source);
       if (!sourceObj) return;
 
       const features = vals
-        .filter((deviceState) => currentDevices.hasOwnProperty(deviceState.properties.deviceId))
-        .filter((deviceState) => {
-          const isSelected = deviceState.properties.deviceId === currentSelectedDeviceId;
-          return source === id ? !isSelected : isSelected;
+        .filter((ds) => Object.prototype.hasOwnProperty.call(currentDevices, ds.properties.deviceId))
+        .filter((ds) => {
+          const isSel = ds.properties.deviceId === currentSelectedId;
+          return source === id ? !isSel : isSel;
         })
-        .map((deviceState) => {
-          const position = deviceState.properties;
-          const { current } = deviceState;
+        .map((ds) => ({
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: [ds.current.longitude, ds.current.latitude] },
+          properties: {
+            ...createFeature(currentDevices, ds.properties, currentSelectedPos?.id),
+            rotation: ds.current.rotation,
+          },
+        }));
 
-          return {
-            type: 'Feature',
-            geometry: {
-              type: 'Point',
-              coordinates: [current.longitude, current.latitude],
-            },
-            properties: {
-              ...createFeature(currentDevices, position, currentSelectedPosition && currentSelectedPosition.id),
-              rotation: current.rotation,
-            },
-          };
-        });
-
-      sourceObj.setData({
-        type: 'FeatureCollection',
-        features,
-      });
+      sourceObj.setData({ type: 'FeatureCollection', features });
     });
   }, [id, selected, createFeature]);
 
   const animate = useCallback(() => {
     const now = Date.now();
-    const state = animationStateRef.current;
-    const stateVals = Object.values(state);
+    const stateVals = Object.values(animationStateRef.current);
     let needsUpdate = false;
-    let hasActiveTargets = false;
+    let hasTargets = false;
 
-    stateVals.forEach((deviceState) => {
-      if (deviceState.target) {
-        hasActiveTargets = true;
-        const elapsed = now - deviceState.startTime;
-        const duration = deviceState.duration || baseAnimationDuration;
-        const progress = Math.min(elapsed / duration, 1);
-        const easedProgress = easeInOutQuad(progress);
+    stateVals.forEach((ds) => {
+      if (!ds.target) return;
+      hasTargets = true;
 
-        const [lng, lat] = interpolateCoordinates(
-          deviceState.start.longitude,
-          deviceState.start.latitude,
-          deviceState.target.longitude,
-          deviceState.target.latitude,
-          easedProgress,
-        );
+      const progress = Math.min((now - ds.startTime) / (ds.duration || baseAnimationDuration), 1);
+      const eased = easeInOutCubic(progress);
 
-        const rotation = interpolateRotation(
-          deviceState.start.rotation,
-          deviceState.target.rotation,
-          easedProgress,
-        );
+      ds.current = {
+        longitude: lerp(ds.start.longitude, ds.target.longitude, eased),
+        latitude: lerp(ds.start.latitude, ds.target.latitude, eased),
+        rotation: interpolateRotation(ds.start.rotation, ds.target.rotation, eased),
+      };
 
-        deviceState.current = {
-          longitude: lng,
-          latitude: lat,
-          rotation,
-        };
-
-        if (progress >= 1) {
-          deviceState.current = { ...deviceState.target };
-          deviceState.target = null;
-          deviceState.start = null;
-        }
-
-        needsUpdate = true;
+      if (progress >= 1) {
+        ds.current = { ...ds.target };
+        ds.target = null;
+        ds.start = null;
       }
+      needsUpdate = true;
     });
 
-    if (needsUpdate) {
-      updateMapData(stateVals);
-    }
+    if (needsUpdate) updateMapData(stateVals);
 
-    if (hasActiveTargets) {
+    if (hasTargets) {
       animationFrameRef.current = requestAnimationFrame(animate);
     } else {
       isAnimatingRef.current = false;
@@ -216,117 +174,89 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
     }
   }, [baseAnimationDuration, updateMapData]);
 
-  const isTeleport = (curLng, curLat, newLng, newLat) => {
-    const dLng = newLng - curLng;
-    const dLat = newLat - curLat;
-    return (dLng * dLng + dLat * dLat) > TELEPORT_THRESHOLD_SQ;
-  };
-
   const updateAnimationState = useCallback((newPositions) => {
     const now = Date.now();
     const state = animationStateRef.current;
     let newTargetAdded = false;
 
     newPositions.forEach((position) => {
-      const { deviceId } = position;
-      const currentState = state[deviceId];
-      lastUpdateTimeRef.current[deviceId] = now;
+      const { deviceId, longitude, latitude, course } = position;
+      const rotation = course || 0;
+      const lastCoord = lastCoordRef.current[deviceId];
 
-      if (!currentState) {
-        state[deviceId] = {
-          current: {
-            longitude: position.longitude,
-            latitude: position.latitude,
-            rotation: position.course || 0,
-          },
-          target: null,
-          startTime: now,
-          properties: position,
-        };
-      } else {
-        const dLng = Math.abs(currentState.current.longitude - position.longitude);
-        const dLat = Math.abs(currentState.current.latitude - position.latitude);
-        const hasChanged = dLng > 0.000001 || dLat > 0.000001;
-
-        const teleport = hasChanged && isTeleport(
-          currentState.current.longitude,
-          currentState.current.latitude,
-          position.longitude,
-          position.latitude,
-        );
-
-        if (teleport) {
-          state[deviceId] = {
-            current: {
-              longitude: position.longitude,
-              latitude: position.latitude,
-              rotation: position.course || 0,
-            },
-            target: null,
-            startTime: now,
-            properties: position,
-          };
-        } else if (hasChanged && enableSmoothing) {
-          const duration = calculateAnimationDuration(deviceId, now);
-          state[deviceId] = {
-            ...currentState,
-            start: { ...currentState.current },
-            target: {
-              longitude: position.longitude,
-              latitude: position.latitude,
-              rotation: position.course || 0,
-            },
-            startTime: now,
-            duration,
-            properties: position,
-          };
-          newTargetAdded = true;
-        } else if (!enableSmoothing) {
-          state[deviceId] = {
-            current: {
-              longitude: position.longitude,
-              latitude: position.latitude,
-              rotation: position.course || 0,
-            },
-            target: null,
-            startTime: now,
-            properties: position,
-          };
-        } else {
-          state[deviceId].properties = position;
+      if (lastCoord) {
+        const dLng = Math.abs(lastCoord.lng - longitude);
+        const dLat = Math.abs(lastCoord.lat - latitude);
+        if (dLng < MIN_CHANGE_DEG && dLat < MIN_CHANGE_DEG) {
+          if (state[deviceId]) state[deviceId].properties = position;
+          return;
         }
       }
+
+      lastCoordRef.current[deviceId] = { lng: longitude, lat: latitude };
+      const currentState = state[deviceId];
+
+      if (!currentState) {
+        state[deviceId] = { current: { longitude, latitude, rotation }, target: null, startTime: now, properties: position };
+        lastUpdateTimeRef.current[deviceId] = now;
+        return;
+      }
+
+      const { longitude: cLng, latitude: cLat } = currentState.current;
+      const hasMoved = Math.abs(cLng - longitude) > MIN_CHANGE_DEG || Math.abs(cLat - latitude) > MIN_CHANGE_DEG;
+
+      if (!hasMoved) {
+        state[deviceId].properties = position;
+        lastUpdateTimeRef.current[deviceId] = now;
+        return;
+      }
+
+      const isJump = (longitude - cLng) ** 2 + (latitude - cLat) ** 2 > TELEPORT_THRESHOLD_SQ;
+      if (isJump || !enableSmoothing) {
+        state[deviceId] = { current: { longitude, latitude, rotation }, target: null, startTime: now, properties: position };
+        lastUpdateTimeRef.current[deviceId] = now;
+        return;
+      }
+
+      const duration = calculateAnimationDuration(deviceId, now);
+      lastUpdateTimeRef.current[deviceId] = now;
+      state[deviceId] = {
+        ...currentState,
+        start: { ...currentState.current },
+        target: { longitude, latitude, rotation },
+        startTime: now,
+        duration,
+        properties: position,
+      };
+      newTargetAdded = true;
     });
 
-    const activeDeviceIds = new Set(newPositions.map((p) => p.deviceId));
-    Object.keys(state).forEach((deviceId) => {
-      if (!activeDeviceIds.has(Number(deviceId))) {
-        delete state[deviceId];
-        delete lastUpdateTimeRef.current[deviceId];
+    const activeIds = new Set(newPositions.map((p) => String(p.deviceId)));
+    Object.keys(state).forEach((key) => {
+      if (!activeIds.has(key)) {
+        delete state[key];
+        delete lastUpdateTimeRef.current[key];
+        delete lastCoordRef.current[key];
       }
     });
 
-    if (newTargetAdded && enableSmoothing && !isAnimatingRef.current) {
+    if (newTargetAdded && !isAnimatingRef.current) {
       isAnimatingRef.current = true;
       animationFrameRef.current = requestAnimationFrame(animate);
     }
   }, [enableSmoothing, calculateAnimationDuration, animate]);
 
-  const onMouseEnter = () => map.getCanvas().style.cursor = 'pointer';
-  const onMouseLeave = () => map.getCanvas().style.cursor = '';
+  const onMouseEnter = () => { map.getCanvas().style.cursor = 'pointer'; };
+  const onMouseLeave = () => { map.getCanvas().style.cursor = ''; };
 
   const onMapClick = useCallback((event) => {
-    if (!event.defaultPrevented && onClick) {
-      onClick(event.lngLat.lat, event.lngLat.lng);
-    }
+    if (!event.defaultPrevented && onClick) onClick(event.lngLat.lat, event.lngLat.lng);
   }, [onClick]);
 
   const onMarkerClick = useCallback((event) => {
     event.preventDefault();
-    const feature = event.features[0];
-    if (onClick) {
-      onClick(feature.properties.id, feature.properties.deviceId);
-    }
+    const { id: fId, deviceId } = event.features[0].properties;
+    if (onClick) onClick(fId, deviceId);
   }, [onClick]);
 
   const onClusterClick = useCatchCallback(async (event) => {
@@ -334,33 +264,50 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
     const features = map.queryRenderedFeatures(event.point, {
       layers: [clusters],
     });
-    const clusterId = features[0].properties.cluster_id;
+
+    const clusterFeature = features[0];
+    const clusterId = clusterFeature.properties.cluster_id;
+    const clusterCoords = clusterFeature.geometry.coordinates;
+    const pointCount = clusterFeature.properties.point_count;
+
+    const metersPerPixel = (156543.03392 * Math.cos((clusterCoords[1] * Math.PI) / 180)) / (2 ** map.getZoom());
+
     const zoom = await map.getSource(id).getClusterExpansionZoom(clusterId);
-    map.easeTo({
-      center: features[0].geometry.coordinates,
-      zoom,
-    });
-  }, [clusters]);
+
+    // Co-located devices never separate: past clusterMaxZoom the cluster only
+    // breaks into overlapping markers, so the popup is the only useful action.
+    const expandableByZooming = zoom <= CLUSTER_MAX_ZOOM;
+
+    if (expandableByZooming && (metersPerPixel > CLUSTER_POPUP_MAX_METERS_PER_PIXEL || pointCount < 10)) {
+      map.easeTo({ center: clusterCoords, zoom });
+      return;
+    }
+
+    const leaves = await map.getSource(id).getClusterLeaves(clusterId, Infinity, 0);
+    const clusterDevices = leaves.map((f) => devices[f.properties.deviceId]).filter(Boolean);
+
+    dispatch(clustersActions.showClusterPopup({
+      devices: clusterDevices,
+      coordinates: clusterCoords,
+    }));
+  }, [clusters, devices]);
 
   useEffect(() => {
     map.addSource(id, {
       type: 'geojson',
-      data: {
-        type: 'FeatureCollection',
-        features: [],
-      },
+      data: { type: 'FeatureCollection', features: [] },
       cluster: mapCluster,
-      clusterMaxZoom: 14,
+      clusterMaxZoom: CLUSTER_MAX_ZOOM,
       clusterRadius: 50,
     });
     map.addSource(selected, {
       type: 'geojson',
-      data: {
-        type: 'FeatureCollection',
-        features: [],
-      },
+      data: { type: 'FeatureCollection', features: [] },
     });
+
     [id, selected].forEach((source) => {
+      const isSelectedLayer = source === selected;
+
       map.addLayer({
         id: source,
         type: 'symbol',
@@ -368,7 +315,12 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
         filter: ['!has', 'point_count'],
         layout: {
           'icon-image': '{category}-{color}',
-          'icon-size': iconScale,
+          'icon-size': [
+            'case',
+            ['==', ['get', 'isCurrent'], 1],
+            iconScale * 1.45,
+            isSelectedLayer ? iconScale * 1.3 : iconScale,
+          ],
           'icon-allow-overlap': true,
           'text-field': `{${titleField || 'name'}}`,
           'text-allow-overlap': true,
@@ -380,30 +332,28 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
         paint: {
           'text-halo-color': 'white',
           'text-halo-width': 1,
+          'icon-opacity': 1,
         },
       });
+
       map.addLayer({
         id: `direction-${source}`,
         type: 'symbol',
         source,
-        filter: [
-          'all',
-          ['!has', 'point_count'],
-          ['==', 'direction', true],
-        ],
+        filter: ['all', ['!has', 'point_count'], ['==', 'direction', true]],
         layout: {
           'icon-image': 'direction',
-          'icon-size': iconScale,
+          'icon-size': isSelectedLayer ? iconScale * 1.3 : iconScale,
           'icon-allow-overlap': true,
           'icon-rotate': ['get', 'rotation'],
           'icon-rotation-alignment': 'map',
         },
       });
-
       map.on('mouseenter', source, onMouseEnter);
       map.on('mouseleave', source, onMouseLeave);
       map.on('click', source, onMarkerClick);
     });
+
     map.addLayer({
       id: clusters,
       type: 'symbol',
@@ -412,57 +362,68 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
       layout: {
         'icon-image': 'background',
         'icon-size': iconScale,
+        // without allow-overlap, dense areas collision-cull the cluster icon
+        // (large clusters render as bare text and become un-clickable)
+        'icon-allow-overlap': true,
+        'text-allow-overlap': true,
         'text-field': '{point_count_abbreviated}',
         'text-font': findFonts(map),
         'text-size': 14,
       },
     });
-
     map.on('mouseenter', clusters, onMouseEnter);
     map.on('mouseleave', clusters, onMouseLeave);
     map.on('click', clusters, onClusterClick);
     map.on('click', onMapClick);
 
     return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
+      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
 
       map.off('mouseenter', clusters, onMouseEnter);
       map.off('mouseleave', clusters, onMouseLeave);
       map.off('click', clusters, onClusterClick);
       map.off('click', onMapClick);
-
-      if (map.getLayer(clusters)) {
-        map.removeLayer(clusters);
-      }
+      if (map.getLayer(clusters)) map.removeLayer(clusters);
 
       [id, selected].forEach((source) => {
         map.off('mouseenter', source, onMouseEnter);
         map.off('mouseleave', source, onMouseLeave);
         map.off('click', source, onMarkerClick);
-
-        if (map.getLayer(source)) {
-          map.removeLayer(source);
-        }
-        if (map.getLayer(`direction-${source}`)) {
-          map.removeLayer(`direction-${source}`);
-        }
-        if (map.getSource(source)) {
-          map.removeSource(source);
-        }
+        if (map.getLayer(source)) map.removeLayer(source);
+        if (map.getLayer(`direction-${source}`)) map.removeLayer(`direction-${source}`);
+        if (map.getSource(source)) map.removeSource(source);
       });
     };
   }, [mapCluster, clusters, onMarkerClick, onClusterClick, iconScale, titleField, id, selected, onMapClick]);
 
   useEffect(() => {
-    const filteredPositions = positions.filter((it) => devices.hasOwnProperty(it.deviceId));
-    updateAnimationState(filteredPositions);
-
-    if (!enableSmoothing) {
-      updateMapData();
-    }
+    const filtered = positions.filter((p) => Object.prototype.hasOwnProperty.call(devices, p.deviceId));
+    updateAnimationState(filtered);
+    // Always push current state to the map sources. The animation loop only
+    // runs for devices that moved, so with smoothing enabled the initial
+    // positions would otherwise never reach the sources and no markers or
+    // clusters would render until something else called updateMapData.
+    updateMapData();
   }, [positions, devices, enableSmoothing, updateAnimationState, updateMapData]);
+
+  useEffect(() => {
+    const faded = selectedPosition ? 0.5 : 1;
+    if (map.getLayer(id)) {
+      map.setPaintProperty(id, 'icon-opacity', faded);
+      map.setPaintProperty(`direction-${id}`, 'icon-opacity', faded);
+    }
+    if (map.getLayer(clusters)) {
+      map.setPaintProperty(clusters, 'icon-opacity', faded);
+    }
+  }, [selectedPosition?.deviceId]);
+
+  useEffect(() => {
+    if (map.getLayer(id)) map.moveLayer(id);
+    if (map.getLayer(`direction-${id}`)) map.moveLayer(`direction-${id}`);
+    if (map.getLayer(selected)) map.moveLayer(selected);
+    if (map.getLayer(`direction-${selected}`)) map.moveLayer(`direction-${selected}`);
+    if (map.getLayer(clusters)) map.moveLayer(clusters);
+  }, [positions]);
 
   return null;
 };

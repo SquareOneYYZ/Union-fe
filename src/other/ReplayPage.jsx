@@ -1,11 +1,11 @@
-import React, {
-  useState, useEffect, useRef, useCallback,
-} from 'react';
+import React, { useState } from 'react';
+import {
+  ResponsiveContainer, ComposedChart, Area,
+} from 'recharts';
 import {
   IconButton, Paper, Slider, Toolbar, Typography, Box, Chip,
-  Tooltip,
+  Tooltip, useTheme,
 } from '@mui/material';
-import makeStyles from '@mui/styles/makeStyles';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import TuneIcon from '@mui/icons-material/Tune';
 import DownloadIcon from '@mui/icons-material/Download';
@@ -13,280 +13,195 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import PauseIcon from '@mui/icons-material/Pause';
 import FastForwardIcon from '@mui/icons-material/FastForward';
 import FastRewindIcon from '@mui/icons-material/FastRewind';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+import AddIcon from '@mui/icons-material/Add';
+import CloseIcon from '@mui/icons-material/Close';
 import { useNavigate } from 'react-router-dom';
-import { useSelector } from 'react-redux';
 import MapView from '../map/core/MapView';
-import MapRoutePath from '../map/MapRoutePath';
-import MapRoutePoints from '../map/MapRoutePoints';
-import MapPositions from '../map/MapPositions';
-import { formatTime } from '../common/util/formatter';
-import ReportFilter from '../reports/components/ReportFilter';
-import { useTranslation } from '../common/components/LocalizationProvider';
-import { useCatch } from '../reactHelper';
-import MapCamera from '../map/MapCamera';
 import MapGeofence from '../map/MapGeofence';
-import StatusCard from '../common/components/StatusCard';
 import MapScale from '../map/MapScale';
-
-const SPEED_OPTIONS = [1, 1.5, 2, 5, 10];
-
-const useStyles = makeStyles((theme) => ({
-  root: {
-    height: '100%',
-  },
-  sidebar: {
-    display: 'flex',
-    flexDirection: 'column',
-    position: 'fixed',
-    zIndex: 3,
-    left: 0,
-    top: 0,
-    margin: theme.spacing(1.5),
-    width: theme.dimensions.drawerWidthDesktop,
-    maxWidth: '90vw',
-    transition: 'width 0.3s ease',
-
-    '&.expanded': {
-      width: 600,
-    },
-
-    [theme.breakpoints.down('md')]: {
-      width: 'calc(100% - 16px)',
-      maxWidth: 'calc(100% - 16px)',
-      margin: theme.spacing(1),
-      left: 0,
-      right: 0,
-    },
-
-    [theme.breakpoints.down('sm')]: {
-      width: '100%',
-      maxWidth: '100%',
-      margin: 0,
-      left: 0,
-      right: 0,
-    },
-  },
-  title: {
-    flexGrow: 1,
-  },
-  slider: {
-    width: '100%',
-  },
-  controls: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  speedControl: {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    flexDirection: 'column',
-    gap: theme.spacing(1),
-    marginBottom: theme.spacing(2),
-    marginTop: theme.spacing(2),
-  },
-  speedChips: {
-    display: 'flex',
-    gap: theme.spacing(0.75),
-    flexWrap: 'wrap',
-  },
-  formControlLabel: {
-    height: '100%',
-    width: '100%',
-    paddingRight: theme.spacing(1),
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  content: {
-    display: 'flex',
-    flexDirection: 'column',
-    padding: theme.spacing(2),
-    marginTop: theme.spacing(1),
-    [theme.breakpoints.down('md')]: {
-      padding: theme.spacing(2),
-      margin: theme.spacing(1.5),
-    },
-  },
-}));
+import MapCamera from '../map/MapCamera';
+import MapPositions from '../map/MapPositions';
+import MapRouteCoordinates from '../map/MapRouteCoordinates';
+import ReportFilter from '../reports/components/ReportFilter';
+import StatusCard from '../common/components/StatusCard';
+import { useTranslation } from '../common/components/LocalizationProvider';
+import { formatTime } from '../common/util/formatter';
+import SelectField from '../common/components/SelectField';
+import { useStyles, SPEED_OPTIONS, DEVICE_COLORS } from './ReplayStyles';
+import useReplayState from './useReplayState';
 
 const ReplayPage = () => {
   const t = useTranslation();
   const classes = useStyles();
   const navigate = useNavigate();
-  const timerRef = useRef();
-  const defaultDeviceId = useSelector((state) => state.devices.selectedId);
+  const theme = useTheme();
+  const [devicesOpen, setDevicesOpen] = useState(false);
 
-  const [positions, setPositions] = useState([]);
-  const [index, setIndex] = useState(0);
-  const [selectedDeviceId, setSelectedDeviceId] = useState(defaultDeviceId);
-  const [showCard, setShowCard] = useState(false);
-  const [from, setFrom] = useState();
-  const [to, setTo] = useState();
-  const [expanded, setExpanded] = useState(true);
-  const [playing, setPlaying] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [smoothPosition, setSmoothPosition] = useState(null);
-  const [animationProgress, setAnimationProgress] = useState(0);
-  const [speed, setSpeed] = useState(1);
-  const [titleExpanded, setTitleExpanded] = useState(false);
+  const {
+    from,
+    to,
+    expanded,
+    setExpanded,
+    loading,
+    titleExpanded,
+    setTitleExpanded,
+    playing,
+    setPlaying,
+    speed,
+    setSpeed,
+    currentTime,
+    hasData,
+    primaryName,
+    timelineStart,
+    timelineEnd,
+    sliderValue,
+    playheadPercent,
+    deviceMarkers,
+    deviceRoutes,
+    allCoordinates,
+    allSpeeds,
+    compareDeviceList,
+    usedDeviceIds,
+    pendingCompareId,
+    setPendingCompareId,
+    devices,
+    handleSliderChange,
+    handleStepBack,
+    handleStepForward,
+    handleSubmit,
+    handleAddCompareDevice,
+    handleRemoveCompareDevice,
+    handleDownload,
+    allDeviceIds,
+    deviceColors,
+    chartData,
+    showCard,
+    cardDeviceId,
+    currentCardPosition,
+    handleMarkerClick,
+    handleCloseCard,
+  } = useReplayState();
 
-  const deviceName = useSelector((state) => {
-    if (selectedDeviceId) {
-      const device = state.devices.items[selectedDeviceId];
-      if (device) {
-        return device.name;
-      }
-    }
-    return null;
-  });
-
-  useEffect(() => {
-    if (playing && positions.length > 0) {
-      timerRef.current = setInterval(() => {
-        setAnimationProgress((progress) => {
-          const newProgress = progress + 0.02 * speed;
-          if (newProgress >= 1) {
-            setIndex((prevIndex) => {
-              const nextIndex = prevIndex + 1;
-              if (nextIndex >= positions.length - 1) {
-                setPlaying(false);
-                return nextIndex;
-              }
-              return nextIndex;
-            });
-            return 0;
-          }
-
-          return newProgress;
-        });
-      }, 16);
-    } else {
-      clearInterval(timerRef.current);
-    }
-
-    return () => clearInterval(timerRef.current);
-  }, [playing, positions, speed]);
-
-  useEffect(() => {
-    if (positions.length > 0 && index < positions.length - 1) {
-      const currentPos = positions[index];
-      const nextPos = positions[index + 1];
-
-      if (currentPos && nextPos) {
-        const interpolatedPosition = {
-          ...currentPos,
-          latitude:
-            currentPos.latitude
-            + (nextPos.latitude - currentPos.latitude) * animationProgress,
-          longitude:
-            currentPos.longitude
-            + (nextPos.longitude - currentPos.longitude) * animationProgress,
-          speed:
-            currentPos.speed
-            + (nextPos.speed - currentPos.speed) * animationProgress,
-          course:
-            currentPos.course
-            + (nextPos.course - currentPos.course) * animationProgress,
-        };
-
-        setSmoothPosition(interpolatedPosition);
-      }
-    } else if (positions.length > 0 && index < positions.length) {
-      setSmoothPosition(positions[index]);
-    }
-  }, [positions, index, animationProgress]);
-
-  const onPointClick = useCallback(
-    (_, index) => {
-      setIndex(index);
-      setAnimationProgress(0);
-      setPlaying(false);
-    },
-    [setIndex],
-  );
-
-  const onMarkerClick = useCallback(
-    (positionId) => {
-      setShowCard(!!positionId);
-    },
-    [setShowCard],
-  );
-
-  const handleSubmit = useCatch(async ({ deviceId, from, to }) => {
-    setLoading(true);
-    setSelectedDeviceId(deviceId);
-    setFrom(from);
-    setTo(to);
-    const query = new URLSearchParams({ deviceId, from, to });
-    try {
-      const response = await fetch(`/api/positions?${query.toString()}`);
-      if (response.ok) {
-        setIndex(0);
-        const positions = await response.json();
-        setPositions(positions);
-        if (positions.length) {
-          setExpanded(false);
-        } else {
-          throw Error(t('sharedNoData'));
-        }
-      } else {
-        throw Error(await response.text());
-      }
-    } finally {
-      setLoading(false);
-    }
-  });
-
-  const handleDownload = () => {
-    const query = new URLSearchParams({ deviceId: selectedDeviceId, from, to });
-    window.location.assign(`/api/positions/kml?${query.toString()}`);
-  };
+  const isAtEnd = currentTime >= timelineEnd;
 
   return (
     <div className={classes.root}>
       <MapView>
         <MapGeofence />
-        <MapRoutePath
-          positions={positions}
-          onClick={onPointClick}
-          expandPointsOnClick
-        />
-        <MapRoutePoints
-          positions={positions}
-          onClick={onPointClick}
-          useGlobalExpansion
-        />
-        {smoothPosition && (
+        {deviceRoutes.map((route) => (
+          <MapRouteCoordinates
+            key={route.deviceId}
+            name={route.name}
+            coordinates={route.coordinates}
+            deviceId={route.deviceId}
+            color={route.color}
+          />
+        ))}
+        {deviceMarkers.length > 0 && (
           <MapPositions
-            positions={[smoothPosition]}
-            onClick={onMarkerClick}
-            titleField="fixTime"
+            positions={deviceMarkers}
+            titleField="name"
+            onClick={handleMarkerClick}
+            cluster={false}
           />
         )}
       </MapView>
+
       <MapScale />
-      <MapCamera positions={positions} />
+      {allCoordinates.length > 0 && <MapCamera coordinates={allCoordinates} />}
+
+      {!expanded && hasData && (
+        <Box className={classes.speedStrip}>
+          <Box className={classes.deviceLegend}>
+            {allSpeeds.map((item) => (
+              <Box key={item.label} className={classes.deviceLegendItem}>
+                <Box className={classes.deviceDot} sx={{ background: item.color }} />
+                <Typography variant="caption" color="text.secondary" noWrap>
+                  {item.label}
+                  :&nbsp;
+                  <span style={{ fontWeight: 600, color: item.color }}>
+                    {item.formattedSpeed}
+                  </span>
+                </Typography>
+              </Box>
+            ))}
+          </Box>
+
+          <div className={classes.chartWrapper}>
+            <ResponsiveContainer width="100%" height={48}>
+              <ComposedChart
+                data={chartData}
+                margin={{
+                  top: 0, right: 0, bottom: 0, left: 0,
+                }}
+              >
+                <defs>
+                  {allDeviceIds.map((deviceId) => (
+                    <linearGradient
+                      key={deviceId}
+                      id={`deviceGrad_${deviceId}`}
+                      x1="0"
+                      y1="0"
+                      x2="0"
+                      y2="1"
+                    >
+                      <stop
+                        offset="0%"
+                        stopColor={deviceColors[deviceId] || DEVICE_COLORS[0]}
+                        stopOpacity={0.85}
+                      />
+                      <stop
+                        offset="100%"
+                        stopColor={deviceColors[deviceId] || DEVICE_COLORS[0]}
+                        stopOpacity={0.15}
+                      />
+                    </linearGradient>
+                  ))}
+                </defs>
+
+                {allDeviceIds.map((deviceId) => (
+                  <Area
+                    key={deviceId}
+                    dataKey={`speed_${deviceId}`}
+                    fill={`url(#deviceGrad_${deviceId})`}
+                    stroke={deviceColors[deviceId] || DEVICE_COLORS[0]}
+                    strokeWidth={1.5}
+                    dot={false}
+                    isAnimationActive={false}
+                    baseValue={0}
+                    fillOpacity={0.5}
+                  />
+                ))}
+              </ComposedChart>
+            </ResponsiveContainer>
+
+            <svg className={classes.playheadOverlay}>
+              <line
+                x1={`${playheadPercent}%`}
+                y1="0%"
+                x2={`${playheadPercent}%`}
+                y2="100%"
+                stroke={theme.palette.primary.light}
+                strokeWidth={3}
+              />
+            </svg>
+          </div>
+        </Box>
+      )}
+
       <div className={`${classes.sidebar} ${titleExpanded ? 'expanded' : ''}`}>
         <Paper elevation={3} square>
-          <Toolbar
-            sx={{
-              alignItems: 'center',
-              justifyContent: 'center',
-              minHeight: 'unset',
-              paddingTop: 1,
-              paddingBottom: 1,
-            }}
+          <Toolbar sx={{
+            alignItems: 'center', minHeight: 'unset', paddingTop: 1, paddingBottom: 1,
+          }}
           >
-            <IconButton
-              edge="start"
-              sx={{ mr: 2 }}
-              onClick={() => navigate(-1)}
-            >
+            <IconButton edge="start" sx={{ mr: 2 }} onClick={() => navigate(-1)}>
               <ArrowBackIcon />
             </IconButton>
             <Tooltip
-              title={`${t('reportReplay')}${deviceName ? ` - ${deviceName}` : ''}`}
+              title={`${t('reportReplay')}${primaryName ? ` - ${primaryName}` : ''}`}
               arrow
               placement="bottom"
             >
@@ -295,7 +210,6 @@ const ReplayPage = () => {
                 onClick={() => setTitleExpanded((prev) => !prev)}
                 noWrap={!titleExpanded}
                 sx={{
-                  maxWidth: '100%',
                   overflow: 'hidden',
                   textOverflow: titleExpanded ? 'unset' : 'ellipsis',
                   whiteSpace: titleExpanded ? 'normal' : 'nowrap',
@@ -307,34 +221,30 @@ const ReplayPage = () => {
                 }}
               >
                 {t('reportReplay')}
-                {deviceName ? ` - ${deviceName}` : ''}
+                {primaryName ? ` - ${primaryName}` : ''}
               </Typography>
             </Tooltip>
-
             {!expanded && (
               <>
-                <IconButton onClick={handleDownload}>
-                  <DownloadIcon />
-                </IconButton>
-                <IconButton edge="end" onClick={() => setExpanded(true)}>
-                  <TuneIcon />
-                </IconButton>
+                <IconButton onClick={handleDownload}><DownloadIcon /></IconButton>
+                <IconButton edge="end" onClick={() => setExpanded(true)}><TuneIcon /></IconButton>
               </>
             )}
           </Toolbar>
         </Paper>
+
         <Paper className={classes.content} square>
           {!expanded ? (
             <>
               <Box className={classes.speedControl}>
                 <Box className={classes.speedChips}>
-                  {SPEED_OPTIONS.map((speedOption) => (
+                  {SPEED_OPTIONS.map((opt) => (
                     <Chip
-                      key={speedOption}
-                      label={`${speedOption}x`}
-                      onClick={() => setSpeed(speedOption)}
-                      color={speed === speedOption ? 'primary' : 'default'}
-                      variant={speed === speedOption ? 'filled' : 'outlined'}
+                      key={opt}
+                      label={`${opt}x`}
+                      onClick={() => setSpeed(opt)}
+                      color={speed === opt ? 'primary' : 'default'}
+                      variant={speed === opt ? 'filled' : 'outlined'}
                       size="small"
                       sx={{ minWidth: 48 }}
                     />
@@ -344,78 +254,139 @@ const ReplayPage = () => {
 
               <Slider
                 className={classes.slider}
-                max={positions.length - 1}
-                step={null}
-                marks={positions.map((_, index) => ({ value: index }))}
-                value={index}
-                onChange={(_, newIndex) => {
-                  setIndex(newIndex);
-                  setAnimationProgress(0);
-                  setPlaying(false);
-                }}
+                min={0}
+                max={100}
+                step={0.01}
+                value={sliderValue}
+                onChange={handleSliderChange}
               />
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginTop: -10,
-                  marginBottom: 8,
-                }}
+              <Box sx={{
+                display: 'flex', justifyContent: 'space-between', mt: -1, mb: 1,
+              }}
               >
                 <Typography variant="caption" color="text.secondary">
-                  -1hr
+                  {from ? formatTime(from, 'seconds') : '—'}
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  +1hr
+                  {to ? formatTime(to, 'seconds') : '—'}
                 </Typography>
-              </div>
+              </Box>
+
               <div className={classes.controls}>
-                {`${index + 1}/${positions.length}`}
                 <IconButton
-                  onClick={() => {
-                    setIndex((index) => index - 1);
-                    setAnimationProgress(0);
-                    setPlaying(false);
-                  }}
-                  disabled={playing || index <= 0}
+                  onClick={handleStepBack}
+                  disabled={playing || currentTime <= timelineStart}
                 >
                   <FastRewindIcon />
                 </IconButton>
-                <IconButton
-                  onClick={() => setPlaying(!playing)}
-                  disabled={index >= positions.length - 1}
-                >
+                <IconButton onClick={() => setPlaying(!playing)} disabled={isAtEnd}>
                   {playing ? <PauseIcon /> : <PlayArrowIcon />}
                 </IconButton>
                 <IconButton
-                  onClick={() => {
-                    setIndex((index) => index + 1);
-                    setAnimationProgress(0);
-                    setPlaying(false);
-                  }}
-                  disabled={playing || index >= positions.length - 1}
+                  onClick={handleStepForward}
+                  disabled={playing || isAtEnd}
                 >
                   <FastForwardIcon />
                 </IconButton>
-                {formatTime(positions[index].fixTime, 'seconds')}
               </div>
+
+              <Box className={classes.compareSection}>
+
+                <Box
+                  onClick={() => setDevicesOpen((prev) => !prev)}
+                  sx={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer',
+                  }}
+                >
+                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                    Compare Devices
+                    {' '}
+                    {compareDeviceList.length > 0 ? `(${compareDeviceList.length})` : ''}
+                  </Typography>
+                  {devicesOpen ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
+                </Box>
+
+                {devicesOpen && (
+                  <Box sx={{ mt: 1, border: `1px solid ${theme.palette.divider}`, borderRadius: 1, overflow: 'hidden' }}>
+
+                    {compareDeviceList.length > 0 ? (
+                      compareDeviceList.map((d) => (
+                        <Box
+                          key={d.deviceId}
+                          sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            px: 1.5,
+                            py: 0.75,
+                            borderBottom: `1px solid ${theme.palette.divider}`,
+                            '&:last-child': { borderBottom: 'none' },
+                          }}
+                        >
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Box sx={{
+                              width: 10, height: 10, borderRadius: '50%', bgcolor: d.color, flexShrink: 0,
+                            }}
+                            />
+                            <Typography variant="body2" noWrap sx={{ maxWidth: 180 }}>
+                              {d.name}
+                            </Typography>
+                          </Box>
+                          <IconButton size="small" onClick={() => handleRemoveCompareDevice(d.deviceId)}>
+                            <CloseIcon fontSize="small" />
+                          </IconButton>
+                        </Box>
+                      ))
+                    ) : (
+                      <Typography variant="caption" color="text.disabled" sx={{ display: 'block', px: 1.5, py: 1 }}>
+                        No devices added yet.
+                      </Typography>
+                    )}
+
+                    <Box sx={{ p: 1, borderTop: `1px solid ${theme.palette.divider}` }}>
+                      <Box className={classes.addRow}>
+                        <SelectField
+                          label="Add Device"
+                          fullWidth
+                          data={Object.values(devices)
+                            .filter((d) => !usedDeviceIds.has(String(d.id)))
+                            .sort((a, b) => a.name.localeCompare(b.name))}
+                          value={pendingCompareId}
+                          onChange={(e) => setPendingCompareId(e.target.value)}
+                          sx={{ flexGrow: 1, minWidth: 0, width: '100%' }}
+                        />
+                        <Tooltip title={!from ? 'Load a primary device first' : 'Add device to replay'}>
+                          <span>
+                            <IconButton
+                              color="primary"
+                              onClick={handleAddCompareDevice}
+                              disabled={!pendingCompareId || !from}
+                              size="small"
+                              sx={{ border: `1px solid ${theme.palette.divider}`, borderRadius: 1 }}
+                            >
+                              <AddIcon />
+                            </IconButton>
+                          </span>
+                        </Tooltip>
+                      </Box>
+                    </Box>
+
+                  </Box>
+                )}
+
+              </Box>
             </>
           ) : (
-            <ReportFilter
-              handleSubmit={handleSubmit}
-              fullScreen
-              showOnly
-              loading={loading}
-            />
+            <ReportFilter handleSubmit={handleSubmit} fullScreen showOnly loading={loading} />
           )}
         </Paper>
       </div>
-      {showCard && index < positions.length && (
+
+      {showCard && currentCardPosition && (
         <StatusCard
-          deviceId={selectedDeviceId}
-          position={positions[index]}
-          onClose={() => setShowCard(false)}
+          deviceId={cardDeviceId}
+          position={currentCardPosition}
+          onClose={handleCloseCard}
           disableActions
         />
       )}

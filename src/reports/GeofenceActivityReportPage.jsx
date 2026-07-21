@@ -578,6 +578,13 @@ const GeofenceDistanceReportPage = () => {
                       label="Segment Type"
                       value={selectedSegmentType}
                       onChange={(e) => setSelectedSegmentType(e.target.value)}
+                      sx={{ // ← ADD THIS
+                        borderRadius: '13px',
+                        '& .MuiOutlinedInput-notchedOutline': { borderRadius: '13px' },
+                      }}
+                      MenuProps={{ // ← ADD THIS
+                        PaperProps: { sx: { borderRadius: '13px' } },
+                      }}
                     >
                       {segmentTypes.map(([key, label]) => (
                         <MenuItem key={key} value={key}>
@@ -595,6 +602,13 @@ const GeofenceDistanceReportPage = () => {
                     value={minDistance}
                     onChange={(e) => setMinDistance(e.target.value)}
                     inputProps={{ min: 0, step: 0.1 }}
+                    sx={{ // ← ADD THIS
+                      borderRadius: '13px',
+                      '& .MuiOutlinedInput-notchedOutline': { borderRadius: '13px' },
+                    }}
+                    MenuProps={{ // ← ADD THIS
+                      PaperProps: { sx: { borderRadius: '13px' } },
+                    }}
                   />
                 </div>
                 <div className={classes.filterItem}>
@@ -612,6 +626,13 @@ const GeofenceDistanceReportPage = () => {
                         setSelectedTypes(values);
                       }}
                       multiple
+                      sx={{ // ← ADD THIS
+                        borderRadius: '13px',
+                        '& .MuiOutlinedInput-notchedOutline': { borderRadius: '13px' },
+                      }}
+                      MenuProps={{ // ← ADD THIS
+                        PaperProps: { sx: { borderRadius: '13px' } },
+                      }}
                     >
                       {allEventTypes.map(([key, string]) => (
                         <MenuItem key={key} value={key}>
@@ -636,6 +657,13 @@ const GeofenceDistanceReportPage = () => {
                         setSelectedGeofences(values);
                       }}
                       multiple
+                      sx={{ // ← ADD THIS
+                        borderRadius: '13px',
+                        '& .MuiOutlinedInput-notchedOutline': { borderRadius: '13px' },
+                      }}
+                      MenuProps={{ // ← ADD THIS
+                        PaperProps: { sx: { borderRadius: '13px' } },
+                      }}
                     >
                       <MenuItem key="allGeofences" value="allGeofences">
                         All Geofences

@@ -9,9 +9,16 @@ import {
   TextField,
   Autocomplete,
   Chip,
+  IconButton,
+  Tooltip,
+  Box,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { DropzoneArea } from 'react-mui-dropzone';
+import { useNavigate } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
+import GpsFixedIcon from '@mui/icons-material/GpsFixed';
+import { devicesActions } from '../store';
 import EditItemView from './components/EditItemView';
 import EditAttributesAccordion from './components/EditAttributesAccordion';
 import SelectField from '../common/components/SelectField';
@@ -33,9 +40,13 @@ const DevicePage = () => {
   const deviceAttributes = useDeviceAttributes(t);
   const query = useQuery();
   const uniqueId = query.get('uniqueId');
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
 
   const [item, setItem] = useState(uniqueId ? { uniqueId } : null);
   const [vinDecodedData, setVinDecodedData] = useState(null);
+  const position = useSelector((state) => (item?.id ? state.session.positions[item.id] : null));
+  const hasPosition = Boolean(position);
 
   const handleFiles = useCatch(async (files) => {
     if (files.length > 0) {
@@ -57,7 +68,21 @@ const DevicePage = () => {
     }
   });
 
+  const handleLocateOnMap = () => {
+    dispatch(devicesActions.locateId(item.id));
+    navigate('/');
+  };
+
   const validate = () => item && item.name && item.uniqueId;
+
+  const roundedFieldSx = {
+    '& .MuiOutlinedInput-root': {
+      borderRadius: '13px',
+      '& fieldset': { borderRadius: '13px', borderColor: 'rgba(255,255,255,0.23)' },
+      '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.5)' },
+      '&.Mui-focused fieldset': { borderColor: 'primary.main' },
+    },
+  };
 
   const renderVinAutocomplete = (field, labelKey, suggestedValue) => {
     const options = suggestedValue ? [suggestedValue] : [];
@@ -67,6 +92,7 @@ const DevicePage = () => {
         freeSolo
         options={options}
         value={item[field] || ''}
+        sx={roundedFieldSx}
         onChange={(event, newValue) => {
           setItem((prev) => ({ ...prev, [field]: newValue || '' }));
         }}
@@ -128,25 +154,43 @@ const DevicePage = () => {
     >
       {item && (
         <>
-          <Accordion defaultExpanded>
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography variant="subtitle1">{t('sharedRequired')}</Typography>
-            </AccordionSummary>
-            <AccordionDetails className={classes.details}>
-              <TextField
-                value={item.name || ''}
-                onChange={(event) => setItem({ ...item, name: event.target.value })}
-                label={t('sharedName')}
-              />
-              <TextField
-                value={item.uniqueId || ''}
-                onChange={(event) => setItem({ ...item, uniqueId: event.target.value })}
-                label={t('deviceIdentifier')}
-                helperText={t('deviceIdentifierHelp')}
-                disabled={!admin || Boolean(uniqueId)}
-              />
-            </AccordionDetails>
-          </Accordion>
+          <Box sx={{ position: 'relative' }}>
+            <Accordion defaultExpanded>
+              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                <Typography variant="subtitle1">{t('sharedRequired')}</Typography>
+              </AccordionSummary>
+              <AccordionDetails className={classes.details}>
+                <TextField
+                  value={item.name || ''}
+                  onChange={(event) => setItem({ ...item, name: event.target.value })}
+                  label={t('sharedName')}
+                  sx={roundedFieldSx}
+                />
+                <TextField
+                  value={item.uniqueId || ''}
+                  onChange={(event) => setItem({ ...item, uniqueId: event.target.value })}
+                  label={t('deviceIdentifier')}
+                  helperText={t('deviceIdentifierHelp')}
+                  disabled={!admin || Boolean(uniqueId)}
+                  sx={roundedFieldSx}
+
+                />
+              </AccordionDetails>
+            </Accordion>
+            {item.id && (
+              <Tooltip title={hasPosition ? t('deviceShowOnMap') : t('deviceNoPositionReported')}>
+                <span style={{ position: 'absolute', top: 20, left: 80 }}>
+                  <IconButton
+                    size="small"
+                    onClick={handleLocateOnMap}
+                    disabled={!hasPosition}
+                  >
+                    <GpsFixedIcon fontSize="small" />
+                  </IconButton>
+                </span>
+              </Tooltip>
+            )}
+          </Box>
 
           <Accordion>
             <AccordionSummary expandIcon={<ExpandMoreIcon />}>
@@ -163,14 +207,17 @@ const DevicePage = () => {
                 value={item.phone || ''}
                 onChange={(event) => setItem({ ...item, phone: event.target.value })}
                 label={t('sharedPhone')}
+                sx={roundedFieldSx}
+
               />
               <TextField
                 value={item.license || ''}
                 onChange={(event) => setItem({ ...item, license: event.target.value })}
                 label={t('deviceLicenseNumber')}
+                sx={roundedFieldSx}
+
               />
 
-              {/* VIN Field — API fires only on search button click or Enter */}
               <SelectField
                 value={item.vin || ''}
                 onChange={(event) => {
@@ -185,11 +232,6 @@ const DevicePage = () => {
                 vinApiEndpoint="/api/devices/Vindecoder"
                 fullWidth
               />
-
-              {/* ── VIN decoded fields with "From VIN" badge design ─────────
-                  Matches screenshot: Value left, green badge right
-              ─────────────────────────────────────────────────────────────── */}
-
               {renderVinAutocomplete('make', 'deviceMake', vinDecodedData?.make)}
               {renderVinAutocomplete('manufacturer', 'deviceManufacturer', vinDecodedData?.manufacturer)}
               {renderVinAutocomplete('model', 'deviceModel', vinDecodedData?.model)}
@@ -208,6 +250,8 @@ const DevicePage = () => {
                 value={item.contact || ''}
                 onChange={(event) => setItem({ ...item, contact: event.target.value })}
                 label={t('deviceContact')}
+                sx={roundedFieldSx}
+
               />
               <SelectField
                 value={item.category || 'default'}
@@ -245,6 +289,7 @@ const DevicePage = () => {
                         setItem({ ...item, expirationTime: new Date(e.target.value).toISOString() });
                       }
                     }}
+                    sx={roundedFieldSx}
                   />
                   <FormControlLabel
                     control={(
@@ -273,6 +318,8 @@ const DevicePage = () => {
                   onChange={handleFiles}
                   showAlerts={false}
                   maxFileSize={500000}
+                  sx={roundedFieldSx}
+
                 />
               </AccordionDetails>
             </Accordion>
