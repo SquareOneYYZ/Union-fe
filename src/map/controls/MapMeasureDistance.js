@@ -4,6 +4,7 @@ import { distanceFromMeters, distanceUnitString } from '../../common/util/conver
 import { useAttributePreference } from '../../common/util/preferences';
 import { useTranslation } from '../../common/components/LocalizationProvider';
 import measureControlRef from './MeasureControlRef';
+import { createCtrlButton, createCtrlContainer } from './util';
 import './mapControls.css';
 
 const MEASURE_SOURCE = 'measure-source';
@@ -85,11 +86,11 @@ class MeasureControl {
   }
 
   onAdd() {
-    this.button = document.createElement('button');
-    this.button.className = 'maplibregl-ctrl-icon maplibre-ctrl-measure maplibre-ctrl-measure-off';
-    this.button.type = 'button';
-    this.button.title = 'Measure Distance';
-    this.button.onclick = () => this.toggleMeasure();
+    this.button = createCtrlButton(
+      'Measure Distance',
+      'maplibregl-ctrl-icon maplibre-ctrl-measure maplibre-ctrl-measure-off',
+      () => this.toggleMeasure(),
+    );
 
     this.distanceRow = document.createElement('div');
     this.distanceRow.className = 'maplibre-ctrl-measure-row';
@@ -99,12 +100,12 @@ class MeasureControl {
     this.label.className = 'maplibre-ctrl-measure-label';
     this.label.textContent = '—';
 
-    this.closeBtn = document.createElement('button');
-    this.closeBtn.className = 'maplibre-ctrl-measure-close';
-    this.closeBtn.type = 'button';
-    this.closeBtn.title = 'Stop measuring (Esc or double-click)';
+    this.closeBtn = createCtrlButton(
+      'Stop measuring (Esc or double-click)',
+      'maplibre-ctrl-measure-close',
+      () => this.deactivate(),
+    );
     this.closeBtn.innerHTML = '&#x2715;';
-    this.closeBtn.onclick = () => this.deactivate();
 
     this.distanceRow.appendChild(this.label);
     this.distanceRow.appendChild(this.closeBtn);
@@ -114,8 +115,7 @@ class MeasureControl {
     this.tooltip.style.display = 'none';
     map.getContainer().appendChild(this.tooltip);
 
-    this.container = document.createElement('div');
-    this.container.className = 'maplibregl-ctrl-group maplibregl-ctrl';
+    this.container = createCtrlContainer();
     this.container.appendChild(this.button);
     this.container.appendChild(this.distanceRow);
 
@@ -145,6 +145,7 @@ class MeasureControl {
     this.points = [];
     this.mousePos = null;
     this.button.className = 'maplibregl-ctrl-icon maplibre-ctrl-measure maplibre-ctrl-measure-on';
+    this.button.setAttribute('aria-label', 'Measuring… (Esc or double-click to stop)');
     this.button.title = 'Measuring… (Esc or double-click to stop)';
     this.distanceRow.style.display = 'flex';
     this.label.textContent = 'Click map';
@@ -273,6 +274,7 @@ class MeasureControl {
     this.points = [];
     this.mousePos = null;
     this.button.className = 'maplibregl-ctrl-icon maplibre-ctrl-measure maplibre-ctrl-measure-off';
+    this.button.setAttribute('aria-label', 'Measure Distance');
     this.button.title = 'Measure Distance';
     this.distanceRow.style.display = 'none';
     this.tooltip.style.display = 'none';

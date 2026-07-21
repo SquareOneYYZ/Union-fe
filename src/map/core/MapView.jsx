@@ -7,15 +7,17 @@ import React, {
 } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
+import { useTheme } from '@mui/material/styles';
 import { SwitcherControl } from '../switcher/switcher';
 import { useAttributePreference, usePreference } from '../../common/util/preferences';
 import usePersistedState, { savePersistedState } from '../../common/util/usePersistedState';
 import { mapImages } from './preloadImages';
-import useMapStyles from './useMapStyles';
+import useMapStyles, { mapBackgroundColor } from './useMapStyles';
 import { FullScreenControl } from '../controls/MapFullScreen';
 import ContextMenu from './ContextMenu';
 import measureControlRef from '../controls/MeasureControlRef';
 import { devicesActions } from '../../store';
+import { attachMapWriteDebug } from './mapWriteDebug';
 
 const element = document.createElement('div');
 element.style.width = '100%';
@@ -25,8 +27,48 @@ element.style.boxSizing = 'initial';
 maplibregl.setRTLTextPlugin(mapboxglRtlTextUrl);
 maplibregl.addProtocol('google', googleProtocol);
 
+const initialCamera = (() => {
+  try {
+    const saved = JSON.parse(window.localStorage.getItem('mapCamera'));
+    if (saved
+      && Number.isFinite(saved.longitude) && Math.abs(saved.longitude) <= 180
+      && Number.isFinite(saved.latitude) && Math.abs(saved.latitude) <= 90
+      && Number.isFinite(saved.zoom) && saved.zoom >= 1 && saved.zoom <= 24) {
+      return saved;
+    }
+  } catch (error) {
+    // ignore invalid persisted camera
+  }
+  return null;
+})();
+
+export const restoredCamera = initialCamera;
+
 export const map = new maplibregl.Map({
   container: element,
+  fadeDuration: 0,
+  ...(initialCamera && {
+    center: [initialCamera.longitude, initialCamera.latitude],
+    zoom: initialCamera.zoom,
+  }),
+});
+
+attachMapWriteDebug(map);
+
+map.on('moveend', () => {
+  const zoom = map.getZoom();
+  if (zoom >= 1) {
+    const center = map.getCenter();
+    try {
+      savePersistedState('mapCamera', {
+        longitude: center.lng,
+        latitude: center.lat,
+        zoom,
+      });
+    } catch (error) {
+      // storage failures must not propagate into maplibre event dispatch
+    }
+  }
 });
 
 map.dragRotate.disable();
@@ -96,6 +138,8 @@ const MapView = ({ children }) => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
+  const switcherRef = useRef(null);
+  const theme = useTheme();
   const [mapReady, setMapReady] = useState(false);
   const [contextMenu, setContextMenu] = useState({
     visible: false,
@@ -126,7 +170,45 @@ const MapView = ({ children }) => {
     return nearest;
   };
   useEffect(() => {
-    map.setMaxZoom(maxZoom || 22);
+    const switcher = new SwitcherControl(
+      () => updateReadyValue(false),
+      (styleId) => savePersistedState('selectedMapStyle', styleId),
+      () => {
+        map.once('styledata', () => {
+          const waiting = () => {
+            if (!map.loaded()) {
+              setTimeout(waiting, 33);
+            } else {
+              initMap();
+              updateReadyValue(true);
+            }
+          };
+          waiting();
+        });
+      },
+    );
+    switcherRef.current = switcher;
+    map.addControl(switcher, 'top-right');
+    return () => map.removeControl(switcher);
+  }, []);
+
+  useEffect(() => {
+    if (!switcherRef.current) return;
+    const filteredStyles = mapStyles.filter((s) => s.available && activeMapStyles.includes(s.id));
+    const styles = filteredStyles.length ? filteredStyles : mapStyles.filter((s) => s.available);
+    switcherRef.current.updateStyles(styles, defaultMapStyle);
+  }, [mapStyles, defaultMapStyle, activeMapStyles]);
+
+  useEffect(() => {
+    const fullScreenControl = new FullScreenControl();
+    map.addControl(fullScreenControl, 'top-right');
+    return () => map.removeControl(fullScreenControl);
+  }, []);
+
+  useEffect(() => {
+    if (maxZoom) {
+      map.setMaxZoom(maxZoom);
+    }
   }, [maxZoom]);
 
   useEffect(() => {
@@ -141,6 +223,7 @@ const MapView = ({ children }) => {
 
   useEffect(() => {
     const listener = (r) => setMapReady(r);
+    const listener = (ready) => setMapReady(ready);
     addReadyListener(listener);
     return () => removeReadyListener(listener);
   }, []);
@@ -247,6 +330,10 @@ const MapView = ({ children }) => {
       [lng, lat],
     ]);
   }, [positions]);
+
+  useLayoutEffect(() => {
+    element.style.background = theme.palette.mode === 'dark' ? theme.palette.grey[900] : mapBackgroundColor;
+  }, [theme]);
 
   useLayoutEffect(() => {
     const currentEl = containerEl.current;

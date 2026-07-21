@@ -41,6 +41,8 @@ import RegisterPage from './login/RegisterPage';
 import ResetPasswordPage from './login/ResetPasswordPage';
 import GeofencesPage from './other/GeofencesPage';
 import GeofencePage from './settings/GeofencePage';
+import VinPage from './settings/VinPage';
+import VinsPage from './settings/VinsPage';
 import useQuery from './common/util/useQuery';
 import { useEffectAsync } from './reactHelper';
 import { devicesActions } from './store';
@@ -81,7 +83,7 @@ const Navigation = () => {
     if (query.get('token')) {
       const token = query.get('token');
       await fetch(`/api/session?token=${encodeURIComponent(token)}`);
-      navigate(pathname);
+      navigate(pathname, { replace: true });
     } else if (query.get('deviceId')) {
       const deviceId = query.get('deviceId');
       const response = await fetch(`/api/devices?uniqueId=${deviceId}`);
@@ -126,6 +128,9 @@ const Navigation = () => {
         <Route path="replay" element={<ReplayPage />} />
         <Route path="geofences" element={<GeofencesPage />} />
         <Route path="emulator" element={<EmulatorPage />} />
+        <Route path="/settings/vins" element={<VinsPage />} />
+        <Route path="/vin" element={<VinPage />} />
+        <Route path="/vin/:id" element={<VinPage />} />
 
         <Route path="settings">
           <Route path="accumulators/:deviceId" element={<AccumulatorsPage />} />

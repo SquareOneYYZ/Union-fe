@@ -48,6 +48,26 @@ const NotificationsPage = () => {
     return '';
   };
 
+  const getNotificationType = (item) => {
+    if (item.type !== 'zoneViolation' && item.type !== 'geofence') {
+      return t(prefixString('event', item.type));
+    }
+
+    let zone = null;
+
+    if (item.type === 'geofence') {
+      zone = 'Geofence';
+    } else if (item.attributes?.zoneTypes) {
+      zone = `${item.attributes.zoneTypes.charAt(0).toUpperCase()}${item.attributes.zoneTypes.slice(1)}`;
+    }
+
+    const violation = item.attributes?.violationTypes
+      ? `${item.attributes.violationTypes.charAt(0).toUpperCase()}${item.attributes.violationTypes.slice(1)}`
+      : null;
+
+    return [zone, violation].filter(Boolean).join(' ');
+  };
+
   return (
     <PageLayout menu={<SettingsMenu />} breadcrumbs={['settingsTitle', 'sharedNotifications']}>
       <SearchHeader keyword={searchKeyword} setKeyword={setSearchKeyword} />
@@ -66,17 +86,7 @@ const NotificationsPage = () => {
           {!loading ? items.filter(filterByKeyword(searchKeyword)).map((item) => (
             <TableRow key={item.id}>
               <TableCell>{item.description}</TableCell>
-              <TableCell>
-                {item.type === 'zoneViolation'
-                  ? [
-                    item.attributes?.zoneTypes,
-                    item.attributes?.violationTypes,
-                  ]
-                    .filter(Boolean)
-                    .map((val) => val.charAt(0).toUpperCase() + val.slice(1))
-                    .join(' ')
-                  : t(prefixString('event', item.type))}
-              </TableCell>
+              <TableCell>{getNotificationType(item)}</TableCell>
               <TableCell>{formatBoolean(item.always, t)}</TableCell>
               <TableCell>{formatList('alarm', item.attributes.alarms)}</TableCell>
               <TableCell>{formatList('notificator', item.notificators)}</TableCell>
