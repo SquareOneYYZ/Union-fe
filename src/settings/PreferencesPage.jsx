@@ -92,6 +92,15 @@ const PreferencesPage = () => {
     throw Error(response.statusText);
   });
 
+  const roundedFieldSx = {
+    '& .MuiOutlinedInput-root': {
+      borderRadius: '13px',
+      '& fieldset': { borderRadius: '13px', borderColor: 'rgba(255,255,255,0.23)' },
+      '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.5)' },
+      '&.Mui-focused fieldset': { borderColor: 'primary.main' },
+    },
+  };
+
   return (
     <PageLayout menu={<SettingsMenu />} breadcrumbs={['settingsTitle', 'sharedPreferences']}>
       <Container maxWidth="xs" className={classes.container}>
@@ -104,7 +113,9 @@ const PreferencesPage = () => {
                 </Typography>
               </AccordionSummary>
               <AccordionDetails className={classes.details}>
-                <FormControl>
+                <FormControl
+                  sx={roundedFieldSx}
+                >
                   <InputLabel>{t('mapActive')}</InputLabel>
                   <Select
                     label={t('mapActive')}
@@ -119,6 +130,10 @@ const PreferencesPage = () => {
                       }
                     }}
                     multiple
+                    sx={roundedFieldSx}
+                    MenuProps={{
+                      PaperProps: { sx: { borderRadius: '13px' } },
+                    }}
                   >
                     {mapStyles.map((style) => (
                       <MenuItem key={style.id} value={style.id}>
@@ -127,7 +142,9 @@ const PreferencesPage = () => {
                     ))}
                   </Select>
                 </FormControl>
-                <FormControl>
+                <FormControl
+                  sx={roundedFieldSx}
+                >
                   <InputLabel>{t('mapOverlay')}</InputLabel>
                   <Select
                     label={t('mapOverlay')}
@@ -140,6 +157,9 @@ const PreferencesPage = () => {
                         const query = new URLSearchParams({ attribute: clicked.attribute });
                         navigate(`/settings/user/${user.id}?${query.toString()}`);
                       }
+                    }}
+                    MenuProps={{
+                      PaperProps: { sx: { borderRadius: '13px' } },
                     }}
                   >
                     <MenuItem value="">{'\u00a0'}</MenuItem>
@@ -172,8 +192,11 @@ const PreferencesPage = () => {
                       label={t('attributePopupInfo')}
                     />
                   )}
+                  sx={roundedFieldSx}
                 />
-                <FormControl>
+                <FormControl
+                  sx={roundedFieldSx}
+                >
                   <InputLabel>{t('mapLiveRoutes')}</InputLabel>
                   <Select
                     label={t('mapLiveRoutes')}
@@ -185,7 +208,9 @@ const PreferencesPage = () => {
                     <MenuItem value="all">{t('notificationAlways')}</MenuItem>
                   </Select>
                 </FormControl>
-                <FormControl>
+                <FormControl
+                  sx={roundedFieldSx}
+                >
                   <InputLabel>{t('mapDirection')}</InputLabel>
                   <Select
                     label={t('mapDirection')}
@@ -303,8 +328,11 @@ const PreferencesPage = () => {
                 setTokenExpiration(e.target.value);
                 setToken(null);
               }}
+              sx={roundedFieldSx}
             />
-            <FormControl>
+            <FormControl
+              sx={roundedFieldSx}
+            >
               <OutlinedInput
                 multiline
                 rows={6}
@@ -340,16 +368,20 @@ const PreferencesPage = () => {
                   value={versionApp}
                   label={t('settingsAppVersion')}
                   disabled
+                  sx={roundedFieldSx}
                 />
                 <TextField
                   value={versionServer || '-'}
                   label={t('settingsServerVersion')}
                   disabled
+                  sx={roundedFieldSx}
                 />
                 <TextField
                   value={socket ? t('deviceStatusOnline') : t('deviceStatusOffline')}
                   label={t('settingsConnection')}
                   disabled
+                  sx={roundedFieldSx}
+
                 />
                 <Button
                   variant="outlined"

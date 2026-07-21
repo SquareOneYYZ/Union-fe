@@ -28,8 +28,7 @@ import MapGeofence from '../map/MapGeofence';
 import StatusCard from '../common/components/StatusCard';
 import { formatNotificationTitle, formatTime } from '../common/util/formatter';
 import MapScale from '../map/MapScale';
-import MapRoutePath from '../map/MapRoutePath';
-import MapMarkers from '../map/MapMarkers';
+import ReplayControl from '../reports/components/ReplayControl';
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -105,35 +104,6 @@ const EventPage = () => {
   const [eventPosition, setEventPosition] = useState(null);
   const [device, setDevice] = useState(null);
   const timerRef = useRef();
-  const createMarkers = () => {
-    const markers = [];
-
-    if (replayPositions.length > 0) {
-      markers.push({
-        latitude: replayPositions[0].latitude,
-        longitude: replayPositions[0].longitude,
-        image: 'start-success',
-      });
-    }
-
-    if (replayPositions.length > 1) {
-      markers.push({
-        latitude: replayPositions[replayPositions.length - 1].latitude,
-        longitude: replayPositions[replayPositions.length - 1].longitude,
-        image: 'finish-error',
-      });
-    }
-
-    if (eventPosition) {
-      markers.push({
-        latitude: eventPosition.latitude,
-        longitude: eventPosition.longitude,
-        image: 'event-error',
-      });
-    }
-
-    return markers;
-  };
 
   const formatType = (event) => formatNotificationTitle(t, {
     type: event.type,
@@ -191,9 +161,12 @@ const EventPage = () => {
 
   useEffectAsync(async () => {
     if (event && event.deviceId) {
-      const response = await fetch(`/api/devices/${event.deviceId}`);
+      const response = await fetch(`/api/devices?id=${event.deviceId}`);
       if (response.ok) {
-        setDevice(await response.json());
+        const devices = await response.json();
+        if (devices.length > 0) {
+          setDevice(devices[0]);
+        }
       }
     }
   }, [event]);
@@ -265,133 +238,15 @@ const EventPage = () => {
 
   if (replayMode) {
     return (
-      <div style={{ height: '100%' }}>
-        <MapView>
-          <MapGeofence />
-          <MapRoutePath positions={replayPositions} />
-          {eventPosition && (
-            <MapPositions
-              positions={[eventPosition]}
-              onClick={onMarkerClick}
-              customIcon="event-error"
-              titleField="tollName"
-            />
-          )}
-          {replayIndex < replayPositions.length && (
-            <MapPositions
-              positions={[replayPositions[replayIndex]]}
-              onClick={onMarkerClick}
-            />
-          )}
-          <MapMarkers markers={createMarkers()} />
-        </MapView>
-        <MapScale />
-        <MapCamera positions={replayPositions} />
-
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            position: 'fixed',
-            zIndex: 3,
-            left: 0,
-            top: 0,
-            margin: 12,
-            width: 400,
-          }}
-        >
-          <Paper elevation={3} square>
-            <Toolbar>
-              <Typography variant="h6" style={{ flexGrow: 1 }}>
-                {t('reportReplay')}
-                {' '}
-                -
-                {device ? device.name : ''}
-              </Typography>
-              <IconButton edge="end" onClick={handleReplayStop}>
-                <CloseIcon />
-              </IconButton>
-            </Toolbar>
-          </Paper>
-          <Paper
-            className={classes.content}
-            style={{ display: 'flex', flexDirection: 'column', padding: 16 }}
-            square
-          >
-            <Typography variant="h6" style={{ flexGrow: 1 }} align="center">
-              {formatType(event)}
-            </Typography>
-
-            <Slider
-              style={{ width: '100%', margin: '16px 0' }}
-              min={0}
-              max={replayPositions.length - 1}
-              step={null}
-              marks={replayPositions.map((_, index) => ({ value: index }))}
-              value={replayIndex}
-              onChange={(_, newValue) => setReplayIndex(newValue)}
-            />
-
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginTop: -15,
-              }}
-            >
-              <Typography variant="caption">-1hr</Typography>
-              <Typography variant="caption">+1hr</Typography>
-            </div>
-
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-              }}
-            >
-              <span>{`${replayIndex + 1}/${replayPositions.length}`}</span>
-              <IconButton
-                onClick={() => setReplayIndex((i) => i - 1)}
-                disabled={replayPlaying || replayIndex <= 0}
-              >
-                <FastRewindIcon />
-              </IconButton>
-
-              <IconButton
-                onClick={() => setReplayPlaying(!replayPlaying)}
-                disabled={replayIndex >= replayPositions.length - 1}
-              >
-                {replayPlaying ? <PauseIcon /> : <PlayArrowIcon />}
-              </IconButton>
-
-              <IconButton
-                onClick={() => setReplayIndex((i) => i + 1)}
-                disabled={
-                  replayPlaying || replayIndex >= replayPositions.length - 1
-                }
-              >
-                <FastForwardIcon />
-              </IconButton>
-              <span>
-                {replayIndex < replayPositions.length
-                  ? formatTime(replayPositions[replayIndex].fixTime, 'seconds')
-                  : ''}
-              </span>
-            </div>
-          </Paper>
-        </div>
-
-        {showCard && replayIndex < replayPositions.length && (
-          <StatusCard
-            deviceId={event.deviceId}
-            position={replayPositions[replayIndex]}
-            onClose={() => setShowCard(false)}
-            disableActions
-          />
-        )}
-      </div>
+      <ReplayControl
+        replayPositions={replayPositions}
+        deviceName={device ? device.name : ''}
+        selectedItem={{ deviceId: event.deviceId, type: event.type }}
+        eventPosition={eventPosition}
+        onClose={handleReplayStop}
+        showEventType
+        initialSpeed={1}
+      />
     );
   }
 
@@ -407,7 +262,10 @@ const EventPage = () => {
           >
             <ArrowBackIcon />
           </IconButton>
-          <Typography variant="h6">{event && formatType(event)}</Typography>
+          <Typography variant="h6">
+            {event && formatType(event)}
+            {device && ` - ${device.name}`}
+          </Typography>
           {event && (
             <Tooltip title="Start replay">
               <IconButton onClick={handleReplayStart}>
@@ -425,6 +283,7 @@ const EventPage = () => {
               positions={[position]}
               onClick={onMarkerClick}
               titleField="fixTime"
+              customIcon="event-error"
             />
           )}
         </MapView>
