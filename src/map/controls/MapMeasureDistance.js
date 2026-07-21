@@ -3,6 +3,7 @@ import { map } from '../core/MapView';
 import { distanceFromMeters, distanceUnitString } from '../../common/util/converter';
 import { useAttributePreference } from '../../common/util/preferences';
 import { useTranslation } from '../../common/components/LocalizationProvider';
+import measureControlRef from './MeasureControlRef';
 import { createCtrlButton, createCtrlContainer } from './util';
 import './mapControls.css';
 
@@ -42,25 +43,21 @@ const midpoint = (p1, p2) => [
 
 const addTriangleImage = () => {
   if (map.hasImage(TRIANGLE_IMAGE_ID)) return;
-
   const size = 24;
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
   const ctx = canvas.getContext('2d');
-
   ctx.beginPath();
   ctx.moveTo(size / 2, 2);
   ctx.lineTo(size - 2, size - 2);
   ctx.lineTo(2, size - 2);
   ctx.closePath();
-
   ctx.fillStyle = '#f57c00';
   ctx.fill();
   ctx.strokeStyle = '#ffffff';
   ctx.lineWidth = 2;
   ctx.stroke();
-
   const imageData = ctx.getImageData(0, 0, size, size);
   map.addImage(TRIANGLE_IMAGE_ID, { width: size, height: size, data: imageData.data });
 };
@@ -264,6 +261,14 @@ class MeasureControl {
     document.addEventListener('keydown', this.onKeyDown);
   }
 
+  startFromPoints(coordPairs) {
+    if (this.active) this.deactivate();
+    this.activate();
+    coordPairs.forEach((coord) => this.points.push(coord));
+    this.updateSource();
+    this.updateLabel();
+  }
+
   deactivate() {
     this.active = false;
     this.points = [];
@@ -288,7 +293,6 @@ class MeasureControl {
     if (map.getLayer(MEASURE_PREVIEW_LAYER)) map.removeLayer(MEASURE_PREVIEW_LAYER);
     if (map.getSource(MEASURE_SOURCE)) map.removeSource(MEASURE_SOURCE);
     if (map.getSource(MEASURE_PREVIEW_SOURCE)) map.removeSource(MEASURE_PREVIEW_SOURCE);
-
     if (map.hasImage(TRIANGLE_IMAGE_ID)) map.removeImage(TRIANGLE_IMAGE_ID);
   }
 
@@ -321,10 +325,7 @@ class MeasureControl {
     if (this.points.length === 1) {
       this.tooltip.innerHTML = `<span class="measure-tooltip-segment">${this.formatDist(segDist)}</span>`;
     } else {
-      this.tooltip.innerHTML = `
-        <span class="measure-tooltip-segment">${this.formatDist(segDist)}</span>
-        <span class="measure-tooltip-total">Total: ${this.formatDist(totalDist)}</span>
-      `;
+      this.tooltip.innerHTML = `<span class="measure-tooltip-segment">${this.formatDist(segDist)}</span><span class="measure-tooltip-total">Total: ${this.formatDist(totalDist)}</span>`;
     }
   }
 
@@ -407,7 +408,11 @@ const MapMeasureDistance = () => {
 
   useEffect(() => {
     map.addControl(control, 'top-right');
-    return () => map.removeControl(control);
+    measureControlRef.current = control;
+    return () => {
+      measureControlRef.current = null;
+      map.removeControl(control);
+    };
   }, [control]);
 
   return null;
