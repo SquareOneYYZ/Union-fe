@@ -11,6 +11,7 @@ import { sessionActions } from './store';
 import UpdateController from './UpdateController';
 import TermsDialog from './common/components/TermsDialog';
 import Loader from './common/components/Loader';
+import ChatAssistant from './common/components/ChatAssistant';
 
 const useStyles = makeStyles(() => ({
   page: {
@@ -80,6 +81,7 @@ const App = () => {
           <BottomMenu />
         </div>
       )}
+      <ChatAssistant />
     </>
   );
 };
