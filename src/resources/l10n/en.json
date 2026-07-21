@@ -375,6 +375,8 @@
 	"mapActive": "Active Maps",
 	"mapOverlay": "Map Overlay",
 	"mapOverlayCustom": "Custom Overlay",
+	"mapTollRoads": "Toll Roads",
+	"mapTraffic": "Traffic",
 	"mapOpenSeaMap": "OpenSeaMap",
 	"mapOpenRailwayMap": "OpenRailwayMap",
 	"mapOpenWeatherKey": "OpenWeather API Key",

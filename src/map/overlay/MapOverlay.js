@@ -12,7 +12,7 @@ const MapOverlay = () => {
   const activeOverlay = mapOverlays.filter((overlay) => overlay.available).find((overlay) => overlay.id === selectedMapOverlay);
 
   useEffect(() => {
-    if (activeOverlay) {
+    if (activeOverlay && !activeOverlay.isSpecial) {
       map.addSource(id, activeOverlay.source);
       map.addLayer({
         id,

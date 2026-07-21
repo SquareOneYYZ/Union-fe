@@ -107,5 +107,19 @@ export default () => {
       source: sourceCustom([customMapOverlay]),
       available: Boolean(customMapOverlay),
     },
+    {
+      id: 'tollRoads',
+      title: t('mapTollRoads'),
+      source: null,
+      available: true,
+      isSpecial: true,
+    },
+    {
+      id: 'traffic',
+      title: t('mapTraffic'),
+      source: null,
+      available: true,
+      isSpecial: true,
+    },
   ], [t, googleKey, openWeatherKey, tomTomKey, hereKey, customMapOverlay]);
 };

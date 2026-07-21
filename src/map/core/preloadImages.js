@@ -27,6 +27,7 @@ import tramSvg from '../../resources/images/icon/tram.svg';
 import truckSvg from '../../resources/images/icon/truck.svg';
 import vanSvg from '../../resources/images/icon/van.svg';
 import eventSvg from '../../resources/images/icon/event.svg';
+import flag1Svg from '../../resources/images/icon/flag1.svg';
 
 export const mapIcons = {
   animal: animalSvg,
@@ -52,6 +53,8 @@ export const mapIcons = {
   tram: tramSvg,
   truck: truckSvg,
   van: vanSvg,
+  toll: flag1Svg,
+  traffic: eventSvg,
   suv: vanSvg,
   panelvan: vanSvg,
   cubetruck: truckSvg,

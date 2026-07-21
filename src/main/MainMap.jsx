@@ -19,6 +19,10 @@ import MapGeocoder from '../map/geocoder/MapGeocoder';
 import MapScale from '../map/MapScale';
 import MapNotification from '../map/notification/MapNotification';
 import useFeatures from '../common/util/useFeatures';
+import MapTollLayer from '../map/MapTollLayer';
+import MapTrafficLayer from '../map/MapTrafficLayer';
+import MapTollControl from '../map/MapTollControl';
+import MapTrafficControl from '../map/MapTrafficControl';
 import MapFullScreen from '../map/controls/MapFullScreen';
 import MapZoomBar from '../map/controls/MapZoomBar';
 import MapMeasureDistance from '../map/controls/MapMeasureDistance';
@@ -32,7 +36,6 @@ const MainMap = ({ filteredPositions, selectedPosition, onEventsClick }) => {
   const desktop = useMediaQuery(theme.breakpoints.up('md'));
   const eventsAvailable = useSelector((state) => !!state.events.items.length);
   const features = useFeatures();
-
   const onMarkerClick = useCallback((_, deviceId) => {
     dispatch(devicesActions.selectId(deviceId));
   }, [dispatch]);
@@ -48,6 +51,8 @@ const MainMap = ({ filteredPositions, selectedPosition, onEventsClick }) => {
         <MapGeofence />
         <MapAccuracy positions={filteredPositions} />
         <MapLiveRoutes />
+        <MapTollLayer positions={filteredPositions} />
+        <MapTrafficLayer />
         <MapPositions
           positions={filteredPositions}
           onClick={onMarkerClick}
@@ -64,6 +69,8 @@ const MainMap = ({ filteredPositions, selectedPosition, onEventsClick }) => {
       <MapFullScreen />
       <MapCurrentLocation />
       <MapGeocoder />
+      <MapTollControl />
+      <MapTrafficControl />
       {!features.disableEvents && (
         <MapNotification enabled={eventsAvailable} onClick={onEventsClick} />
       )}
