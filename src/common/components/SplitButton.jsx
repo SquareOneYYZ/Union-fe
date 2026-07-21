@@ -5,18 +5,18 @@ import {
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 
 const SplitButton = ({
-  fullWidth, variant, color, disabled, onClick, options, selected, setSelected,
+  fullWidth, variant, color, disabled, onClick, options, selected, setSelected, sx,
 }) => {
   const anchorRef = useRef();
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
 
   return (
     <>
-      <ButtonGroup fullWidth={fullWidth} variant={variant} color={color} ref={anchorRef}>
-        <Button disabled={disabled} onClick={() => onClick(selected)}>
+      <ButtonGroup fullWidth={fullWidth} variant={variant} color={color} ref={anchorRef} sx={{ borderRadius: '13px', ...sx }}>
+        <Button disabled={disabled} onClick={() => onClick(selected)} sx={{ borderRadius: '13px 0 0 13px' }}>
           <Typography variant="button" noWrap>{options[selected]}</Typography>
         </Button>
-        <Button fullWidth={false} size="small" onClick={() => setMenuAnchorEl(anchorRef.current)}>
+        <Button fullWidth={false} size="small" onClick={() => setMenuAnchorEl(anchorRef.current)} sx={{ borderRadius: '13px 0 0 13px' }}>
           <ArrowDropDownIcon />
         </Button>
       </ButtonGroup>

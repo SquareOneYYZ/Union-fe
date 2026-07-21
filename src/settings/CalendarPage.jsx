@@ -76,6 +76,15 @@ const CalendarPage = () => {
 
   const rule = simple && parseRule(lines[7]);
 
+  const roundedFieldSx = {
+    '& .MuiOutlinedInput-root': {
+      borderRadius: '13px',
+      '& fieldset': { borderRadius: '13px', borderColor: 'rgba(255,255,255,0.23)' },
+      '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.5)' },
+      '&.Mui-focused fieldset': { borderColor: 'primary.main' },
+    },
+  };
+
   const handleFiles = (files) => {
     if (files.length > 0) {
       const reader = new FileReader();
@@ -122,13 +131,17 @@ const CalendarPage = () => {
                 value={item.name || ''}
                 onChange={(event) => setItem({ ...item, name: event.target.value })}
                 label={t('sharedName')}
+                sx={roundedFieldSx}
               />
-              <FormControl>
+              <FormControl
+                sx={roundedFieldSx}
+              >
                 <InputLabel>{t('sharedType')}</InputLabel>
                 <Select
                   label={t('sharedType')}
                   value={simple ? 'simple' : 'custom'}
                   onChange={(e) => setItem({ ...item, data: (e.target.value === 'simple' ? simpleCalendar() : null) })}
+                  sx={roundedFieldSx}
                 >
                   <MenuItem value="simple">{t('calendarSimple')}</MenuItem>
                   <MenuItem value="custom">{t('reportCustom')}</MenuItem>
@@ -139,6 +152,7 @@ const CalendarPage = () => {
                   <TextField
                     label={t('reportFrom')}
                     type="datetime-local"
+                    sx={roundedFieldSx}
                     value={dayjs(lines[5].slice(-15)).locale('en').format('YYYY-MM-DDTHH:mm')}
                     onChange={(e) => {
                       const time = formatCalendarTime(dayjs(e.target.value, 'YYYY-MM-DDTHH:mm'));
@@ -153,8 +167,11 @@ const CalendarPage = () => {
                       const time = formatCalendarTime(dayjs(e.target.value, 'YYYY-MM-DDTHH:mm'));
                       setItem({ ...item, data: updateCalendar(lines, 6, `DTEND;${time}`) });
                     }}
+                    sx={roundedFieldSx}
                   />
-                  <FormControl>
+                  <FormControl
+                    sx={roundedFieldSx}
+                  >
                     <InputLabel>{t('calendarRecurrence')}</InputLabel>
                     <Select
                       label={t('calendarRecurrence')}
