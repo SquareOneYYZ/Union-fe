@@ -443,6 +443,15 @@ const DevicesPage = () => {
     return `${diffInYears} year${diffInYears > 1 ? 's' : ''} ago`;
   };
 
+  const roundedFieldSx = {
+    '& .MuiOutlinedInput-root': {
+      borderRadius: '13px',
+      '& fieldset': { borderRadius: '13px', borderColor: 'rgba(255,255,255,0.23)' },
+      '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.5)' },
+      '&.Mui-focused fieldset': { borderColor: 'primary.main' },
+    },
+  };
+
   return (
     <PageLayout
       menu={<SettingsMenu />}
@@ -472,6 +481,7 @@ const DevicesPage = () => {
                 }}
                 variant="outlined"
                 size="small"
+                sx={roundedFieldSx}
               />
             </Grid>
             <Grid item xs={12} md={6}>
@@ -500,12 +510,13 @@ const DevicesPage = () => {
           {/* Column Filters */}
           <Grid container spacing={2}>
             <Grid item xs={12} sm={6} md={2}>
-              <FormControl fullWidth size="small">
+              <FormControl fullWidth size="small" sx={roundedFieldSx}>
                 <InputLabel>Group</InputLabel>
                 <Select
                   value={filters.group}
                   onChange={(e) => handleFilterChange('group', e.target.value)}
                   label="Group"
+
                 >
                   <MenuItem value="">All Groups</MenuItem>
                   {Object.entries(groups || {}).map(([id, group]) => (
@@ -542,11 +553,12 @@ const DevicesPage = () => {
                 label="Model"
                 value={filters.model}
                 onChange={(e) => handleFilterChange('model', e.target.value)}
+                sx={roundedFieldSx}
               />
             </Grid>
 
             <Grid item xs={12} sm={6} md={2}>
-              <FormControl fullWidth size="small">
+              <FormControl fullWidth size="small" sx={roundedFieldSx}>
                 <InputLabel>Status</InputLabel>
                 <Select
                   value={filters.status}
@@ -568,6 +580,7 @@ const DevicesPage = () => {
                 label="Name"
                 value={filters.name}
                 onChange={(e) => handleFilterChange('name', e.target.value)}
+                sx={roundedFieldSx}
               />
             </Grid>
 
@@ -578,6 +591,7 @@ const DevicesPage = () => {
                 label="Identifier"
                 value={filters.identifier}
                 onChange={(e) => handleFilterChange('identifier', e.target.value)}
+                sx={roundedFieldSx}
               />
             </Grid>
 
@@ -588,6 +602,7 @@ const DevicesPage = () => {
                 label="VIN"
                 value={filters.vin}
                 onChange={(e) => handleFilterChange('vin', e.target.value)}
+                sx={roundedFieldSx}
               />
             </Grid>
           </Grid>

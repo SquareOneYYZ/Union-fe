@@ -23,13 +23,26 @@ import useSettingsStyles from './common/useSettingsStyles';
 const NotificationPage = () => {
   const classes = useSettingsStyles();
   const t = useTranslation();
-
   const [item, setItem] = useState();
 
   const alarms = useTranslationKeys((it) => it.startsWith('alarm')).map((it) => ({
     key: unprefixString('alarm', it),
     name: t(it),
   }));
+
+  const zoneTypes = [
+    { key: 'geofence', name: 'Geofence' },
+    { key: 'city', name: 'City' },
+    { key: 'state', name: 'State' },
+    { key: 'country', name: 'Country' },
+  ];
+
+  const violationTypes = [
+    { key: 'enter', name: 'Enter' },
+    { key: 'exit', name: 'Exit' },
+  ];
+
+  const excludedTypes = ['geofenceEnter', 'geofenceExit', 'deviceRegionCountryEnter', 'deviceRegionCountryExit', 'deviceRegionStateEnter', 'deviceRegionStateExit', 'deviceRegionCityEnter', 'deviceRegionCityExit'];
 
   const testNotificators = useCatch(async () => {
     await Promise.all(item.notificators.split(/[, ]+/).map(async (notificator) => {
@@ -45,6 +58,21 @@ const NotificationPage = () => {
   });
 
   const validate = () => item && item.type && item.notificators && (!item.notificators?.includes('command') || item.commandId);
+
+  const getFirstValue = (value) => {
+    if (!value) return '';
+    const values = value.split(/[, ]+/);
+    return values[0] || '';
+  };
+
+  const roundedFieldSx = {
+    '& .MuiOutlinedInput-root': {
+      borderRadius: '13px',
+      '& fieldset': { borderRadius: '13px', borderColor: 'rgba(255,255,255,0.23)' },
+      '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.5)' },
+      '&.Mui-focused fieldset': { borderColor: 'primary.main' },
+    },
+  };
 
   return (
     <EditItemView
@@ -71,6 +99,7 @@ const NotificationPage = () => {
                 keyGetter={(it) => it.type}
                 titleGetter={(it) => t(prefixString('event', it.type))}
                 label={t('sharedType')}
+                filter={(types) => types.filter((type) => !excludedTypes.includes(type.type))}
               />
               {item.type === 'alarm' && (
                 <SelectField
@@ -80,6 +109,29 @@ const NotificationPage = () => {
                   data={alarms}
                   keyGetter={(it) => it.key}
                   label={t('sharedAlarms')}
+                />
+              )}
+              {item.type === 'zoneViolation' && (
+                <SelectField
+                  value={getFirstValue(item.attributes?.zoneTypes || '')}
+                  onChange={(e) => setItem({
+                    ...item,
+                    attributes: { ...item.attributes, zoneTypes: e.target.value },
+                  })}
+                  data={zoneTypes}
+                  keyGetter={(it) => it.key}
+                  titleGetter={(it) => it.name}
+                  label={t('alarmZoneType')}
+                />
+              )}
+              {item.type === 'zoneViolation' && (
+                <SelectField
+                  value={getFirstValue(item.attributes?.violationTypes || '')}
+                  onChange={(e) => setItem({ ...item, attributes: { ...item.attributes, violationTypes: e.target.value } })}
+                  data={violationTypes}
+                  keyGetter={(it) => it.key}
+                  titleGetter={(it) => it.name}
+                  label={t('alarmViolationType')}
                 />
               )}
               <SelectField
@@ -115,7 +167,7 @@ const NotificationPage = () => {
                       checked={item.always}
                       onChange={(e) => setItem({ ...item, always: e.target.checked })}
                     />
-                    )}
+                  )}
                   label={t('notificationAlways')}
                 />
               </FormGroup>
@@ -132,6 +184,7 @@ const NotificationPage = () => {
                 value={item.description || ''}
                 onChange={(e) => setItem({ ...item, description: e.target.value })}
                 label={t('sharedDescription')}
+                sx={roundedFieldSx}
               />
               <SelectField
                 value={item.calendarId}
