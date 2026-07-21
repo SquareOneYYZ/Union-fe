@@ -48,6 +48,11 @@ const NotificationsPage = () => {
     return '';
   };
 
+  const capitalize = (value) => (value ? value.charAt(0).toUpperCase() + value.slice(1) : null);
+
+  const formatZoneDescription = (item) => {
+    const zone = item.type === 'geofence' ? 'Geofence' : capitalize(item.attributes?.zoneTypes);
+    const violation = capitalize(item.attributes?.violationTypes);
   const getNotificationType = (item) => {
     if (item.type !== 'zoneViolation' && item.type !== 'geofence') {
       return t(prefixString('event', item.type));
