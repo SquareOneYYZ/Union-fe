@@ -122,19 +122,16 @@ const VinsPage = () => {
     setPage(1);
   };
 
-  // Live client-side filtering on fetched results by VIN and IMEI
   const filteredItems = useMemo(() => items.filter((item) => {
     const vinMatch = !vinFilter || (item.vin || '').toLowerCase().includes(vinFilter.toLowerCase());
     const imeiMatch = !imeiFilter || (item.imei || '').includes(imeiFilter);
     return vinMatch && imeiMatch;
   }), [items, vinFilter, imeiFilter]);
 
-  // Pagination on filtered results
   const totalPages = Math.ceil(filteredItems.length / pageSize);
   const startIndex = (page - 1) * pageSize;
   const paginatedItems = filteredItems.slice(startIndex, startIndex + pageSize);
 
-  // Display helpers
   const getUserName = (userId) => {
     const user = users.find((u) => u.id === userId);
     return user ? (user.name || user.email || `User ${userId}`) : (userId || '-');
@@ -150,6 +147,54 @@ const VinsPage = () => {
     return group ? group.name : (groupId || '-');
   };
 
+  let tableContent;
+
+  if (loading) {
+    tableContent = <TableShimmer columns={6} endAction />;
+  } else if (error) {
+    tableContent = (
+      <TableRow>
+        <TableCell colSpan={6} align="center" sx={{ color: 'error.main', py: 4 }}>
+          {error}
+        </TableCell>
+      </TableRow>
+    );
+  } else if (!hasSearched) {
+    tableContent = (
+      <TableRow>
+        <TableCell colSpan={6} align="center" sx={{ color: 'text.secondary', py: 4 }}>
+          Select filters above and click Show to load results.
+        </TableCell>
+      </TableRow>
+    );
+  } else if (filteredItems.length === 0) {
+    tableContent = (
+      <TableRow>
+        <TableCell colSpan={6} align="center" sx={{ color: 'text.secondary', py: 4 }}>
+          No VIN/IMEI mappings found.
+        </TableCell>
+      </TableRow>
+    );
+  } else {
+    tableContent = paginatedItems.map((item) => (
+      <TableRow key={item.id}>
+        <TableCell>{item.vin || '-'}</TableCell>
+        <TableCell>{item.imei || '-'}</TableCell>
+        <TableCell>{getUserName(item.userId)}</TableCell>
+        <TableCell>{getOrgName(item.organizationId)}</TableCell>
+        <TableCell>{getGroupName(item.groupId)}</TableCell>
+        <TableCell className={classes.columnAction} padding="none">
+          <CollectionActions
+            itemId={item.id}
+            editPath="/vin"
+            endpoint="vinmappings"
+            setTimestamp={handleShow}
+          />
+        </TableCell>
+      </TableRow>
+    ));
+  }
+
   return (
     <PageLayout
       menu={<SettingsMenu />}
@@ -157,7 +202,6 @@ const VinsPage = () => {
     >
       <Box sx={{ p: 2, backgroundColor: 'background.paper', mb: 2, borderRadius: 1 }}>
 
-        {/* Row 1: VIN and IMEI live filters */}
         <Grid container spacing={2} sx={{ mb: 2 }}>
           <Grid item xs={12} sm={6}>
             <TextField
@@ -263,45 +307,7 @@ const VinsPage = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {loading ? (
-              <TableShimmer columns={6} endAction />
-            ) : error ? (
-              <TableRow>
-                <TableCell colSpan={6} align="center" sx={{ color: 'error.main', py: 4 }}>
-                  {error}
-                </TableCell>
-              </TableRow>
-            ) : !hasSearched ? (
-              <TableRow>
-                <TableCell colSpan={6} align="center" sx={{ color: 'text.secondary', py: 4 }}>
-                  Select filters above and click Show to load results.
-                </TableCell>
-              </TableRow>
-            ) : filteredItems.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} align="center" sx={{ color: 'text.secondary', py: 4 }}>
-                  No VIN/IMEI mappings found.
-                </TableCell>
-              </TableRow>
-            ) : (
-              paginatedItems.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell>{item.vin || '-'}</TableCell>
-                  <TableCell>{item.imei || '-'}</TableCell>
-                  <TableCell>{getUserName(item.userId)}</TableCell>
-                  <TableCell>{getOrgName(item.organizationId)}</TableCell>
-                  <TableCell>{getGroupName(item.groupId)}</TableCell>
-                  <TableCell className={classes.columnAction} padding="none">
-                    <CollectionActions
-                      itemId={item.id}
-                      editPath="/vin"
-                      endpoint="vinmappings"
-                      setTimestamp={handleShow}
-                    />
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
+            {tableContent}
           </TableBody>
         </Table>
       </Box>
