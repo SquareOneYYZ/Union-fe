@@ -1,7 +1,7 @@
 import {
   useId, useCallback, useEffect, useRef,
 } from 'react';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { useMediaQuery } from '@mui/material';
 import { useTheme } from '@mui/styles';
 import { map } from './core/MapView';
@@ -10,16 +10,25 @@ import { mapIconKey } from './core/preloadImages';
 import { useAttributePreference } from '../common/util/preferences';
 import { useCatchCallback } from '../reactHelper';
 import { findFonts } from './core/mapUtil';
+import { lerp, easeInOutCubic, interpolateRotation } from '../common/util/useAnimation';
+import { clustersActions } from '../store/cluster';
+
+// Coarser than this scale (~5 km across a typical viewport) the popup covers
+// too large an area to be meaningful, so cluster clicks zoom in instead.
+export const CLUSTER_POPUP_MAX_METERS_PER_PIXEL = 50;
+
+const CLUSTER_MAX_ZOOM = 14;
 
 const TELEPORT_THRESHOLD_SQ = 0.0045 * 0.0045;
 const STALE_GAP_MS = 10000;
 const MIN_CHANGE_DEG = 0.000005;
 
-const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleField }) => {
+const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleField, customCategory, cluster }) => {
   const id = useId();
   const clusters = `${id}-clusters`;
   const selected = `${id}-selected`;
 
+  const dispatch = useDispatch();
   const theme = useTheme();
   const desktop = useMediaQuery(theme.breakpoints.up('md'));
   const iconScale = useAttributePreference('iconScale', desktop ? 0.75 : 1);
@@ -27,7 +36,8 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
   const devices = useSelector((state) => state.devices.items);
   const selectedDeviceId = useSelector((state) => state.devices.selectedId);
 
-  const mapCluster = useAttributePreference('mapCluster', true);
+  const mapClusterPref = useAttributePreference('mapCluster', true);
+  const mapCluster = cluster === undefined ? mapClusterPref : cluster;
   const directionType = useAttributePreference('mapDirection', 'selected');
   const baseAnimationDuration = useAttributePreference('mapAnimationDuration', 2500);
   const enableSmoothing = useAttributePreference('mapEnableSmoothing', true);
@@ -55,6 +65,22 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
 
   const createFeature = useCallback((devs, position, selectedPositionId) => {
     const device = devs[position.deviceId];
+    if (position.iconKey) {
+      // Synthetic replay positions carry a prebuilt icon key ("category-replayN")
+      // and a fixed per-device color instead of live status styling.
+      const [cat, ...rest] = position.iconKey.split('-');
+      return {
+        id: position.id,
+        deviceId: position.deviceId,
+        name: device?.name ?? position.name ?? '',
+        fixTime: formatTime(position.fixTime, 'seconds'),
+        category: cat,
+        color: rest.join('-'),
+        rotation: position.course,
+        direction: false,
+        isCurrent: position.isCurrent ? 1 : 0,
+      };
+    }
     let showDirection;
     switch (directionType) {
       case 'none': showDirection = false; break;
@@ -64,28 +90,14 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
     return {
       id: position.id,
       deviceId: position.deviceId,
-      name: device.name,
+      name: device?.name ?? '',
       fixTime: formatTime(position.fixTime, 'seconds'),
-      category: mapIconKey(device.category),
-      color: showStatus ? position.attributes.color || getStatusColor(device.status) : 'neutral',
+      category: customCategory || mapIconKey(device?.category),
+      color: showStatus ? position.attributes?.color || getStatusColor(device?.status) : 'neutral',
       rotation: position.course,
       direction: showDirection,
     };
-  }, [directionType, showStatus]);
-
-  const lerp = (a, b, t) => a + (b - a) * t;
-
-  const easeInOutCubic = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
-
-  const interpolateRotation = (start, end, p) => {
-    let diff = end - start;
-    if (diff > 180) diff -= 360;
-    if (diff < -180) diff += 360;
-    let r = start + diff * p;
-    if (r < 0) r += 360;
-    if (r >= 360) r -= 360;
-    return r;
-  };
+  }, [directionType, showStatus, customCategory]);
 
   const calculateAnimationDuration = useCallback((deviceId, now) => {
     if (!useAdaptiveTiming) return baseAnimationDuration;
@@ -219,13 +231,12 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
       newTargetAdded = true;
     });
 
-    const activeIds = new Set(newPositions.map((p) => p.deviceId));
+    const activeIds = new Set(newPositions.map((p) => String(p.deviceId)));
     Object.keys(state).forEach((key) => {
-      const deviceId = Number(key);
-      if (!activeIds.has(deviceId)) {
-        delete state[deviceId];
-        delete lastUpdateTimeRef.current[deviceId];
-        delete lastCoordRef.current[deviceId];
+      if (!activeIds.has(key)) {
+        delete state[key];
+        delete lastUpdateTimeRef.current[key];
+        delete lastCoordRef.current[key];
       }
     });
 
@@ -250,18 +261,43 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
 
   const onClusterClick = useCatchCallback(async (event) => {
     event.preventDefault();
-    const features = map.queryRenderedFeatures(event.point, { layers: [clusters] });
-    const clusterId = features[0].properties.cluster_id;
+    const features = map.queryRenderedFeatures(event.point, {
+      layers: [clusters],
+    });
+
+    const clusterFeature = features[0];
+    const clusterId = clusterFeature.properties.cluster_id;
+    const clusterCoords = clusterFeature.geometry.coordinates;
+    const pointCount = clusterFeature.properties.point_count;
+
+    const metersPerPixel = (156543.03392 * Math.cos((clusterCoords[1] * Math.PI) / 180)) / (2 ** map.getZoom());
+
     const zoom = await map.getSource(id).getClusterExpansionZoom(clusterId);
-    map.easeTo({ center: features[0].geometry.coordinates, zoom });
-  }, [clusters]);
+
+    // Co-located devices never separate: past clusterMaxZoom the cluster only
+    // breaks into overlapping markers, so the popup is the only useful action.
+    const expandableByZooming = zoom <= CLUSTER_MAX_ZOOM;
+
+    if (expandableByZooming && (metersPerPixel > CLUSTER_POPUP_MAX_METERS_PER_PIXEL || pointCount < 10)) {
+      map.easeTo({ center: clusterCoords, zoom });
+      return;
+    }
+
+    const leaves = await map.getSource(id).getClusterLeaves(clusterId, Infinity, 0);
+    const clusterDevices = leaves.map((f) => devices[f.properties.deviceId]).filter(Boolean);
+
+    dispatch(clustersActions.showClusterPopup({
+      devices: clusterDevices,
+      coordinates: clusterCoords,
+    }));
+  }, [clusters, devices]);
 
   useEffect(() => {
     map.addSource(id, {
       type: 'geojson',
       data: { type: 'FeatureCollection', features: [] },
       cluster: mapCluster,
-      clusterMaxZoom: 14,
+      clusterMaxZoom: CLUSTER_MAX_ZOOM,
       clusterRadius: 50,
     });
     map.addSource(selected, {
@@ -270,6 +306,8 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
     });
 
     [id, selected].forEach((source) => {
+      const isSelectedLayer = source === selected;
+
       map.addLayer({
         id: source,
         type: 'symbol',
@@ -277,7 +315,12 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
         filter: ['!has', 'point_count'],
         layout: {
           'icon-image': '{category}-{color}',
-          'icon-size': iconScale,
+          'icon-size': [
+            'case',
+            ['==', ['get', 'isCurrent'], 1],
+            iconScale * 1.45,
+            isSelectedLayer ? iconScale * 1.3 : iconScale,
+          ],
           'icon-allow-overlap': true,
           'text-field': `{${titleField || 'name'}}`,
           'text-allow-overlap': true,
@@ -286,8 +329,13 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
           'text-font': findFonts(map),
           'text-size': 12,
         },
-        paint: { 'text-halo-color': 'white', 'text-halo-width': 1 },
+        paint: {
+          'text-halo-color': 'white',
+          'text-halo-width': 1,
+          'icon-opacity': 1,
+        },
       });
+
       map.addLayer({
         id: `direction-${source}`,
         type: 'symbol',
@@ -295,7 +343,7 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
         filter: ['all', ['!has', 'point_count'], ['==', 'direction', true]],
         layout: {
           'icon-image': 'direction',
-          'icon-size': iconScale,
+          'icon-size': isSelectedLayer ? iconScale * 1.3 : iconScale,
           'icon-allow-overlap': true,
           'icon-rotate': ['get', 'rotation'],
           'icon-rotation-alignment': 'map',
@@ -314,6 +362,10 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
       layout: {
         'icon-image': 'background',
         'icon-size': iconScale,
+        // without allow-overlap, dense areas collision-cull the cluster icon
+        // (large clusters render as bare text and become un-clickable)
+        'icon-allow-overlap': true,
+        'text-allow-overlap': true,
         'text-field': '{point_count_abbreviated}',
         'text-font': findFonts(map),
         'text-size': 14,
@@ -347,8 +399,31 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
   useEffect(() => {
     const filtered = positions.filter((p) => Object.prototype.hasOwnProperty.call(devices, p.deviceId));
     updateAnimationState(filtered);
-    if (!enableSmoothing) updateMapData();
+    // Always push current state to the map sources. The animation loop only
+    // runs for devices that moved, so with smoothing enabled the initial
+    // positions would otherwise never reach the sources and no markers or
+    // clusters would render until something else called updateMapData.
+    updateMapData();
   }, [positions, devices, enableSmoothing, updateAnimationState, updateMapData]);
+
+  useEffect(() => {
+    const faded = selectedPosition ? 0.5 : 1;
+    if (map.getLayer(id)) {
+      map.setPaintProperty(id, 'icon-opacity', faded);
+      map.setPaintProperty(`direction-${id}`, 'icon-opacity', faded);
+    }
+    if (map.getLayer(clusters)) {
+      map.setPaintProperty(clusters, 'icon-opacity', faded);
+    }
+  }, [selectedPosition?.deviceId]);
+
+  useEffect(() => {
+    if (map.getLayer(id)) map.moveLayer(id);
+    if (map.getLayer(`direction-${id}`)) map.moveLayer(`direction-${id}`);
+    if (map.getLayer(selected)) map.moveLayer(selected);
+    if (map.getLayer(`direction-${selected}`)) map.moveLayer(`direction-${selected}`);
+    if (map.getLayer(clusters)) map.moveLayer(clusters);
+  }, [positions]);
 
   return null;
 };

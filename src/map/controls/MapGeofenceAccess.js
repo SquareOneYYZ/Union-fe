@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { map } from '../core/MapView';
+import { createCtrlButton, createCtrlContainer } from './util';
 import './mapControls.css';
 
 class GeofenceAccessControl {
@@ -8,14 +9,13 @@ class GeofenceAccessControl {
   }
 
   onAdd() {
-    this.button = document.createElement('button');
-    this.button.className = 'maplibregl-ctrl-icon maplibre-ctrl-geofence';
-    this.button.type = 'button';
-    this.button.title = 'Geofence Tools';
-    this.button.onclick = () => this.onGeofenceClick && this.onGeofenceClick();
+    this.button = createCtrlButton(
+      'Geofence Tools',
+      'maplibregl-ctrl-icon maplibre-ctrl-geofence',
+      () => this.onGeofenceClick && this.onGeofenceClick(),
+    );
 
-    this.container = document.createElement('div');
-    this.container.className = 'maplibregl-ctrl-group maplibregl-ctrl';
+    this.container = createCtrlContainer();
     this.container.appendChild(this.button);
 
     return this.container;

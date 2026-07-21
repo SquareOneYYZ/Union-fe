@@ -41,6 +41,8 @@ import RegisterPage from './login/RegisterPage';
 import ResetPasswordPage from './login/ResetPasswordPage';
 import GeofencesPage from './other/GeofencesPage';
 import GeofencePage from './settings/GeofencePage';
+import VinPage from './settings/VinPage';
+import VinsPage from './settings/VinsPage';
 import useQuery from './common/util/useQuery';
 import { useEffectAsync } from './reactHelper';
 import { devicesActions } from './store';
@@ -63,6 +65,7 @@ import EmulatorPage from './other/EmulatorPage';
 import Loader from './common/components/Loader';
 import { generateLoginToken } from './common/components/NativeInterface';
 import { useLocalization } from './common/components/LocalizationProvider';
+import ViewOnMap from './reports/components/ViewOnMap';
 
 const Navigation = () => {
   const navigate = useNavigate();
@@ -80,13 +83,7 @@ const Navigation = () => {
     }
     if (query.get('token')) {
       const token = query.get('token');
-      await fetch('/api/session', {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
+      await fetch(`/api/session?token=${encodeURIComponent(token)}`);
       navigate(pathname, { replace: true });
     } else if (query.get('deviceId')) {
       const deviceId = query.get('deviceId');
@@ -132,6 +129,9 @@ const Navigation = () => {
         <Route path="replay" element={<ReplayPage />} />
         <Route path="geofences" element={<GeofencesPage />} />
         <Route path="emulator" element={<EmulatorPage />} />
+        <Route path="/settings/vins" element={<VinsPage />} />
+        <Route path="/vin" element={<VinPage />} />
+        <Route path="/vin/:id" element={<VinPage />} />
 
         <Route path="settings">
           <Route path="accumulators/:deviceId" element={<AccumulatorsPage />} />
@@ -201,6 +201,7 @@ const Navigation = () => {
           <Route path="scheduled" element={<ScheduledPage />} />
           <Route path="statistics" element={<StatisticsPage />} />
           <Route path="logs" element={<LogsPage />} />
+          <Route path="view-on-map" element={<ViewOnMap />} />
         </Route>
       </Route>
     </Routes>
