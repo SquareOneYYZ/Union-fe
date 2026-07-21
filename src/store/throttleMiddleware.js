@@ -17,39 +17,77 @@ export default () => (next) => {
   const tick = () => {
     if (throttled) {
       const start = performance.now();
+
       const flushed = buffer.splice(0, buffer.length);
 
       const deviceUpdates = {};
       const positionUpdates = {};
+      const eventUpdates = [];
 
       flushed.forEach((action) => {
         if (action.type === devicesActions.update.type) {
-          action.payload.forEach((item) => { deviceUpdates[item.id] = item; });
+          action.payload.forEach((item) => {
+            deviceUpdates[item.id] = item;
+          });
         } else if (action.type === sessionActions.updatePositions.type) {
-          action.payload.forEach((item) => { positionUpdates[item.deviceId] = item; });
+          action.payload.forEach((item) => {
+            positionUpdates[item.deviceId] = item;
+          });
+        } else if (action.type === eventsActions.add.type) {
+          eventUpdates.push(...action.payload);
         }
       });
 
       const mergedDeviceUpdates = Object.values(deviceUpdates);
       if (mergedDeviceUpdates.length) {
-        next({ type: devicesActions.update.type, payload: mergedDeviceUpdates });
+        next({
+          type: devicesActions.update.type,
+          payload: mergedDeviceUpdates,
+        });
       }
 
       const mergedPositionUpdates = Object.values(positionUpdates);
       if (mergedPositionUpdates.length) {
-        next({ type: sessionActions.updatePositions.type, payload: mergedPositionUpdates });
+        next({
+          type: sessionActions.updatePositions.type,
+          payload: mergedPositionUpdates,
+        });
+      }
+
+      if (eventUpdates.length) {
+        next({
+          type: eventsActions.add.type,
+          payload: eventUpdates,
+        });
       }
 
       const totalTime = performance.now() - start;
+      const flushedCount = mergedDeviceUpdates.length
+        + mergedPositionUpdates.length
+        + eventUpdates.length;
 
-      currentInterval = Math.min(Math.max((totalTime * scaleFactor), minInterval), maxInterval);
+      debugLog(
+        `Flushed ${flushedCount} / ${flushed.length} events in ${totalTime.toFixed(2)} ms`,
+      );
+
+      currentInterval = Math.min(
+        Math.max(totalTime * scaleFactor, minInterval),
+        maxInterval,
+      );
     }
 
-    const shouldThrottle = ((counter * 1000) / currentInterval) > threshold; if (throttled !== shouldThrottle) {
+    const shouldThrottle = ((counter * 1000) / currentInterval) > threshold;
+
+    if (throttled !== shouldThrottle) {
+      debugLog(`Throttling ${shouldThrottle}`);
       throttled = shouldThrottle;
     }
+
     counter = 0;
-    if (!throttled) currentInterval = minInterval;
+
+    if (!throttled) {
+      currentInterval = minInterval;
+    }
 
     setTimeout(tick, currentInterval);
   };
@@ -57,14 +95,30 @@ export default () => (next) => {
   setTimeout(tick, currentInterval);
 
   return (action) => {
-    if (action.type !== devicesActions.update.type && action.type !== sessionActions.updatePositions.type) {
+    const throttledTypes = [
+      devicesActions.update.type,
+      sessionActions.updatePositions.type,
+      eventsActions.add.type,
+    ];
+
+    if (!throttledTypes.includes(action.type)) {
       return next(action);
     }
+
     counter += 1;
+
     if (throttled) {
       buffer.push(action);
-      return null;
+      return undefined;
     }
+
+    if (((counter * 1000) / currentInterval) > threshold) {
+      if (!throttled) {
+        debugLog('Throttling started');
+      }
+      throttled = true;
+    }
+
     return next(action);
   };
 };
