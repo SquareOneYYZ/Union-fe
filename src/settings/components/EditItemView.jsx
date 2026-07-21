@@ -1,12 +1,15 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
 import {
-  Container, Button, Accordion, AccordionDetails, AccordionSummary, Skeleton, Typography, TextField,
+  Container, Button, Accordion, AccordionDetails, AccordionSummary,
+  Skeleton, Typography, TextField,
 } from '@mui/material';
 import { useCatch, useEffectAsync } from '../../reactHelper';
 import { useTranslation } from '../../common/components/LocalizationProvider';
 import PageLayout from '../../common/components/PageLayout';
 import useSettingsStyles from '../common/useSettingsStyles';
+import { enqueueSave } from '../../UpdateController';
 
 const EditItemView = ({
   children, endpoint, item, setItem, defaultItem, validate, onItemSaved, menu, breadcrumbs,
@@ -14,29 +17,32 @@ const EditItemView = ({
   const navigate = useNavigate();
   const classes = useSettingsStyles();
   const t = useTranslation();
-
   const { id } = useParams();
+  const dispatch = useDispatch();
+  const originalItemRef = useRef(null);
 
   useEffectAsync(async () => {
     if (!item) {
       if (id) {
         const response = await fetch(`/api/${endpoint}/${id}`);
         if (response.ok) {
-          setItem(await response.json());
+          const data = await response.json();
+          originalItemRef.current = data;
+          setItem(data);
         } else {
           throw Error(await response.text());
         }
       } else {
-        setItem(defaultItem || {});
+        const defaultData = defaultItem || {};
+        originalItemRef.current = defaultData;
+        setItem(defaultData);
       }
     }
   }, [id, item, defaultItem]);
 
-  const handleSave = useCatch(async () => {
+  const performSave = useCatch(async (itemToSave) => {
     let url = `/api/${endpoint}`;
-    if (id) {
-      url += `/${id}`;
-    }
+    if (id) url += `/${id}`;
 
     let savedItem = item;
     if (item.type === 'zoneViolation' && item.attributes?.zoneTypes === 'geofence') {
@@ -62,6 +68,24 @@ const EditItemView = ({
       throw Error(await response.text());
     }
   });
+
+  const handleSave = () => {
+    const snapshot = { ...item };
+    const url = `/api/${endpoint}${id ? `/${id}` : ''}`;
+    const method = id ? 'PUT' : 'POST';
+
+    enqueueSave(
+      dispatch,
+      t('sharedSaved'),
+      () => performSave(snapshot),
+      () => setItem({ ...originalItemRef.current }),
+      {
+        url,
+        method,
+        body: JSON.stringify(snapshot),
+      },
+    );
+  };
 
   return (
     <PageLayout menu={menu} breadcrumbs={breadcrumbs}>

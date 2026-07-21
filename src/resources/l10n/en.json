@@ -250,6 +250,7 @@
 	"deviceFuelTypePrimary": "Fuel Type",
 	"deviceBatteryType": "Battery Type",
 	"vinSuggestion": "From VIN",
+	"sharedUndo": "Undo",
 	"groupDialog": "Group",
 	"groupParent": "Group",
 	"groupNoGroup": "No Group",

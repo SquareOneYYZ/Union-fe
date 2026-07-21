@@ -10,6 +10,7 @@ import { driversReducer as drivers } from './drivers';
 import { maintenancesReducer as maintenances } from './maintenances';
 import { calendarsReducer as calendars } from './calendars';
 import { reportsReducer as reports } from './reports';
+import { pendingSaveReducer as pendingSave } from './pendingSaveSlice';
 import { mapInteractionsReducer as mapInteractions } from './mapInteractions';
 import { clustersReducer as clusters } from './cluster';
 import throttleMiddleware from './throttleMiddleware';
@@ -25,6 +26,7 @@ const reducer = combineReducers({
   maintenances,
   calendars,
   reports,
+  pendingSave,
   mapInteractions,
   clusters,
 });
@@ -39,6 +41,7 @@ export { driversActions } from './drivers';
 export { maintenancesActions } from './maintenances';
 export { calendarsActions } from './calendars';
 export { reportsActions } from './reports';
+export { pendingSaveActions } from './pendingSaveSlice';
 export { mapInteractionsActions } from './mapInteractions';
 export { clustersActions } from './cluster';
 
