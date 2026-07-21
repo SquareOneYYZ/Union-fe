@@ -1,8 +1,9 @@
 import React, {
   useState,
   useMemo,
+  useEffect,
 } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   FormControl,
   InputLabel,
@@ -24,7 +25,7 @@ import { visuallyHidden } from '@mui/utils';
 import GpsFixedIcon from '@mui/icons-material/GpsFixed';
 import LocationSearchingIcon from '@mui/icons-material/LocationSearching';
 import ReplayIcon from '@mui/icons-material/Replay';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import {
   formatSpeed,
   formatTime,
@@ -55,6 +56,7 @@ import ReplayControl from './components/ReplayControl';
 
 const columnsArray = [
   ['eventTime', 'positionFixTime'],
+  ['deviceId', 'sharedDevice'],
   ['type', 'sharedType'],
   ['geofenceId', 'sharedGeofence'],
   ['maintenanceId', 'sharedMaintenance'],
@@ -73,13 +75,11 @@ const EventReportPage = () => {
   const navigate = useNavigate();
   const classes = useReportStyles();
   const t = useTranslation();
-
+  const dispatch = useDispatch();
   const devices = useSelector((state) => state.devices.items);
   const geofences = useSelector((state) => state.geofences.items);
-
   const speedUnit = useAttributePreference('speedUnit');
   const distanceUnit = useAttributePreference('distanceUnit');
-
   const [allEventTypes, setAllEventTypes] = useState([
     ['allEvents', 'eventAll'],
   ]);
@@ -91,8 +91,9 @@ const EventReportPage = () => {
     }),
   );
 
-  const [columns, setColumns] = usePersistedState('eventColumns', [
+  const [columns, setColumns] = usePersistedState('eventColumns_v2', [
     'eventTime',
+    'deviceId',
     'type',
     'attributes',
     'speedLimit',
@@ -107,11 +108,11 @@ const EventReportPage = () => {
   const [replayPositions, setReplayPositions] = useState([]);
   const [replayLoading, setReplayLoading] = useState(false);
   const [eventPosition, setEventPosition] = useState(null);
-
   const [order, setOrder] = useState('desc');
   const [orderBy, setOrderBy] = useState('eventTime');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);
+  const [searchParams] = useSearchParams();
 
   const deviceName = useSelector((state) => {
     if (selectedItem?.deviceId) {
@@ -121,6 +122,37 @@ const EventReportPage = () => {
       }
     }
     return null;
+  });
+
+  const fetchEvents = useCatch(async (query) => {
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/reports/events?${query.toString()}`, {
+        headers: { Accept: 'application/json' },
+      });
+      if (response.ok) {
+        const data = await response.json();
+
+        const typesToExclude = [
+          'deviceOnline',
+          'deviceUnknown',
+          'commandResult',
+          'queuedCommandSent',
+        ];
+
+        const modifiedData = data.map((item) => ({
+          ...item,
+          speedLimit: item.attributes?.speedLimit || null,
+        }));
+        const filteredEvents = filterEvents(modifiedData, typesToExclude);
+        setItems(filteredEvents);
+        setPage(0);
+        return filteredEvents;
+      }
+      throw Error(await response.text());
+    } finally {
+      setLoading(false);
+    }
   });
 
   useEffectAsync(async () => {
@@ -162,6 +194,35 @@ const EventReportPage = () => {
       throw Error(await response.text());
     }
   }, []);
+
+  useEffect(() => {
+    const deviceId = searchParams.get('deviceId');
+    const from = searchParams.get('from');
+    const to = searchParams.get('to');
+
+    if (!deviceId || !from || !to) return;
+
+    const eventType = searchParams.get('eventType');
+
+    const query = new URLSearchParams({
+      deviceId,
+      from,
+      to,
+    });
+
+    if (eventType) {
+      query.append('type', eventType);
+      setEventTypes([eventType]);
+    }
+
+    fetchEvents(query).then((filtered) => {
+      const matched = filtered.find((i) => i.type === eventType) || filtered[0];
+
+      if (matched?.positionId) {
+        setSelectedItem(matched);
+      }
+    });
+  }, [searchParams]);
 
   const handleRequestSort = (property) => {
     const isAsc = orderBy === property && order === 'asc';
@@ -232,8 +293,12 @@ const EventReportPage = () => {
   const startRow = totalCount === 0 ? 0 : page * rowsPerPage + 1;
   const endRow = Math.min((page + 1) * rowsPerPage, totalCount);
 
-  const handleSubmit = useCatch(async ({ deviceId, from, to, type }) => {
-    const query = new URLSearchParams({ deviceId, from, to });
+  const handleSubmit = useCatch(async ({ deviceIds, from, to, type }) => {
+    if (deviceIds && deviceIds.length === 0) {
+      return;
+    }
+    const query = new URLSearchParams({ from, to });
+    (deviceIds ?? []).forEach((id) => query.append('deviceId', id));
     eventTypes.forEach((it) => query.append('type', it));
     if (eventTypes[0] !== 'allEvents' && eventTypes.includes('alarm')) {
       alarmTypes.forEach((it) => query.append('alarm', it));
@@ -248,37 +313,7 @@ const EventReportPage = () => {
         throw Error(await response.text());
       }
     } else {
-      setLoading(true);
-      try {
-        const response = await fetch(
-          `/api/reports/events?${query.toString()}`,
-          {
-            headers: { Accept: 'application/json' },
-          },
-        );
-        if (response.ok) {
-          const data = await response.json();
-
-          const typesToExclude = [
-            'deviceOnline',
-            'deviceUnknown',
-            'commandResult',
-            'queuedCommandSent',
-          ];
-
-          const modifiedData = data.map((item) => ({
-            ...item,
-            speedLimit: item.attributes?.speedLimit || null,
-          }));
-          const filteredEvents = filterEvents(modifiedData, typesToExclude);
-          setItems(filteredEvents);
-          setPage(0);
-        } else {
-          throw Error(await response.text());
-        }
-      } finally {
-        setLoading(false);
-      }
+      await fetchEvents(query);
     }
   });
 
@@ -348,10 +383,10 @@ const EventReportPage = () => {
     switch (key) {
       case 'eventTime':
         return formatTime(value, 'seconds');
-
+      case 'deviceId':
+        return devices[value]?.name || value;
       case 'type':
         return t(prefixString('event', value));
-
       case 'geofenceId': {
         if (value > 0) {
           const geofence = geofences[value];
@@ -410,7 +445,7 @@ const EventReportPage = () => {
         if (item.type === 'deviceTollRouteEnter') {
           let tollDetails = '';
           if ('tollName' in item.attributes) {
-            tollDetails += `Toll name: ${item.attributes.trollName} | `;
+            tollDetails += `Toll name: ${item.attributes.tollName} | `;
           }
           if ('tollRef' in item.attributes) {
             tollDetails += `Toll Reference: ${item.attributes.tollRef} | `;
@@ -440,7 +475,6 @@ const EventReportPage = () => {
   }
 
   const showAlarmSelect = eventTypes[0] !== 'allEvents' && eventTypes.includes('alarm');
-
   let tableBodyContent;
 
   if (loading) {
@@ -457,9 +491,8 @@ const EventReportPage = () => {
     );
   } else {
     tableBodyContent = sortedAndPaginatedData.map((item) => {
-      const isSelectedItem = selectedItem === item;
+      const isSelectedItem = selectedItem?.id === item.id;
       const hasPositionId = Boolean(item.positionId);
-
       let locationAction = null;
 
       if (hasPositionId) {
@@ -482,13 +515,13 @@ const EventReportPage = () => {
 
           <TableCell className={classes.columnAction} padding="none">
             {hasPositionId && (
-            <IconButton
-              size="small"
-              onClick={() => handleReplayStart(item)}
-              disabled={replayLoading}
-            >
-              <ReplayIcon fontSize="small" />
-            </IconButton>
+              <IconButton
+                size="small"
+                onClick={() => handleReplayStart(item)}
+                disabled={replayLoading}
+              >
+                <ReplayIcon fontSize="small" />
+              </IconButton>
             )}
           </TableCell>
 
@@ -529,6 +562,7 @@ const EventReportPage = () => {
               handleSubmit={handleSubmit}
               handleSchedule={handleSchedule}
               loading={loading}
+              multiDevice
             >
               <div className={classes.filterItem}>
                 <FormControl fullWidth>

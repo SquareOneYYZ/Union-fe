@@ -1,11 +1,13 @@
 import React, {
-  useState, useCallback, useEffect, useMemo,
+  useState, useCallback, useEffect, useMemo, useRef,
 } from 'react';
 import { Paper } from '@mui/material';
 import { makeStyles } from '@mui/styles';
 import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useDispatch, useSelector } from 'react-redux';
+import usePanicMonitor from '../common/util/usePanicMonitor';
+import PanicAlertOverlay from '../common/components/PanicAlertOverlay';
 import { map } from '../map/core/MapView';
 import DeviceList from './DeviceList';
 import BottomMenu from '../common/components/BottomMenu';
@@ -52,11 +54,13 @@ const MainPage = () => {
   const classes = useStyles();
   const dispatch = useDispatch();
   const theme = useTheme();
+  const { panicEvent, dismiss } = usePanicMonitor();
   const desktop = useMediaQuery(theme.breakpoints.up('md'));
   const mapOnSelect = useAttributePreference('mapOnSelect', true);
   const selectedDeviceId = useSelector((state) => state.devices.selectedId);
   const positions = useSelector((state) => state.session.positions);
   const [filteredPositions, setFilteredPositions] = useState([]);
+  const notificationButtonRef = useRef(null);
   const [filteredDevices, setFilteredDevices] = useState([]);
   const selectedPosition = filteredPositions.find(
     (position) => selectedDeviceId && position.deviceId === selectedDeviceId,
@@ -117,6 +121,8 @@ const MainPage = () => {
           filteredPositions={filteredPositions}
           selectedPosition={selectedPosition}
           onEventsClick={onEventsClick}
+          panic={!!panicEvent}
+          notificationButtonRef={notificationButtonRef}
         />
       )}
       <div className={classes.sidebar}>
@@ -144,6 +150,7 @@ const MainPage = () => {
                 filteredPositions={filteredPositions}
                 selectedPosition={selectedPosition}
                 onEventsClick={onEventsClick}
+                panic={!!panicEvent}
               />
             </div>
           )}
@@ -167,6 +174,12 @@ const MainPage = () => {
           desktopPadding={theme.dimensions.drawerWidthDesktop}
         />
       )}
+      <PanicAlertOverlay
+        panicEvent={panicEvent}
+        onDismiss={dismiss}
+        eventsOpen={eventsOpen}
+        notificationButtonRef={notificationButtonRef}
+      />
       <VinFAB />
       <ClusterPopup />
     </div>
