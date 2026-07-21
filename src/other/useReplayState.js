@@ -19,6 +19,69 @@ const fetchPositionsDirect = async (deviceId, from, to) => {
   return response.json();
 };
 
+const fetchPositionsChunked = async (deviceId, from, to) => {
+  const sessionResponse = await fetch('/api/replay/session', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ deviceId, from, to }),
+  });
+  if (!sessionResponse.ok) throw Error(await sessionResponse.text());
+  const session = await sessionResponse.json();
+  const sessionId = session.sessionId ?? session.id ?? session.session_id;
+  const totalCount = session.totalCount ?? session.total ?? session.count ?? session.size ?? 0;
+  if (!sessionId) throw Error('No sessionId in replay session response');
+  if (!totalCount) return [];
+
+  const positions = [];
+  for (let offset = 0; offset < totalCount; offset += CHUNK_SIZE) {
+    // eslint-disable-next-line no-await-in-loop
+    const response = await fetch(`/api/replay/session/${sessionId}/chunk?offset=${offset}&limit=${CHUNK_SIZE}`);
+    if (!response.ok) {
+      // eslint-disable-next-line no-await-in-loop
+      throw Error(await response.text());
+    }
+    // eslint-disable-next-line no-await-in-loop
+    const chunk = await response.json();
+    if (!chunk || !chunk.length) break;
+    positions.push(...chunk);
+  }
+  return positions;
+};
+
+const fetchAllPositions = async (deviceId, from, to) => {
+  if (isLongRange(from, to)) {
+    try {
+      return await fetchPositionsChunked(deviceId, from, to);
+    } catch (e) {
+      return fetchPositionsDirect(deviceId, from, to);
+    }
+  }
+  return fetchPositionsDirect(deviceId, from, to);
+};
+
+const GAP_MS = 30 * 60 * 1000;
+
+const buildSegments = (positions) => {
+  const segments = [];
+  let current = [];
+
+  positions.forEach((p, i) => {
+    if (i > 0) {
+      const prevMs = new Date(positions[i - 1].fixTime).getTime();
+      const curMs = new Date(p.fixTime).getTime();
+      if (curMs - prevMs > GAP_MS) {
+        if (current.length > 1) segments.push(current);
+        current = [];
+      }
+    }
+    current.push([p.longitude, p.latitude]);
+  });
+
+  if (current.length > 1) segments.push(current);
+  return segments;
+};
+
+
 const getSmoothPositionAtTime = (positions, currentTime) => {
   if (!positions || positions.length === 0) return null;
 
