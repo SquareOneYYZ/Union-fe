@@ -2,6 +2,12 @@ import React, { useMemo, useState } from 'react';
 import { useSelector } from 'react-redux';
 import {
   Table, TableBody, TableCell, TableHead, TableRow, TableSortLabel, Box, Pagination, FormControl, Select, MenuItem, Typography,
+  Box,
+  Pagination,
+  Typography,
+  FormControl,
+  Select,
+  MenuItem,
 } from '@mui/material';
 import { visuallyHidden } from '@mui/utils';
 import ReportFilter from './components/ReportFilter';
@@ -34,6 +40,11 @@ const CombinedReportPage = () => {
   const [rowsPerPage, setRowsPerPage] = useState(25);
 
   const { containerRef, mapHeight, handleMouseDown } = useResizableMap(60, 20, 80);
+
+  const [order, setOrder] = useState('desc');
+  const [orderBy, setOrderBy] = useState('eventTime');
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
 
   const itemsCoordinates = useMemo(() => items.flatMap((item) => item.route), [items]);
   const createMarkers = () => items.flatMap((item) => item.events
@@ -200,7 +211,7 @@ const CombinedReportPage = () => {
 
             <button
               type="button"
-              aria-label="button"
+              aria-label="Resize map"
               onMouseDown={handleMouseDown}
               style={{
                 height: '8px',
@@ -212,7 +223,10 @@ const CombinedReportPage = () => {
                 flexShrink: 0,
                 borderTop: '1px solid #ccc',
                 borderBottom: '1px solid #ccc',
+                transition: 'background-color 0.2s',
               }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#d0d0d0')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#e0e0e0')}
             >
               <div
                 style={{
@@ -243,58 +257,22 @@ const CombinedReportPage = () => {
               loading={loading}
             />
           </div>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>
-                  <TableSortLabel
-                    active={orderBy === 'deviceName'}
-                    direction={orderBy === 'deviceName' ? order : 'asc'}
-                    onClick={() => handleRequestSort('deviceName')}
-                  >
-                    {t('sharedDevice')}
-                    {orderBy === 'deviceName' && (
-                    <Box component="span" sx={visuallyHidden}>
-                      {order === 'desc' ? 'sorted descending' : 'sorted ascending'}
-                    </Box>
-                    )}
-                  </TableSortLabel>
-                </TableCell>
-
-                <TableCell>
-                  <TableSortLabel
-                    active={orderBy === 'eventTime'}
-                    direction={orderBy === 'eventTime' ? order : 'asc'}
-                    onClick={() => handleRequestSort('eventTime')}
-                  >
-                    {t('positionFixTime')}
-                    {orderBy === 'eventTime' && (
-                    <Box component="span" sx={visuallyHidden}>
-                      {order === 'desc' ? 'sorted descending' : 'sorted ascending'}
-                    </Box>
-                    )}
-                  </TableSortLabel>
-                </TableCell>
-
-                <TableCell>
-                  <TableSortLabel
-                    active={orderBy === 'eventType'}
-                    direction={orderBy === 'eventType' ? order : 'asc'}
-                    onClick={() => handleRequestSort('eventType')}
-                  >
-                    {t('sharedType')}
-                    {orderBy === 'eventType' && (
-                    <Box component="span" sx={visuallyHidden}>
-                      {order === 'desc' ? 'sorted descending' : 'sorted ascending'}
-                    </Box>
-                    )}
-                  </TableSortLabel>
-                </TableCell>
-              </TableRow>
-            </TableHead>
-
-            <TableBody>{tableBodyContent}</TableBody>
-          </Table>
+          <ReportTable
+            headers={headers}
+            loading={loading}
+            loadingComponent={<TableShimmer columns={3} />}
+            sortable
+            sortConfig={{ order, orderBy }}
+            onSort={handleRequestSort}
+          >
+            {sortedAndPaginatedData.map((event) => (
+              <DarkTableRow key={event.id}>
+                <DarkTableCell>{event.deviceName}</DarkTableCell>
+                <DarkTableCell>{formatTime(event.eventTime, 'seconds')}</DarkTableCell>
+                <DarkTableCell>{t(prefixString('event', event.type))}</DarkTableCell>
+              </DarkTableRow>
+            ))}
+          </ReportTable>
 
           {!loading && sortedAndPaginatedData.length > 0 && (
             <Box

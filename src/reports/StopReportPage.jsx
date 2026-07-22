@@ -65,74 +65,11 @@ const StopReportPage = () => {
   const [loading, setLoading] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
 
+  // Sorting and pagination state
   const [order, setOrder] = useState('desc');
   const [orderBy, setOrderBy] = useState('startTime');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);
-
-  const handleRequestSort = (property) => {
-    const isAsc = orderBy === property && order === 'asc';
-    setOrder(isAsc ? 'desc' : 'asc');
-    setOrderBy(property);
-    setPage(0);
-  };
-
-  const handleChangePage = (event, newPage) => {
-    setPage(newPage - 1);
-  };
-
-  const handleChangeRowsPerPage = (event) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(0);
-  };
-
-  const sortedAndPaginatedData = useMemo(() => {
-    if (!items || items.length === 0) return [];
-
-    const comparator = (a, b) => {
-      let aVal = a[orderBy];
-      let bVal = b[orderBy];
-
-      if (aVal == null) return 1;
-      if (bVal == null) return -1;
-
-      if (orderBy.toLowerCase().includes('time') || orderBy.toLowerCase().includes('date')) {
-        aVal = new Date(aVal).getTime();
-        bVal = new Date(bVal).getTime();
-      } else if (typeof aVal === 'number' && typeof bVal === 'number') {
-        return order === 'asc' ? aVal - bVal : bVal - aVal;
-      } else if (typeof aVal === 'string') {
-        aVal = aVal.toLowerCase();
-        bVal = String(bVal).toLowerCase();
-      }
-
-      if (order === 'asc') {
-        if (aVal < bVal) {
-          return -1;
-        }
-        if (aVal > bVal) {
-          return 1;
-        }
-        return 0;
-      }
-
-      if (aVal > bVal) {
-        return -1;
-      }
-      if (aVal < bVal) {
-        return 1;
-      }
-      return 0;
-    };
-
-    const sorted = [...items].sort(comparator);
-    return sorted.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
-  }, [items, order, orderBy, page, rowsPerPage]);
-
-  const totalCount = items.length;
-  const totalPages = Math.ceil(totalCount / rowsPerPage);
-  const startRow = totalCount === 0 ? 0 : page * rowsPerPage + 1;
-  const endRow = Math.min((page + 1) * rowsPerPage, totalCount);
 
   const handleSubmit = useCatch(async ({ deviceId, from, to, type }) => {
     const query = new URLSearchParams({ deviceId, from, to });
@@ -168,6 +105,66 @@ const StopReportPage = () => {
       navigate('/reports/scheduled');
     }
   });
+
+  const handleRequestSort = (property) => {
+    const isAsc = orderBy === property && order === 'asc';
+    setOrder(isAsc ? 'desc' : 'asc');
+    setOrderBy(property);
+    setPage(0);
+  };
+
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage - 1);
+  };
+
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  const preparedData = useMemo(() => items.map((item) => ({
+    ...item,
+  })), [items]);
+
+  const sortedAndPaginatedData = useMemo(() => {
+    if (!preparedData || preparedData.length === 0) return [];
+
+    const comparator = (a, b) => {
+      let aVal = a[orderBy];
+      let bVal = b[orderBy];
+
+      if (aVal == null) return 1;
+      if (bVal == null) return -1;
+
+      if (orderBy.toLowerCase().includes('time') || orderBy.toLowerCase().includes('date')) {
+        aVal = new Date(aVal).getTime();
+        bVal = new Date(bVal).getTime();
+      } else if (typeof aVal === 'number' && typeof bVal === 'number') {
+        return order === 'asc' ? aVal - bVal : bVal - aVal;
+      } else if (typeof aVal === 'string') {
+        aVal = aVal.toLowerCase();
+        bVal = String(bVal).toLowerCase();
+      }
+
+      if (order === 'asc') {
+        if (aVal < bVal) return -1;
+        if (aVal > bVal) return 1;
+        return 0;
+      }
+
+      if (aVal > bVal) return -1;
+      if (aVal < bVal) return 1;
+      return 0;
+    };
+
+    const sorted = [...preparedData].sort(comparator);
+    return sorted.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+  }, [preparedData, order, orderBy, page, rowsPerPage]);
+
+  const totalCount = preparedData.length;
+  const totalPages = Math.ceil(totalCount / rowsPerPage);
+  const startRow = totalCount === 0 ? 0 : page * rowsPerPage + 1;
+  const endRow = Math.min((page + 1) * rowsPerPage, totalCount);
 
   const formatValue = (item, key) => {
     const value = item[key];
@@ -323,38 +320,34 @@ const StopReportPage = () => {
               <ColumnSelect columns={columns} setColumns={setColumns} columnsArray={columnsArray} />
             </ReportFilter>
           </div>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell className={classes.columnAction} />
-                {columns.map((key) => {
-                  const isSortable = key === 'startTime' || key === 'endTime' || key === 'duration' || key === 'startOdometer';
-                  if (isSortable) {
-                    return (
-                      <TableCell key={key}>
-                        <TableSortLabel
-                          active={orderBy === key}
-                          direction={orderBy === key ? order : 'asc'}
-                          onClick={() => handleRequestSort(key)}
-                        >
-                          {t(columnsMap.get(key))}
-                          {orderBy === key ? (
-                            <Box component="span" sx={visuallyHidden}>
-                              {order === 'desc' ? 'sorted descending' : 'sorted ascending'}
-                            </Box>
-                          ) : null}
-                        </TableSortLabel>
-                      </TableCell>
-                    );
-                  }
-                  return (
-                    <TableCell key={key}>{t(columnsMap.get(key))}</TableCell>
-                  );
-                })}
-              </TableRow>
-            </TableHead>
-            <TableBody>{tableBodyContent}</TableBody>
-          </Table>
+          <ReportTable
+            headers={headers}
+            loading={loading}
+            loadingComponent={<TableShimmer columns={columns.length + 1} startAction />}
+            sortable
+            sortConfig={{ order, orderBy }}
+            onSort={handleRequestSort}
+          >
+            {sortedAndPaginatedData.map((item) => (
+              <DarkTableRow key={item.positionId}>
+                <DarkTableCell className={classes.columnAction} padding="none">
+                  {selectedItem === item ? (
+                    <IconButton size="small" onClick={() => setSelectedItem(null)}>
+                      <GpsFixedIcon fontSize="small" />
+                    </IconButton>
+                  ) : (
+                    <IconButton size="small" onClick={() => setSelectedItem(item)}>
+                      <LocationSearchingIcon fontSize="small" />
+                    </IconButton>
+                  )}
+                </DarkTableCell>
+                {columns.map((key) => (
+                  <DarkTableCell key={key}>{formatValue(item, key)}</DarkTableCell>
+                ))}
+              </DarkTableRow>
+            ))}
+          </ReportTable>
+
           {!loading && sortedAndPaginatedData.length > 0 && (
             <Box
               sx={{

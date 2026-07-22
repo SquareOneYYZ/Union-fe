@@ -16,7 +16,6 @@ import {
   MenuItem,
   TextField,
   IconButton,
-  TableSortLabel,
   Box,
   Pagination,
   Typography,
@@ -107,6 +106,12 @@ const GeofenceDistanceReportPage = () => {
   const [selectedItem, setSelectedItem] = useState(null);
   const [positions, setPositions] = useState([]);
   const [route, setRoute] = useState(null);
+  const [order, setOrder] = useState('desc');
+  const [orderBy, setOrderBy] = useState('startTime');
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
+
+  // Sorting and pagination state
   const [order, setOrder] = useState('desc');
   const [orderBy, setOrderBy] = useState('startTime');
   const [page, setPage] = useState(0);

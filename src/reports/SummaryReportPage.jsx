@@ -155,7 +155,7 @@ const SummaryReportPage = () => {
         });
         if (response.ok) {
           setItems(await response.json());
-          setPage(0);
+          setPage(0); // Reset to first page on new data
         } else {
           throw Error(await response.text());
         }
@@ -176,11 +176,73 @@ const SummaryReportPage = () => {
     }
   });
 
+  // Handler functions
+  const handleRequestSort = (property) => {
+    const isAsc = orderBy === property && order === 'asc';
+    setOrder(isAsc ? 'desc' : 'asc');
+    setOrderBy(property);
+    setPage(0);
+  };
+
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage - 1);
+  };
+
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  const preparedData = useMemo(() => items.map((item) => ({
+    ...item,
+    deviceName: devices[item.deviceId]?.name || '',
+  })), [items, devices]);
+
+  const sortedAndPaginatedData = useMemo(() => {
+    if (!preparedData || preparedData.length === 0) return [];
+
+    const comparator = (a, b) => {
+      let aVal = a[orderBy];
+      let bVal = b[orderBy];
+
+      if (aVal == null) return 1;
+      if (bVal == null) return -1;
+
+      if (orderBy.toLowerCase().includes('time') || orderBy.toLowerCase().includes('date')) {
+        aVal = new Date(aVal).getTime();
+        bVal = new Date(bVal).getTime();
+      } else if (typeof aVal === 'number' && typeof bVal === 'number') {
+        return order === 'asc' ? aVal - bVal : bVal - aVal;
+      } else if (typeof aVal === 'string') {
+        aVal = aVal.toLowerCase();
+        bVal = String(bVal).toLowerCase();
+      }
+
+      if (order === 'asc') {
+        if (aVal < bVal) return -1;
+        if (aVal > bVal) return 1;
+        return 0;
+      }
+
+      if (aVal > bVal) return -1;
+      if (aVal < bVal) return 1;
+      return 0;
+    };
+
+    const sorted = [...preparedData].sort(comparator);
+    return sorted.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+  }, [preparedData, order, orderBy, page, rowsPerPage]);
+
+  const totalCount = preparedData.length;
+  const totalPages = Math.ceil(totalCount / rowsPerPage);
+  const startRow = totalCount === 0 ? 0 : page * rowsPerPage + 1;
+  const endRow = Math.min((page + 1) * rowsPerPage, totalCount);
+
   const formatValue = (item, key) => {
     const value = item[key];
     switch (key) {
       case 'deviceId':
-        return devices[value].name;
+        return devices[value]?.name || value;
       case 'startTime':
         return formatTime(value, 'date');
       case 'startOdometer':

@@ -15,7 +15,7 @@
     "@mui/lab": "^5.0.0-alpha.173",
     "@mui/material": "^5.16.14",
     "@mui/styles": "^5.16.14",
-    "@mui/utils": "^7.3.6",
+    "@mui/utils": "^7.3.7",
     "@reduxjs/toolkit": "^2.5.0",
     "@tmcw/togeojson": "^5.8.1",
     "@turf/circle": "^7.2.0",

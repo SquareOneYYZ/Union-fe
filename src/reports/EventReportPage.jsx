@@ -1,7 +1,4 @@
-import React, {
-  useState,
-  useMemo,
-} from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   FormControl,
@@ -343,6 +340,68 @@ const EventReportPage = () => {
     setSelectedItem(null);
   };
 
+  const handleRequestSort = (property) => {
+    const isAsc = orderBy === property && order === 'asc';
+    setOrder(isAsc ? 'desc' : 'asc');
+    setOrderBy(property);
+    setPage(0);
+  };
+
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage - 1);
+  };
+
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  const preparedData = useMemo(() => items.map((item) => ({
+    ...item,
+    typeLabel: t(prefixString('event', item.type)),
+    geofenceName: item.geofenceId > 0 ? geofences[item.geofenceId]?.name || '' : '',
+  })), [items, geofences, t]);
+
+  const sortedAndPaginatedData = useMemo(() => {
+    if (!preparedData || preparedData.length === 0) return [];
+
+    const comparator = (a, b) => {
+      let aVal = a[orderBy];
+      let bVal = b[orderBy];
+
+      if (aVal == null) return 1;
+      if (bVal == null) return -1;
+
+      if (orderBy.toLowerCase().includes('time') || orderBy.toLowerCase().includes('date')) {
+        aVal = new Date(aVal).getTime();
+        bVal = new Date(bVal).getTime();
+      } else if (typeof aVal === 'number' && typeof bVal === 'number') {
+        return order === 'asc' ? aVal - bVal : bVal - aVal;
+      } else if (typeof aVal === 'string') {
+        aVal = aVal.toLowerCase();
+        bVal = String(bVal).toLowerCase();
+      }
+
+      if (order === 'asc') {
+        if (aVal < bVal) return -1;
+        if (aVal > bVal) return 1;
+        return 0;
+      }
+
+      if (aVal > bVal) return -1;
+      if (aVal < bVal) return 1;
+      return 0;
+    };
+
+    const sorted = [...preparedData].sort(comparator);
+    return sorted.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+  }, [preparedData, order, orderBy, page, rowsPerPage]);
+
+  const totalCount = preparedData.length;
+  const totalPages = Math.ceil(totalCount / rowsPerPage);
+  const startRow = totalCount === 0 ? 0 : page * rowsPerPage + 1;
+  const endRow = Math.min((page + 1) * rowsPerPage, totalCount);
+
   const formatValue = (item, key) => {
     const value = item[key];
     switch (key) {
@@ -424,6 +483,30 @@ const EventReportPage = () => {
         return value;
     }
   };
+
+  const sortableColumns = [
+    'eventTime',
+    'typeLabel',
+    'geofenceName',
+    'maintenanceId',
+  ];
+  const headers = [
+    '',
+    '',
+    ...columns.map((key) => {
+      let sortKey = key;
+      if (key === 'type') sortKey = 'typeLabel';
+      if (key === 'geofenceId') sortKey = 'geofenceName';
+
+      if (sortableColumns.includes(sortKey)) {
+        return {
+          label: t(columnsMap.get(key)),
+          sortKey,
+        };
+      }
+      return t(columnsMap.get(key));
+    }),
+  ];
 
   if (replayMode) {
     return (
@@ -574,39 +657,54 @@ const EventReportPage = () => {
               />
             </ReportFilter>
           </div>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell className={classes.columnAction} />
-                <TableCell className={classes.columnAction} />
-                {columns.map((key) => {
-                  const isSortable = key === 'eventTime' || key === 'type';
-                  if (isSortable) {
-                    return (
-                      <TableCell key={key}>
-                        <TableSortLabel
-                          active={orderBy === key}
-                          direction={orderBy === key ? order : 'asc'}
-                          onClick={() => handleRequestSort(key)}
-                        >
-                          {t(columnsMap.get(key))}
-                          {orderBy === key ? (
-                            <Box component="span" sx={visuallyHidden}>
-                              {order === 'desc' ? 'sorted descending' : 'sorted ascending'}
-                            </Box>
-                          ) : null}
-                        </TableSortLabel>
-                      </TableCell>
-                    );
-                  }
-                  return (
-                    <TableCell key={key}>{t(columnsMap.get(key))}</TableCell>
-                  );
-                })}
-              </TableRow>
-            </TableHead>
-            <TableBody>{tableBodyContent}</TableBody>
-          </Table>
+
+          <ReportTable
+            headers={headers}
+            loading={loading}
+            loadingComponent={<TableShimmer columns={columns.length + 2} />}
+            sortable
+            sortConfig={{ order, orderBy }}
+            onSort={handleRequestSort}
+          >
+            {sortedAndPaginatedData.map((item) => (
+              <DarkTableRow key={item.id}>
+                <DarkTableCell className={classes.columnAction} padding="none">
+                  {item.positionId && (
+                    selectedItem === item ? (
+                      <IconButton
+                        size="small"
+                        onClick={() => setSelectedItem(null)}
+                      >
+                        <GpsFixedIcon fontSize="small" />
+                      </IconButton>
+                    ) : (
+                      <IconButton
+                        size="small"
+                        onClick={() => setSelectedItem(item)}
+                      >
+                        <LocationSearchingIcon fontSize="small" />
+                      </IconButton>
+                    )
+                  )}
+                </DarkTableCell>
+                <DarkTableCell className={classes.columnAction} padding="none">
+                  {item.positionId && (
+                    <IconButton
+                      size="small"
+                      onClick={() => handleReplayStart(item)}
+                      disabled={replayLoading}
+                    >
+                      <ReplayIcon fontSize="small" />
+                    </IconButton>
+                  )}
+                </DarkTableCell>
+                {columns.map((key) => (
+                  <DarkTableCell key={key}>{formatValue(item, key)}</DarkTableCell>
+                ))}
+              </DarkTableRow>
+            ))}
+          </ReportTable>
+
           {!loading && sortedAndPaginatedData.length > 0 && (
             <Box
               sx={{
