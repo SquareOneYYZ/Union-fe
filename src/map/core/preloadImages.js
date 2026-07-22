@@ -67,8 +67,22 @@ export const mapIconKey = (category) => {
     case 'trolleybus':
       return 'bus';
     default:
-      return mapIcons.hasOwnProperty(category) ? category : 'default';
+      return Object.prototype.hasOwnProperty.call(mapIcons, category) ? category : 'default';
   }
+};
+
+export const EVENT_TYPE_COLORS = {
+  deviceOverspeed: '#c62828',
+  alarm: '#ad1457',
+  geofenceEnter: '#2e7d32',
+  geofenceExit: '#e65100',
+  deviceMoving: '#00838f',
+  deviceStopped: '#1565c0',
+  ignitionOn: '#558b2f',
+  ignitionOff: '#6a1b9a',
+  deviceTollRouteEnter: '#6d4c41',
+  deviceTollRouteExit: '#0055ff',
+  default: '#f9a825',
 };
 
 export const mapImages = {};
@@ -81,6 +95,7 @@ export default async () => {
   const background = await loadImage(backgroundSvg);
   mapImages.background = await prepareIcon(background);
   mapImages.direction = await prepareIcon(await loadImage(directionSvg));
+
   await Promise.all(
     Object.keys(mapIcons).map(async (category) => {
       const results = [];
@@ -96,6 +111,13 @@ export default async () => {
         );
       });
       await Promise.all(results);
+    }),
+  );
+
+  const eventIcon = await loadImage(eventSvg);
+  await Promise.all(
+    Object.entries(EVENT_TYPE_COLORS).map(async ([eventType, hexColor]) => {
+      mapImages[`event-${eventType}`] = await prepareIcon(background, eventIcon, hexColor);
     }),
   );
 };

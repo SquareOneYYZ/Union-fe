@@ -1,9 +1,13 @@
 import React, {
-  useState, useEffect, useRef, useCallback,
+  useState, useEffect, useRef, useCallback, useMemo,
 } from 'react';
+import {
+  ResponsiveContainer, ComposedChart, Area,
+} from 'recharts';
 import {
   IconButton, Paper, Slider, Toolbar, Typography, Box, Chip,
   Tooltip,
+  useTheme,
 } from '@mui/material';
 import makeStyles from '@mui/styles/makeStyles';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -33,6 +37,7 @@ const SPEED_OPTIONS = [1, 1.5, 2, 5, 10];
 const useStyles = makeStyles((theme) => ({
   root: {
     height: '100%',
+    position: 'relative',
   },
   sidebar: {
     display: 'flex',
@@ -108,6 +113,48 @@ const useStyles = makeStyles((theme) => ({
       margin: theme.spacing(1.5),
     },
   },
+  speedStrip: {
+    position: 'fixed',
+    bottom: 8,
+    left: 10,
+    right: 10,
+    zIndex: 2,
+    borderRadius: 0,
+    background: theme.palette.background.paper,
+    border: `0.5px solid ${theme.palette.divider}`,
+    padding: '5px 8px 4px',
+    opacity: 0.93,
+
+    [theme.breakpoints.down('sm')]: {
+      bottom: 56,
+      left: 10,
+      right: 10,
+      borderRadius: 0,
+    },
+
+    [theme.breakpoints.down('md')]: {
+      bottom: 65,
+      left: 10,
+      right: 10,
+    },
+  },
+  speedStripValue: {
+    fontWeight: 500,
+    color: theme.palette.warning.dark,
+  },
+  chartWrapper: {
+    position: 'relative',
+    width: '100%',
+    height: 48,
+  },
+  playheadOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
+    pointerEvents: 'none',
+  },
 }));
 
 const ReplayPage = () => {
@@ -116,6 +163,13 @@ const ReplayPage = () => {
   const navigate = useNavigate();
   const timerRef = useRef();
   const defaultDeviceId = useSelector((state) => state.devices.selectedId);
+  const theme = useTheme();
+
+  const speedGradientStops = {
+    high: theme.palette.error.main,
+    medium: theme.palette.warning.main,
+    low: theme.palette.success.main,
+  };
 
   const [positions, setPositions] = useState([]);
   const [index, setIndex] = useState(0);
@@ -130,6 +184,27 @@ const ReplayPage = () => {
   const [animationProgress, setAnimationProgress] = useState(0);
   const [speed, setSpeed] = useState(1);
   const [titleExpanded, setTitleExpanded] = useState(false);
+
+  const chartData = useMemo(() => positions.map((pos, i) => ({
+    index: i,
+    speed: +(pos.speed ?? 0).toFixed(2),
+    hasEvent: !!pos.attributes?.alarm,
+  })), [positions]);
+
+  // This computes the exact 0–100% position of the playhead across the chart width
+  const playheadPercent = useMemo(() => {
+    if (!positions.length) return 0;
+    const exact = index + animationProgress;
+    return (exact / (positions.length - 1)) * 100;
+  }, [index, animationProgress, positions.length]);
+
+  const onClick = useCallback((data) => {
+    if (data?.activePayload?.[0]) {
+      setIndex(data.activePayload[0].payload.index);
+      setAnimationProgress(0);
+      setPlaying(false);
+    }
+  }, []);
 
   const deviceName = useSelector((state) => {
     if (selectedDeviceId) {
@@ -157,14 +232,12 @@ const ReplayPage = () => {
             });
             return 0;
           }
-
           return newProgress;
         });
       }, 16);
     } else {
       clearInterval(timerRef.current);
     }
-
     return () => clearInterval(timerRef.current);
   }, [playing, positions, speed]);
 
@@ -172,24 +245,14 @@ const ReplayPage = () => {
     if (positions.length > 0 && index < positions.length - 1) {
       const currentPos = positions[index];
       const nextPos = positions[index + 1];
-
       if (currentPos && nextPos) {
         const interpolatedPosition = {
           ...currentPos,
-          latitude:
-            currentPos.latitude
-            + (nextPos.latitude - currentPos.latitude) * animationProgress,
-          longitude:
-            currentPos.longitude
-            + (nextPos.longitude - currentPos.longitude) * animationProgress,
-          speed:
-            currentPos.speed
-            + (nextPos.speed - currentPos.speed) * animationProgress,
-          course:
-            currentPos.course
-            + (nextPos.course - currentPos.course) * animationProgress,
+          latitude: currentPos.latitude + (nextPos.latitude - currentPos.latitude) * animationProgress,
+          longitude: currentPos.longitude + (nextPos.longitude - currentPos.longitude) * animationProgress,
+          speed: currentPos.speed + (nextPos.speed - currentPos.speed) * animationProgress,
+          course: currentPos.course + (nextPos.course - currentPos.course) * animationProgress,
         };
-
         setSmoothPosition(interpolatedPosition);
       }
     } else if (positions.length > 0 && index < positions.length) {
@@ -197,21 +260,37 @@ const ReplayPage = () => {
     }
   }, [positions, index, animationProgress]);
 
-  const onPointClick = useCallback(
-    (_, index) => {
-      setIndex(index);
-      setAnimationProgress(0);
-      setPlaying(false);
-    },
-    [setIndex],
-  );
+  useEffect(() => {
+    const STRIP_HEIGHT = 82; // match actual height of your strip
+    const styleId = 'replay-controls-offset';
 
-  const onMarkerClick = useCallback(
-    (positionId) => {
-      setShowCard(!!positionId);
-    },
-    [setShowCard],
-  );
+    if (!expanded && positions.length > 0) {
+      const style = document.createElement('style');
+      style.id = styleId;
+      style.textContent = `
+      .maplibregl-ctrl-bottom-left {
+        bottom: ${STRIP_HEIGHT}px !important;
+        transition: bottom 0.2s ease;
+      }
+    `;
+      document.head.appendChild(style);
+    }
+
+    return () => {
+      const el = document.getElementById(styleId);
+      if (el) el.remove();
+    };
+  }, [expanded, positions.length]);
+
+  const onPointClick = useCallback((_, i) => {
+    setIndex(i);
+    setAnimationProgress(0);
+    setPlaying(false);
+  }, []);
+
+  const onMarkerClick = useCallback((positionId) => {
+    setShowCard(!!positionId);
+  }, []);
 
   const handleSubmit = useCatch(async ({ deviceId, from, to }) => {
     setLoading(true);
@@ -223,9 +302,9 @@ const ReplayPage = () => {
       const response = await fetch(`/api/positions?${query.toString()}`);
       if (response.ok) {
         setIndex(0);
-        const positions = await response.json();
-        setPositions(positions);
-        if (positions.length) {
+        const data = await response.json();
+        setPositions(data);
+        if (data.length) {
           setExpanded(false);
         } else {
           throw Error(t('sharedNoData'));
@@ -247,42 +326,72 @@ const ReplayPage = () => {
     <div className={classes.root}>
       <MapView>
         <MapGeofence />
-        <MapRoutePath
-          positions={positions}
-          onClick={onPointClick}
-          expandPointsOnClick
-        />
-        <MapRoutePoints
-          positions={positions}
-          onClick={onPointClick}
-          useGlobalExpansion
-        />
+        <MapRoutePath positions={positions} onClick={onPointClick} expandPointsOnClick />
+        <MapRoutePoints positions={positions} onClick={onPointClick} useGlobalExpansion />
         {smoothPosition && (
-          <MapPositions
-            positions={[smoothPosition]}
-            onClick={onMarkerClick}
-            titleField="fixTime"
-          />
+          <MapPositions positions={[smoothPosition]} onClick={onMarkerClick} titleField="fixTime" />
         )}
       </MapView>
       <MapScale />
+
+      {!expanded && positions.length > 0 && (
+        <Box className={classes.speedStrip}>
+          <Box display="flex" justifyContent="space-between">
+            <Typography variant="caption" color="text.secondary">Speed</Typography>
+            <Typography variant="caption" className={classes.speedStripValue}>
+              {smoothPosition ? `${Math.round(smoothPosition.speed)} km/h` : '—'}
+            </Typography>
+          </Box>
+
+          <div className={classes.chartWrapper}>
+            <ResponsiveContainer width="100%" height={48}>
+              <ComposedChart
+                data={chartData}
+                margin={{ top: 0, right: 0, bottom: 0, left: 0 }}
+                onClick={onClick}
+              >
+                <defs>
+                  <linearGradient id="speedGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={speedGradientStops.high} stopOpacity={0.9} />
+                    <stop offset="40%" stopColor={speedGradientStops.medium} stopOpacity={0.85} />
+                    <stop offset="100%" stopColor={speedGradientStops.low} stopOpacity={0.8} />
+                  </linearGradient>
+                </defs>
+                <Area
+                  dataKey="speed"
+                  fill="url(#speedGrad)"
+                  stroke={theme.palette.divider}
+                  strokeWidth={1}
+                  dot={false}
+                  isAnimationActive={false}
+                  baseValue={0}
+                />
+              </ComposedChart>
+            </ResponsiveContainer>
+
+            {/* SVG playhead drawn directly — not through Recharts */}
+            <svg
+              className={classes.playheadOverlay}
+              style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
+            >
+              <line
+                x1={`${playheadPercent}%`}
+                y1="0%"
+                x2={`${playheadPercent}%`}
+                y2="100%"
+                stroke={theme.palette.primary.light}
+                strokeWidth={3}
+              />
+            </svg>
+          </div>
+        </Box>
+      )}
+
       <MapCamera positions={positions} />
       <div className={`${classes.sidebar} ${titleExpanded ? 'expanded' : ''}`}>
         <Paper elevation={3} square>
-          <Toolbar
-            sx={{
-              alignItems: 'center',
-              justifyContent: 'center',
-              minHeight: 'unset',
-              paddingTop: 1,
-              paddingBottom: 1,
-            }}
-          >
-            <IconButton
-              edge="start"
-              sx={{ mr: 2 }}
-              onClick={() => navigate(-1)}
-            >
+          <Toolbar sx={{ alignItems: 'center', justifyContent: 'center', minHeight: 'unset', paddingTop: 1, paddingBottom: 1 }}>
+            <IconButton edge="start" sx={{ mr: 2 }} onClick={() => navigate(-1)}>
               <ArrowBackIcon />
             </IconButton>
             <Tooltip
@@ -310,15 +419,10 @@ const ReplayPage = () => {
                 {deviceName ? ` - ${deviceName}` : ''}
               </Typography>
             </Tooltip>
-
             {!expanded && (
               <>
-                <IconButton onClick={handleDownload}>
-                  <DownloadIcon />
-                </IconButton>
-                <IconButton edge="end" onClick={() => setExpanded(true)}>
-                  <TuneIcon />
-                </IconButton>
+                <IconButton onClick={handleDownload}><DownloadIcon /></IconButton>
+                <IconButton edge="end" onClick={() => setExpanded(true)}><TuneIcon /></IconButton>
               </>
             )}
           </Toolbar>
@@ -341,12 +445,11 @@ const ReplayPage = () => {
                   ))}
                 </Box>
               </Box>
-
               <Slider
                 className={classes.slider}
                 max={positions.length - 1}
                 step={null}
-                marks={positions.map((_, index) => ({ value: index }))}
+                marks={positions.map((_, i) => ({ value: i }))}
                 value={index}
                 onChange={(_, newIndex) => {
                   setIndex(newIndex);
@@ -354,60 +457,26 @@ const ReplayPage = () => {
                   setPlaying(false);
                 }}
               />
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginTop: -10,
-                  marginBottom: 8,
-                }}
-              >
-                <Typography variant="caption" color="text.secondary">
-                  -1hr
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  +1hr
-                </Typography>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: -10, marginBottom: 8 }}>
+                <Typography variant="caption" color="text.secondary">-1hr</Typography>
+                <Typography variant="caption" color="text.secondary">+1hr</Typography>
               </div>
               <div className={classes.controls}>
                 {`${index + 1}/${positions.length}`}
-                <IconButton
-                  onClick={() => {
-                    setIndex((index) => index - 1);
-                    setAnimationProgress(0);
-                    setPlaying(false);
-                  }}
-                  disabled={playing || index <= 0}
-                >
+                <IconButton onClick={() => { setIndex((i) => i - 1); setAnimationProgress(0); setPlaying(false); }} disabled={playing || index <= 0}>
                   <FastRewindIcon />
                 </IconButton>
-                <IconButton
-                  onClick={() => setPlaying(!playing)}
-                  disabled={index >= positions.length - 1}
-                >
+                <IconButton onClick={() => setPlaying(!playing)} disabled={index >= positions.length - 1}>
                   {playing ? <PauseIcon /> : <PlayArrowIcon />}
                 </IconButton>
-                <IconButton
-                  onClick={() => {
-                    setIndex((index) => index + 1);
-                    setAnimationProgress(0);
-                    setPlaying(false);
-                  }}
-                  disabled={playing || index >= positions.length - 1}
-                >
+                <IconButton onClick={() => { setIndex((i) => i + 1); setAnimationProgress(0); setPlaying(false); }} disabled={playing || index >= positions.length - 1}>
                   <FastForwardIcon />
                 </IconButton>
                 {formatTime(positions[index].fixTime, 'seconds')}
               </div>
             </>
           ) : (
-            <ReportFilter
-              handleSubmit={handleSubmit}
-              fullScreen
-              showOnly
-              loading={loading}
-            />
+            <ReportFilter handleSubmit={handleSubmit} fullScreen showOnly loading={loading} />
           )}
         </Paper>
       </div>

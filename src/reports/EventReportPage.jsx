@@ -205,21 +205,13 @@ const EventReportPage = () => {
       }
 
       if (order === 'asc') {
-        if (aVal < bVal) {
-          return -1;
-        }
-        if (aVal > bVal) {
-          return 1;
-        }
+        if (aVal < bVal) return -1;
+        if (aVal > bVal) return 1;
         return 0;
       }
 
-      if (aVal > bVal) {
-        return -1;
-      }
-      if (aVal < bVal) {
-        return 1;
-      }
+      if (aVal > bVal) return -1;
+      if (aVal < bVal) return 1;
       return 0;
     };
 
@@ -294,6 +286,16 @@ const EventReportPage = () => {
       navigate('/reports/scheduled');
     }
   });
+
+  // ── View on Map handler ─────────────────────────────────────────────────────
+  const handleViewOnMap = () => {
+    navigate('/reports/view-on-map', {
+      state: {
+        events: items,
+        deviceId: items[0]?.deviceId,
+      },
+    });
+  };
 
   const handleReplayStart = useCatch(async (item) => {
     setReplayLoading(true);
@@ -482,13 +484,13 @@ const EventReportPage = () => {
 
           <TableCell className={classes.columnAction} padding="none">
             {hasPositionId && (
-            <IconButton
-              size="small"
-              onClick={() => handleReplayStart(item)}
-              disabled={replayLoading}
-            >
-              <ReplayIcon fontSize="small" />
-            </IconButton>
+              <IconButton
+                size="small"
+                onClick={() => handleReplayStart(item)}
+                disabled={replayLoading}
+              >
+                <ReplayIcon fontSize="small" />
+              </IconButton>
             )}
           </TableCell>
 
@@ -529,6 +531,8 @@ const EventReportPage = () => {
               handleSubmit={handleSubmit}
               handleSchedule={handleSchedule}
               loading={loading}
+              onMapClick={handleViewOnMap}
+              mapButtonEnabled={items.length > 0}
             >
               <div className={classes.filterItem}>
                 <FormControl fullWidth>
