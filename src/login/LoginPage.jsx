@@ -89,7 +89,7 @@ const LoginPage = () => {
         const user = await response.json();
         generateLoginToken();
         dispatch(sessionActions.updateUser(user));
-        navigate('/dashboard');
+        navigate('/');
       } else if (response.status === 401 && response.headers.get('WWW-Authenticate') === 'TOTP') {
         setCodeEnabled(true);
       } else {

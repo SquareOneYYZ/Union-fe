@@ -2,16 +2,22 @@ import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   IconButton,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
+  TableSortLabel,
   Box,
   Pagination,
-  Typography,
   FormControl,
   Select,
   MenuItem,
+  Typography,
 } from '@mui/material';
+import { visuallyHidden } from '@mui/utils';
 import GpsFixedIcon from '@mui/icons-material/GpsFixed';
 import LocationSearchingIcon from '@mui/icons-material/LocationSearching';
-import { ReportTable, DarkTableRow, DarkTableCell } from './components/StyledTableComponents';
 import {
   formatDistance, formatSpeed, formatVolume, formatTime, formatNumericHours,
 } from '../common/util/formatter';
@@ -66,7 +72,6 @@ const TripReportPage = () => {
   const [selectedItem, setSelectedItem] = useState(null);
   const [route, setRoute] = useState(null);
 
-  // Sorting and pagination state
   const [order, setOrder] = useState('desc');
   const [orderBy, setOrderBy] = useState('startTime');
   const [page, setPage] = useState(0);
@@ -107,6 +112,70 @@ const TripReportPage = () => {
     }
   }, [selectedItem]);
 
+  const handleRequestSort = (property) => {
+    const isAsc = orderBy === property && order === 'asc';
+    setOrder(isAsc ? 'desc' : 'asc');
+    setOrderBy(property);
+    setPage(0);
+  };
+
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage - 1);
+  };
+
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  const sortedAndPaginatedData = useMemo(() => {
+    if (!items || items.length === 0) return [];
+
+    const comparator = (a, b) => {
+      let aVal = a[orderBy];
+      let bVal = b[orderBy];
+
+      if (aVal == null) return 1;
+      if (bVal == null) return -1;
+
+      if (orderBy.toLowerCase().includes('time') || orderBy.toLowerCase().includes('date')) {
+        aVal = new Date(aVal).getTime();
+        bVal = new Date(bVal).getTime();
+      } else if (typeof aVal === 'number' && typeof bVal === 'number') {
+        return order === 'asc' ? aVal - bVal : bVal - aVal;
+      } else if (typeof aVal === 'string') {
+        aVal = aVal.toLowerCase();
+        bVal = String(bVal).toLowerCase();
+      }
+
+      if (order === 'asc') {
+        if (aVal < bVal) {
+          return -1;
+        }
+        if (aVal > bVal) {
+          return 1;
+        }
+        return 0;
+      }
+
+      if (aVal > bVal) {
+        return -1;
+      }
+      if (aVal < bVal) {
+        return 1;
+      }
+      return 0;
+    };
+
+    const sorted = [...items].sort(comparator);
+    return sorted.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+  }, [items, order, orderBy, page, rowsPerPage]);
+
+  const totalCount = items.length;
+  const totalPages = Math.ceil(totalCount / rowsPerPage);
+  const startRow = totalCount === 0 ? 0 : page * rowsPerPage + 1;
+  const endRow = Math.min((page + 1) * rowsPerPage, totalCount);
+
   const handleSubmit = useCatch(async ({ deviceId, from, to, type }) => {
     const query = new URLSearchParams({ deviceId, from, to });
     if (type === 'export') {
@@ -144,7 +213,6 @@ const TripReportPage = () => {
     }
   });
 
-  // Handler functions
   const handleRequestSort = (property) => {
     const isAsc = orderBy === property && order === 'asc';
     setOrder(isAsc ? 'desc' : 'asc');
@@ -161,12 +229,10 @@ const TripReportPage = () => {
     setPage(0);
   };
 
-  // Prepare data
   const preparedData = useMemo(() => items.map((item) => ({
     ...item,
   })), [items]);
 
-  // Sorting and pagination logic
   const sortedAndPaginatedData = useMemo(() => {
     if (!preparedData || preparedData.length === 0) return [];
 
@@ -202,7 +268,6 @@ const TripReportPage = () => {
     return sorted.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
   }, [preparedData, order, orderBy, page, rowsPerPage]);
 
-  // Pagination counts
   const totalCount = preparedData.length;
   const totalPages = Math.ceil(totalCount / rowsPerPage);
   const startRow = totalCount === 0 ? 0 : page * rowsPerPage + 1;
@@ -234,33 +299,48 @@ const TripReportPage = () => {
     }
   };
 
-  // Define sortable columns
-  const sortableColumns = [
-    'startTime',
-    'endTime',
-    'distance',
-    'averageSpeed',
-    'maxSpeed',
-    'duration',
-    'spentFuel',
-    'startOdometer',
-    'endOdometer',
-    'driverName',
-  ];
+  let tableBodyContent;
 
-  // Create headers array with sort configuration
-  const headers = [
-    '', // Action column (location icon)
-    ...columns.map((key) => {
-      if (sortableColumns.includes(key)) {
-        return {
-          label: t(columnsMap.get(key)),
-          sortKey: key,
-        };
-      }
-      return t(columnsMap.get(key));
-    }),
-  ];
+  if (loading) {
+    tableBodyContent = <TableShimmer columns={columns.length + 1} startAction />;
+  } else if (sortedAndPaginatedData.length === 0) {
+    tableBodyContent = (
+      <TableRow>
+        <TableCell colSpan={columns.length + 1} align="center">
+          <Typography variant="body2" color="text.secondary" sx={{ py: 3 }}>
+            {t('sharedNoData') || 'No data available'}
+          </Typography>
+        </TableCell>
+      </TableRow>
+    );
+  } else {
+    tableBodyContent = sortedAndPaginatedData.map((item) => {
+      const isSelectedItem = selectedItem === item;
+
+      const locationAction = isSelectedItem ? (
+        <IconButton size="small" onClick={() => setSelectedItem(null)}>
+          <GpsFixedIcon fontSize="small" />
+        </IconButton>
+      ) : (
+        <IconButton size="small" onClick={() => setSelectedItem(item)}>
+          <LocationSearchingIcon fontSize="small" />
+        </IconButton>
+      );
+
+      return (
+        <TableRow key={item.startPositionId} hover>
+          <TableCell className={classes.columnAction} padding="none">
+            {locationAction}
+          </TableCell>
+          {columns.map((key) => (
+            <TableCell key={key}>
+              {formatValue(item, key)}
+            </TableCell>
+          ))}
+        </TableRow>
+      );
+    });
+  }
 
   return (
     <PageLayout menu={<ReportsMenu />} breadcrumbs={['reportTitle', 'reportTrips']}>
@@ -314,17 +394,66 @@ const TripReportPage = () => {
                 borderBottom: '1px solid #ccc',
                 transition: 'background-color 0.2s',
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#d0d0d0')}
-              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#e0e0e0')}
+              onMouseEnter={(e) => {
+                const target = e.currentTarget;
+                target.style.backgroundColor = '#d0d0d0';
+              }}
+              onMouseLeave={(e) => {
+                const target = e.currentTarget;
+                target.style.backgroundColor = '#e0e0e0';
+              }}
             >
               <div
+                className={classes.containerMap}
                 style={{
-                  width: '40px',
-                  height: '4px',
-                  backgroundColor: '#999',
-                  borderRadius: '2px',
+                  height: `${mapHeight}%`,
+                  minHeight: '150px',
+                  position: 'relative',
+                  overflow: 'hidden',
                 }}
-              />
+              >
+                <MapView>
+                  <MapGeofence />
+                  {route && (
+                    <>
+                      <MapRoutePath positions={route} />
+                      <MapMarkers markers={createMarkers()} />
+                      <MapCamera positions={route} />
+                    </>
+                  )}
+                </MapView>
+                <MapScale />
+              </div>
+
+              <button
+                type="button"
+                aria-label="Resize map"
+                onMouseDown={handleMouseDown}
+                style={{
+                  height: '8px',
+                  backgroundColor: '#e0e0e0',
+                  cursor: 'row-resize',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                  borderTop: '1px solid #ccc',
+                  borderBottom: '1px solid #ccc',
+                  transition: 'background-color 0.2s',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#d0d0d0')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#e0e0e0')}
+              >
+                <div
+                  style={{
+                    width: '40px',
+                    height: '4px',
+                    backgroundColor: '#999',
+                    borderRadius: '2px',
+                  }}
+                >
+                </div>
+              </button>
             </button>
           </>
         )}
@@ -342,36 +471,38 @@ const TripReportPage = () => {
               <ColumnSelect columns={columns} setColumns={setColumns} columnsArray={columnsArray} />
             </ReportFilter>
           </div>
-          <ReportTable
-            headers={headers}
-            loading={loading}
-            loadingComponent={<TableShimmer columns={columns.length + 1} startAction />}
-            sortable
-            sortConfig={{ order, orderBy }}
-            onSort={handleRequestSort}
-          >
-            {sortedAndPaginatedData.map((item) => (
-              <DarkTableRow key={item.startPositionId}>
-                <DarkTableCell className={classes.columnAction} padding="none">
-                  {selectedItem === item ? (
-                    <IconButton size="small" onClick={() => setSelectedItem(null)}>
-                      <GpsFixedIcon fontSize="small" />
-                    </IconButton>
-                  ) : (
-                    <IconButton size="small" onClick={() => setSelectedItem(item)}>
-                      <LocationSearchingIcon fontSize="small" />
-                    </IconButton>
-                  )}
-                </DarkTableCell>
-                {columns.map((key) => (
-                  <DarkTableCell key={key}>
-                    {formatValue(item, key)}
-                  </DarkTableCell>
-                ))}
-              </DarkTableRow>
-            ))}
-          </ReportTable>
-
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell className={classes.columnAction} />
+                {columns.map((key) => {
+                  const isSortable = key === 'startTime' || key === 'endTime' || key === 'distance' || key === 'duration' || key === 'averageSpeed' || key === 'maxSpeed';
+                  if (isSortable) {
+                    return (
+                      <TableCell key={key}>
+                        <TableSortLabel
+                          active={orderBy === key}
+                          direction={orderBy === key ? order : 'asc'}
+                          onClick={() => handleRequestSort(key)}
+                        >
+                          {t(columnsMap.get(key))}
+                          {orderBy === key ? (
+                            <Box component="span" sx={visuallyHidden}>
+                              {order === 'desc' ? 'sorted descending' : 'sorted ascending'}
+                            </Box>
+                          ) : null}
+                        </TableSortLabel>
+                      </TableCell>
+                    );
+                  }
+                  return (
+                    <TableCell key={key}>{t(columnsMap.get(key))}</TableCell>
+                  );
+                })}
+              </TableRow>
+            </TableHead>
+            <TableBody>{tableBodyContent}</TableBody>
+          </Table>
           {!loading && sortedAndPaginatedData.length > 0 && (
             <Box
               sx={{

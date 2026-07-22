@@ -2,13 +2,20 @@ import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   IconButton,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
+  TableSortLabel,
   Box,
   Pagination,
-  Typography,
   FormControl,
   Select,
   MenuItem,
+  Typography,
 } from '@mui/material';
+import { visuallyHidden } from '@mui/utils';
 import GpsFixedIcon from '@mui/icons-material/GpsFixed';
 import LocationSearchingIcon from '@mui/icons-material/LocationSearching';
 import {
@@ -32,7 +39,6 @@ import MapGeofence from '../map/MapGeofence';
 import scheduleReport from './common/scheduleReport';
 import MapScale from '../map/MapScale';
 import useResizableMap from './common/useResizableMap';
-import { ReportTable, DarkTableRow, DarkTableCell } from './components/StyledTableComponents';
 
 const columnsArray = [
   ['startTime', 'reportStartTime'],
@@ -50,8 +56,10 @@ const StopReportPage = () => {
   const classes = useReportStyles();
   const t = useTranslation();
   const { containerRef, mapHeight, handleMouseDown } = useResizableMap(60, 20, 80);
+
   const distanceUnit = useAttributePreference('distanceUnit');
   const volumeUnit = useAttributePreference('volumeUnit');
+
   const [columns, setColumns] = usePersistedState('stopColumns', ['startTime', 'endTime', 'startOdometer', 'address']);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -78,7 +86,7 @@ const StopReportPage = () => {
         });
         if (response.ok) {
           setItems(await response.json());
-          setPage(0); // Reset to first page on new data
+          setPage(0);
         } else {
           throw Error(await response.text());
         }
@@ -98,7 +106,6 @@ const StopReportPage = () => {
     }
   });
 
-  // Handler functions
   const handleRequestSort = (property) => {
     const isAsc = orderBy === property && order === 'asc';
     setOrder(isAsc ? 'desc' : 'asc');
@@ -115,12 +122,10 @@ const StopReportPage = () => {
     setPage(0);
   };
 
-  // Prepare data
   const preparedData = useMemo(() => items.map((item) => ({
     ...item,
   })), [items]);
 
-  // Sorting and pagination logic
   const sortedAndPaginatedData = useMemo(() => {
     if (!preparedData || preparedData.length === 0) return [];
 
@@ -156,7 +161,6 @@ const StopReportPage = () => {
     return sorted.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
   }, [preparedData, order, orderBy, page, rowsPerPage]);
 
-  // Pagination counts
   const totalCount = preparedData.length;
   const totalPages = Math.ceil(totalCount / rowsPerPage);
   const startRow = totalCount === 0 ? 0 : page * rowsPerPage + 1;
@@ -183,29 +187,46 @@ const StopReportPage = () => {
     }
   };
 
-  // Define sortable columns
-  const sortableColumns = [
-    'startTime',
-    'endTime',
-    'duration',
-    'engineHours',
-    'spentFuel',
-    'startOdometer',
-  ];
+  let tableBodyContent;
 
-  // Create headers array with sort configuration
-  const headers = [
-    '', // Action column (location icon)
-    ...columns.map((key) => {
-      if (sortableColumns.includes(key)) {
-        return {
-          label: t(columnsMap.get(key)),
-          sortKey: key,
-        };
-      }
-      return t(columnsMap.get(key));
-    }),
-  ];
+  if (loading) {
+    tableBodyContent = <TableShimmer columns={columns.length + 1} startAction />;
+  } else if (sortedAndPaginatedData.length === 0) {
+    tableBodyContent = (
+      <TableRow>
+        <TableCell colSpan={columns.length + 1} align="center">
+          <Typography variant="body2" color="text.secondary" sx={{ py: 3 }}>
+            {t('sharedNoData') || 'No data available'}
+          </Typography>
+        </TableCell>
+      </TableRow>
+    );
+  } else {
+    tableBodyContent = sortedAndPaginatedData.map((item) => {
+      const isSelectedItem = selectedItem === item;
+
+      const locationAction = isSelectedItem ? (
+        <IconButton size="small" onClick={() => setSelectedItem(null)}>
+          <GpsFixedIcon fontSize="small" />
+        </IconButton>
+      ) : (
+        <IconButton size="small" onClick={() => setSelectedItem(item)}>
+          <LocationSearchingIcon fontSize="small" />
+        </IconButton>
+      );
+
+      return (
+        <TableRow key={item.positionId} hover>
+          <TableCell className={classes.columnAction} padding="none">
+            {locationAction}
+          </TableCell>
+          {columns.map((key) => (
+            <TableCell key={key}>{formatValue(item, key)}</TableCell>
+          ))}
+        </TableRow>
+      );
+    });
+  }
 
   return (
     <PageLayout menu={<ReportsMenu />} breadcrumbs={['reportTitle', 'reportStops']}>
@@ -265,8 +286,14 @@ const StopReportPage = () => {
                 borderBottom: '1px solid #ccc',
                 transition: 'background-color 0.2s',
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#d0d0d0')}
-              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#e0e0e0')}
+              onMouseEnter={(e) => {
+                const target = e.currentTarget;
+                target.style.backgroundColor = '#d0d0d0';
+              }}
+              onMouseLeave={(e) => {
+                const target = e.currentTarget;
+                target.style.backgroundColor = '#e0e0e0';
+              }}
             >
               <div
                 style={{

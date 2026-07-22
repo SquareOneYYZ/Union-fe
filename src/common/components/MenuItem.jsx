@@ -7,9 +7,6 @@ const useStyles = makeStyles(() => ({
   menuItemText: {
     whiteSpace: 'nowrap',
   },
-  ListItemButton: {
-    gap: 22,
-  },
 }));
 
 const MenuItem = ({ title, link, icon, selected }) => {
@@ -20,7 +17,6 @@ const MenuItem = ({ title, link, icon, selected }) => {
       component={Link}
       to={link}
       selected={selected}
-      className={classes.ListItemButton}
     >
       <ListItemIcon>{icon}</ListItemIcon>
       <ListItemText

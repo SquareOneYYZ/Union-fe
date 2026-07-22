@@ -63,7 +63,6 @@ import EmulatorPage from './other/EmulatorPage';
 import Loader from './common/components/Loader';
 import { generateLoginToken } from './common/components/NativeInterface';
 import { useLocalization } from './common/components/LocalizationProvider';
-import Dashboard from './main/Dashboard';
 
 const Navigation = () => {
   const navigate = useNavigate();
@@ -118,7 +117,6 @@ const Navigation = () => {
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/change-server" element={<ChangeServerPage />} />
-      <Route path="/dashboard" element={<Dashboard />} />
       <Route path="/" element={<App />}>
         <Route index element={<MainPage />} />
 

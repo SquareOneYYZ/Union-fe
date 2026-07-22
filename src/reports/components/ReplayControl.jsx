@@ -53,8 +53,19 @@ const useStyles = makeStyles((theme) => ({
     },
 
     [theme.breakpoints.down('md')]: {
+      width: 'calc(100% - 16px)',
+      maxWidth: 'calc(100% - 16px)',
+      margin: theme.spacing(1),
+      left: 0,
+      right: 0,
+    },
+
+    [theme.breakpoints.down('sm')]: {
       width: '100%',
+      maxWidth: '100%',
       margin: 0,
+      left: 0,
+      right: 0,
     },
   },
 
@@ -87,11 +98,10 @@ const useStyles = makeStyles((theme) => ({
     display: 'flex',
     flexDirection: 'column',
     padding: theme.spacing(2),
+    marginTop: theme.spacing(1),
     [theme.breakpoints.down('md')]: {
-      margin: theme.spacing(1),
-    },
-    [theme.breakpoints.up('md')]: {
-      marginTop: theme.spacing(1),
+      padding: theme.spacing(2),
+      margin: theme.spacing(1.5),
     },
   },
 }));
@@ -281,7 +291,7 @@ const ReplayControl = ({
                   overflow: 'hidden',
                   textOverflow: expanded ? 'unset' : 'ellipsis',
                   whiteSpace: expanded ? 'normal' : 'nowrap',
-                  wordBreak: 'break-word', // 👈 IMPORTANT
+                  wordBreak: 'break-word',
                   lineHeight: 1.3,
                   fontWeight: 'bold',
                   cursor: 'pointer',
@@ -379,14 +389,7 @@ const ReplayControl = ({
               disabled={replayIndex >= replayPositions.length - 1}
             >
               {replayPlaying ? <PauseIcon /> : <PlayArrowIcon />}
-            </IconButton>
-            <IconButton
-              onClick={() => {
-                setReplayIndex((index) => index + 1);
-                setReplayPlaying(false);
-              }}
-              disabled={replayPlaying || replayIndex >= replayPositions.length - 1}
-            >
+
               <FastForwardIcon />
             </IconButton>
             <span>

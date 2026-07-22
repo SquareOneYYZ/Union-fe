@@ -13,13 +13,7 @@ const SplitButton = ({
   return (
     <>
       <ButtonGroup fullWidth={fullWidth} variant={variant} color={color} ref={anchorRef}>
-        <Button
-          sx={{
-            borderRadius: '13px',
-          }}
-          disabled={disabled}
-          onClick={() => onClick(selected)}
-        >
+        <Button disabled={disabled} onClick={() => onClick(selected)}>
           <Typography variant="button" noWrap>{options[selected]}</Typography>
         </Button>
         <Button fullWidth={false} size="small" onClick={() => setMenuAnchorEl(anchorRef.current)}>

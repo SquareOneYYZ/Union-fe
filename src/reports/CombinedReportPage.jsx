@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useSelector } from 'react-redux';
 import {
+  Table, TableBody, TableCell, TableHead, TableRow, TableSortLabel, Box, Pagination, FormControl, Select, MenuItem, Typography,
   Box,
   Pagination,
   Typography,
@@ -8,6 +9,7 @@ import {
   Select,
   MenuItem,
 } from '@mui/material';
+import { visuallyHidden } from '@mui/utils';
 import ReportFilter from './components/ReportFilter';
 import { useTranslation } from '../common/components/LocalizationProvider';
 import PageLayout from '../common/components/PageLayout';
@@ -24,7 +26,6 @@ import MapMarkers from '../map/MapMarkers';
 import MapRouteCoordinates from '../map/MapRouteCoordinates';
 import MapScale from '../map/MapScale';
 import useResizableMap from './common/useResizableMap';
-import { ReportTable, DarkTableRow, DarkTableCell } from './components/StyledTableComponents';
 
 const CombinedReportPage = () => {
   const classes = useReportStyles();
@@ -32,9 +33,14 @@ const CombinedReportPage = () => {
   const devices = useSelector((state) => state.devices.items);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
+
+  const [order, setOrder] = useState('asc');
+  const [orderBy, setOrderBy] = useState('eventTime');
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
+
   const { containerRef, mapHeight, handleMouseDown } = useResizableMap(60, 20, 80);
 
-  // Sorting and pagination state
   const [order, setOrder] = useState('desc');
   const [orderBy, setOrderBy] = useState('eventTime');
   const [page, setPage] = useState(0);
@@ -49,25 +55,6 @@ const CombinedReportPage = () => {
       longitude: position.longitude,
     })));
 
-  const handleSubmit = useCatch(async ({ deviceIds, groupIds, from, to }) => {
-    const query = new URLSearchParams({ from, to });
-    deviceIds.forEach((deviceId) => query.append('deviceId', deviceId));
-    groupIds.forEach((groupId) => query.append('groupId', groupId));
-    setLoading(true);
-    try {
-      const response = await fetch(`/api/reports/combined?${query.toString()}`);
-      if (response.ok) {
-        setItems(await response.json());
-        setPage(0); // Reset to first page on new data
-      } else {
-        throw Error(await response.text());
-      }
-    } finally {
-      setLoading(false);
-    }
-  });
-
-  // Handler functions
   const handleRequestSort = (property) => {
     const isAsc = orderBy === property && order === 'asc';
     setOrder(isAsc ? 'desc' : 'asc');
@@ -84,16 +71,17 @@ const CombinedReportPage = () => {
     setPage(0);
   };
 
-  // Prepare data - flatten events with device info
-  const preparedData = useMemo(() => items.flatMap((item) => item.events.map((event) => ({
-    ...event,
+  const flattenedData = useMemo(() => items.flatMap((item) => item.events.map((event, index) => ({
+    id: event.id,
     deviceId: item.deviceId,
     deviceName: devices[item.deviceId]?.name || '',
+    eventTime: event.eventTime,
+    eventType: event.type,
+    isFirstForDevice: index === 0,
   }))), [items, devices]);
 
-  // Sorting and pagination logic
   const sortedAndPaginatedData = useMemo(() => {
-    if (!preparedData || preparedData.length === 0) return [];
+    if (!flattenedData || flattenedData.length === 0) return [];
 
     const comparator = (a, b) => {
       let aVal = a[orderBy];
@@ -113,44 +101,74 @@ const CombinedReportPage = () => {
       }
 
       if (order === 'asc') {
-        if (aVal < bVal) return -1;
-        if (aVal > bVal) return 1;
+        if (aVal < bVal) {
+          return -1;
+        }
+        if (aVal > bVal) {
+          return 1;
+        }
         return 0;
       }
 
-      if (aVal > bVal) return -1;
-      if (aVal < bVal) return 1;
+      if (aVal > bVal) {
+        return -1;
+      }
+      if (aVal < bVal) {
+        return 1;
+      }
       return 0;
     };
 
-    const sorted = [...preparedData].sort(comparator);
+    const sorted = [...flattenedData].sort(comparator);
     return sorted.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
-  }, [preparedData, order, orderBy, page, rowsPerPage]);
+  }, [flattenedData, order, orderBy, page, rowsPerPage]);
 
-  // Pagination counts
-  const totalCount = preparedData.length;
+  const totalCount = flattenedData.length;
   const totalPages = Math.ceil(totalCount / rowsPerPage);
   const startRow = totalCount === 0 ? 0 : page * rowsPerPage + 1;
   const endRow = Math.min((page + 1) * rowsPerPage, totalCount);
 
-  // Define sortable columns
-  const sortableColumns = ['deviceName', 'eventTime', 'type'];
+  const handleSubmit = useCatch(async ({ deviceIds, groupIds, from, to }) => {
+    const query = new URLSearchParams({ from, to });
+    deviceIds.forEach((deviceId) => query.append('deviceId', deviceId));
+    groupIds.forEach((groupId) => query.append('groupId', groupId));
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/reports/combined?${query.toString()}`);
+      if (response.ok) {
+        setItems(await response.json());
+        setPage(0);
+      } else {
+        throw Error(await response.text());
+      }
+    } finally {
+      setLoading(false);
+    }
+  });
 
-  // Create headers array with sort configuration
-  const headers = [
-    {
-      label: t('sharedDevice'),
-      sortKey: 'deviceName',
-    },
-    {
-      label: t('positionFixTime'),
-      sortKey: 'eventTime',
-    },
-    {
-      label: t('sharedType'),
-      sortKey: 'type',
-    },
-  ];
+  let tableBodyContent;
+
+  if (loading) {
+    tableBodyContent = <TableShimmer columns={3} />;
+  } else if (sortedAndPaginatedData.length === 0) {
+    tableBodyContent = (
+      <TableRow>
+        <TableCell colSpan={3} align="center">
+          <Typography variant="body2" color="text.secondary" sx={{ py: 3 }}>
+            {t('sharedNoData') || 'No data available'}
+          </Typography>
+        </TableCell>
+      </TableRow>
+    );
+  } else {
+    tableBodyContent = sortedAndPaginatedData.map((row) => (
+      <TableRow key={row.id} hover>
+        <TableCell>{row.isFirstForDevice ? row.deviceName : ''}</TableCell>
+        <TableCell>{formatTime(row.eventTime, 'seconds')}</TableCell>
+        <TableCell>{t(prefixString('event', row.eventType))}</TableCell>
+      </TableRow>
+    ));
+  }
 
   return (
     <PageLayout menu={<ReportsMenu />} breadcrumbs={['reportTitle', 'reportCombined']}>
