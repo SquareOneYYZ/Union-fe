@@ -185,12 +185,11 @@ const ReplayPage = () => {
   const [speed, setSpeed] = useState(1);
   const [titleExpanded, setTitleExpanded] = useState(false);
 
-  const chartData = useMemo(() =>
-    positions.map((pos, i) => ({
-      index: i,
-      speed: +(pos.speed ?? 0).toFixed(2),
-      hasEvent: !!pos.attributes?.alarm,
-    })), [positions]);
+  const chartData = useMemo(() => positions.map((pos, i) => ({
+    index: i,
+    speed: +(pos.speed ?? 0).toFixed(2),
+    hasEvent: !!pos.attributes?.alarm,
+  })), [positions]);
 
   // This computes the exact 0–100% position of the playhead across the chart width
   const playheadPercent = useMemo(() => {

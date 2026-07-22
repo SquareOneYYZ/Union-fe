@@ -19,48 +19,21 @@ const CLUSTER_POPUP_MIN_ZOOM = 9;
 const TELEPORT_THRESHOLD_SQ = 0.0045 * 0.0045;
 const STALE_GAP_MS = 10000;
 const MIN_CHANGE_DEG = 0.000005;
-
-// Every content write to a GeoJSON source — setData AND updateData alike in
-// maplibre-gl 4.7.1 — re-tiles the whole source in the worker and restarts
-// symbol placement (SourceCache.reload reloads every tile on any 'content'
-// event), which reads as fleet-wide marker flicker. The only real lever is
-// writing the fleet source less. Above this fleet size, writes go through a
-// diff mirror: a write is skipped entirely when nothing render-relevant
-// changed, visible changes (adds/removes/status/jumps) flush within the
-// animation interval, and invisible geometry churn (clustered, off-viewport,
-// hidden gliding twins) batches into one reconcile write per deferred
-// interval, on moveend, or when motion stops. updateData carries the diffs so
-// the remaining writes serialize only changed features.
 const PER_FRAME_WRITE_MAX_FLEET = 300;
 const ANIMATION_WRITE_INTERVAL_MS = 1000;
 const DEFERRED_RECONCILE_INTERVAL_MS = 15000;
 
-// Smooth glide for large fleets: devices with a fresh position glide through a
-// small dedicated GeoJSON source written at ~15fps (cost is O(gliding devices),
-// not fleet size), while their static twin in the full source is hidden via
-// feature-state — a paint-only change with no worker round-trip. Only devices
-// rendered individually inside the padded viewport participate; everything
-// else keeps stepping at the reconcile cadence.
 const GLIDE_WRITE_INTERVAL_MS = 66;
 const GLIDE_VIEWPORT_PAD = 0.2;
 
 const hiddenWhenAnimating = (visible) => ['case', ['boolean', ['feature-state', 'animating'], false], 0, visible];
 
-// Render-relevant equality for the diff mirror. properties.id (per-fix
-// position id) and properties.fixTime are deliberately excluded: they refresh
-// on every fix even for a parked device, and comparing them would turn every
-// flush into a full-fleet rewrite — the exact symptom this diff exists to
-// remove. Neither is rendered on the live map (labels use titleField, default
-// 'name'); they ride along whenever a device is written for a real change.
 const propsRenderEqual = (a, b, titleKey) => a.properties.name === b.properties.name
   && a.properties.category === b.properties.category
   && a.properties.color === b.properties.color
   && a.properties.direction === b.properties.direction
   && a.properties[titleKey] === b.properties[titleKey];
 
-// Field-verification trigger taxonomy: writes caused by a selection change or
-// a pan keep that label; anything else is labeled by the lane it took —
-// urgent diffs as 'flush-urgent', pure deferred backlog as 'reconcile-15s'.
 const laneTrigger = (reason, urgentHere) => {
   if (reason === 'selection' || reason === 'moveend') return reason;
   return urgentHere ? 'flush-urgent' : 'reconcile-15s';
@@ -789,7 +762,7 @@ const MapPositions = ({
   }, [mapCluster, clusters, onMarkerClick, onClusterClick, iconScale, titleField, id, selected, animating, onMapClick, setTwinHidden, glideEligibleIds]);
 
   useEffect(() => {
-    updateAnimationState(filtered);
+    updateAnimationState();
     updateMapData();
   }, [positions, devices, enableSmoothing, updateAnimationState, updateMapData]);
 
