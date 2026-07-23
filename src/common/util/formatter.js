@@ -31,21 +31,39 @@ export const formatVoltage = (value, t) => `${value.toFixed(2)} ${t('sharedVoltA
 
 export const formatConsumption = (value, t) => `${value.toFixed(2)} ${t('sharedLiterPerHourAbbreviation')}`;
 
+// toLocaleString-style calls construct an implicit Intl.DateTimeFormat on
+// every invocation, which dominates the cost at fleet scale (every position
+// ingest funnels through formatTime); cache one formatter per output format.
+// Locale is the browser default (undefined), which cannot change at runtime.
+const timeFormatters = (() => {
+  const dateConfig = { year: 'numeric', month: '2-digit', day: '2-digit' };
+  const minuteConfig = { hour: '2-digit', minute: '2-digit' };
+  const secondConfig = { ...minuteConfig, second: '2-digit' };
+  return {
+    date: new Intl.DateTimeFormat(undefined, dateConfig),
+    time: new Intl.DateTimeFormat(undefined, secondConfig),
+    minutes: new Intl.DateTimeFormat(undefined, { ...dateConfig, ...minuteConfig }),
+    seconds: new Intl.DateTimeFormat(undefined, { ...dateConfig, ...secondConfig }),
+  };
+})();
+
 export const formatTime = (value, format) => {
   if (value) {
-    const d = dayjs(value).toDate();
-    const dateConfig = { year: 'numeric', month: '2-digit', day: '2-digit' };
-    const minuteConfig = { hour: '2-digit', minute: '2-digit' };
-    const secondConfig = { ...minuteConfig, second: '2-digit' };
+    // the backend emits ISO-8601 strings, which Date parses directly; keep the
+    // dayjs round-trip only as a fallback so exotic inputs format as before
+    let d = new Date(value);
+    if (Number.isNaN(d.getTime())) {
+      d = dayjs(value).toDate();
+    }
     switch (format) {
       case 'date':
-        return d.toLocaleDateString(undefined, dateConfig);
+        return timeFormatters.date.format(d);
       case 'time':
-        return d.toLocaleTimeString(undefined, secondConfig);
+        return timeFormatters.time.format(d);
       case 'minutes':
-        return d.toLocaleString(undefined, { ...dateConfig, ...minuteConfig });
+        return timeFormatters.minutes.format(d);
       default:
-        return d.toLocaleString(undefined, { ...dateConfig, ...secondConfig });
+        return timeFormatters.seconds.format(d);
     }
   }
   return '';

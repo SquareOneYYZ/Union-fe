@@ -2,7 +2,8 @@ import React, {
   useState, useEffect, useRef, useCallback,
 } from 'react';
 import {
-  IconButton, Paper, Slider, Toolbar, Typography,
+  IconButton, Paper, Slider, Toolbar, Typography, Box, Chip,
+  Tooltip,
 } from '@mui/material';
 import makeStyles from '@mui/styles/makeStyles';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -27,6 +28,8 @@ import MapGeofence from '../map/MapGeofence';
 import StatusCard from '../common/components/StatusCard';
 import MapScale from '../map/MapScale';
 
+const SPEED_OPTIONS = [1, 1.5, 2, 5, 10];
+
 const useStyles = makeStyles((theme) => ({
   root: {
     height: '100%',
@@ -40,9 +43,27 @@ const useStyles = makeStyles((theme) => ({
     top: 0,
     margin: theme.spacing(1.5),
     width: theme.dimensions.drawerWidthDesktop,
+    maxWidth: '90vw',
+    transition: 'width 0.3s ease',
+
+    '&.expanded': {
+      width: 600,
+    },
+
     [theme.breakpoints.down('md')]: {
+      width: 'calc(100% - 16px)',
+      maxWidth: 'calc(100% - 16px)',
+      margin: theme.spacing(1),
+      left: 0,
+      right: 0,
+    },
+
+    [theme.breakpoints.down('sm')]: {
       width: '100%',
+      maxWidth: '100%',
       margin: 0,
+      left: 0,
+      right: 0,
     },
   },
   title: {
@@ -56,6 +77,20 @@ const useStyles = makeStyles((theme) => ({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  speedControl: {
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexDirection: 'column',
+    gap: theme.spacing(1),
+    marginBottom: theme.spacing(2),
+    marginTop: theme.spacing(2),
+  },
+  speedChips: {
+    display: 'flex',
+    gap: theme.spacing(0.75),
+    flexWrap: 'wrap',
+  },
   formControlLabel: {
     height: '100%',
     width: '100%',
@@ -67,11 +102,10 @@ const useStyles = makeStyles((theme) => ({
     display: 'flex',
     flexDirection: 'column',
     padding: theme.spacing(2),
+    marginTop: theme.spacing(1),
     [theme.breakpoints.down('md')]: {
-      margin: theme.spacing(1),
-    },
-    [theme.breakpoints.up('md')]: {
-      marginTop: theme.spacing(1),
+      padding: theme.spacing(2),
+      margin: theme.spacing(1.5),
     },
   },
 }));
@@ -81,7 +115,6 @@ const ReplayPage = () => {
   const classes = useStyles();
   const navigate = useNavigate();
   const timerRef = useRef();
-
   const defaultDeviceId = useSelector((state) => state.devices.selectedId);
 
   const [positions, setPositions] = useState([]);
@@ -96,6 +129,7 @@ const ReplayPage = () => {
   const [smoothPosition, setSmoothPosition] = useState(null);
   const [animationProgress, setAnimationProgress] = useState(0);
   const [speed, setSpeed] = useState(1);
+  const [titleExpanded, setTitleExpanded] = useState(false);
 
   const deviceName = useSelector((state) => {
     if (selectedDeviceId) {
@@ -148,7 +182,6 @@ const ReplayPage = () => {
           longitude:
             currentPos.longitude
             + (nextPos.longitude - currentPos.longitude) * animationProgress,
-          // Interpolate other numeric fields if needed
           speed:
             currentPos.speed
             + (nextPos.speed - currentPos.speed) * animationProgress,
@@ -167,6 +200,8 @@ const ReplayPage = () => {
   const onPointClick = useCallback(
     (_, index) => {
       setIndex(index);
+      setAnimationProgress(0);
+      setPlaying(false);
     },
     [setIndex],
   );
@@ -212,8 +247,16 @@ const ReplayPage = () => {
     <div className={classes.root}>
       <MapView>
         <MapGeofence />
-        <MapRoutePath positions={positions} />
-        <MapRoutePoints positions={positions} onClick={onPointClick} />
+        <MapRoutePath
+          positions={positions}
+          onClick={onPointClick}
+          expandPointsOnClick
+        />
+        <MapRoutePoints
+          positions={positions}
+          onClick={onPointClick}
+          useGlobalExpansion
+        />
         {smoothPosition && (
           <MapPositions
             positions={[smoothPosition]}
@@ -224,9 +267,17 @@ const ReplayPage = () => {
       </MapView>
       <MapScale />
       <MapCamera positions={positions} />
-      <div className={classes.sidebar}>
+      <div className={`${classes.sidebar} ${titleExpanded ? 'expanded' : ''}`}>
         <Paper elevation={3} square>
-          <Toolbar>
+          <Toolbar
+            sx={{
+              alignItems: 'center',
+              justifyContent: 'center',
+              minHeight: 'unset',
+              paddingTop: 1,
+              paddingBottom: 1,
+            }}
+          >
             <IconButton
               edge="start"
               sx={{ mr: 2 }}
@@ -234,9 +285,32 @@ const ReplayPage = () => {
             >
               <ArrowBackIcon />
             </IconButton>
-            <Typography variant="h6" className={classes.title}>
-              {t('reportReplay')}
-            </Typography>
+            <Tooltip
+              title={`${t('reportReplay')}${deviceName ? ` - ${deviceName}` : ''}`}
+              arrow
+              placement="bottom"
+            >
+              <Typography
+                variant="subtitle1"
+                onClick={() => setTitleExpanded((prev) => !prev)}
+                noWrap={!titleExpanded}
+                sx={{
+                  maxWidth: '100%',
+                  overflow: 'hidden',
+                  textOverflow: titleExpanded ? 'unset' : 'ellipsis',
+                  whiteSpace: titleExpanded ? 'normal' : 'nowrap',
+                  wordBreak: 'break-word',
+                  lineHeight: 1.3,
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  flexGrow: 1,
+                }}
+              >
+                {t('reportReplay')}
+                {deviceName ? ` - ${deviceName}` : ''}
+              </Typography>
+            </Tooltip>
+
             {!expanded && (
               <>
                 <IconButton onClick={handleDownload}>
@@ -252,21 +326,58 @@ const ReplayPage = () => {
         <Paper className={classes.content} square>
           {!expanded ? (
             <>
-              <Typography variant="subtitle1" align="center">
-                {deviceName}
-              </Typography>
+              <Box className={classes.speedControl}>
+                <Box className={classes.speedChips}>
+                  {SPEED_OPTIONS.map((speedOption) => (
+                    <Chip
+                      key={speedOption}
+                      label={`${speedOption}x`}
+                      onClick={() => setSpeed(speedOption)}
+                      color={speed === speedOption ? 'primary' : 'default'}
+                      variant={speed === speedOption ? 'filled' : 'outlined'}
+                      size="small"
+                      sx={{ minWidth: 48 }}
+                    />
+                  ))}
+                </Box>
+              </Box>
+
               <Slider
                 className={classes.slider}
                 max={positions.length - 1}
                 step={null}
                 marks={positions.map((_, index) => ({ value: index }))}
                 value={index}
-                onChange={(_, index) => setIndex(index)}
+                onChange={(_, newIndex) => {
+                  setIndex(newIndex);
+                  setAnimationProgress(0);
+                  setPlaying(false);
+                }}
               />
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginTop: -10,
+                  marginBottom: 8,
+                }}
+              >
+                <Typography variant="caption" color="text.secondary">
+                  -1hr
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  +1hr
+                </Typography>
+              </div>
               <div className={classes.controls}>
                 {`${index + 1}/${positions.length}`}
                 <IconButton
-                  onClick={() => setIndex((index) => index - 1)}
+                  onClick={() => {
+                    setIndex((index) => index - 1);
+                    setAnimationProgress(0);
+                    setPlaying(false);
+                  }}
                   disabled={playing || index <= 0}
                 >
                   <FastRewindIcon />
@@ -278,7 +389,11 @@ const ReplayPage = () => {
                   {playing ? <PauseIcon /> : <PlayArrowIcon />}
                 </IconButton>
                 <IconButton
-                  onClick={() => setIndex((index) => index + 1)}
+                  onClick={() => {
+                    setIndex((index) => index + 1);
+                    setAnimationProgress(0);
+                    setPlaying(false);
+                  }}
                   disabled={playing || index >= positions.length - 1}
                 >
                   <FastForwardIcon />

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  FormControl, InputLabel, Select, MenuItem, Button, TextField, Typography,
+  FormControl, InputLabel, Select, MenuItem, Button, TextField, Typography, Tooltip,
 } from '@mui/material';
 import { useDispatch, useSelector } from 'react-redux';
 import dayjs from 'dayjs';
@@ -12,7 +12,7 @@ import SelectField from '../../common/components/SelectField';
 import { useRestriction } from '../../common/util/permissions';
 
 const ReportFilter = ({
-  children, handleSubmit, handleSchedule, showOnly, ignoreDevice, multiDevice, includeGroups, loading,
+  children, handleSubmit, handleSchedule, showOnly, ignoreDevice, multiDevice, includeGroups, loading, sx,
 }) => {
   const classes = useReportStyles();
   const dispatch = useDispatch();
@@ -93,16 +93,62 @@ const ReportFilter = ({
   return (
     <div className={classes.filter}>
       {!ignoreDevice && (
-        <div className={classes.filterItem}>
-          <SelectField
-            label={t(multiDevice ? 'deviceTitle' : 'reportDevice')}
-            data={Object.values(devices).sort((a, b) => a.name.localeCompare(b.name))}
-            value={multiDevice ? deviceIds : deviceId}
-            onChange={(e) => dispatch(multiDevice ? devicesActions.selectIds(e.target.value) : devicesActions.selectId(e.target.value))}
-            multiple={multiDevice}
-            fullWidth
-          />
-        </div>
+      <div className={classes.filterItem} style={{ minWidth: '280px', flex: '1.5' }}>
+        <SelectField
+          label={t(multiDevice ? 'deviceTitle' : 'reportDevice')}
+          data={Object.values(devices).sort((a, b) => a.name.localeCompare(b.name))}
+          value={multiDevice ? deviceIds : deviceId}
+          onChange={(e) => dispatch(multiDevice ? devicesActions.selectIds(e.target.value) : devicesActions.selectId(e.target.value))}
+          multiple={multiDevice}
+          fullWidth
+          sx={{
+            '& .MuiOutlinedInput-root': {
+              borderRadius: '13px',
+              '& fieldset': { borderRadius: '13px' },
+            },
+            ...sx,
+          }}
+          renderValue={(selected) => {
+            if (multiDevice && Array.isArray(selected)) {
+              const selectedDevices = selected.map((id) => devices[id]?.name || id).join(', ');
+              return (
+                <Tooltip title={selectedDevices} placement="bottom-start" arrow>
+                  <span style={{
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    display: 'block',
+                  }}
+                  >
+                    {selectedDevices}
+                  </span>
+                </Tooltip>
+              );
+            }
+            const deviceName = devices[selected]?.name || selected || '';
+            return (
+              <Tooltip title={deviceName} placement="bottom-start" arrow>
+                <span style={{
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  display: 'block',
+                }}
+                >
+                  {deviceName}
+                </span>
+              </Tooltip>
+            );
+          }}
+          MenuProps={{
+            PaperProps: {
+              style: {
+                maxWidth: '400px',
+              },
+            },
+          }}
+        />
+      </div>
       )}
       {includeGroups && (
         <div className={classes.filterItem}>
@@ -113,6 +159,13 @@ const ReportFilter = ({
             onChange={(e) => dispatch(reportsActions.updateGroupIds(e.target.value))}
             multiple
             fullWidth
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                borderRadius: '13px',
+                '& fieldset': { borderRadius: '13px' },
+              },
+              ...sx,
+            }}
           />
         </div>
       )}
@@ -121,7 +174,18 @@ const ReportFilter = ({
           <div className={classes.filterItem}>
             <FormControl fullWidth>
               <InputLabel>{t('reportPeriod')}</InputLabel>
-              <Select label={t('reportPeriod')} value={period} onChange={(e) => dispatch(reportsActions.updatePeriod(e.target.value))}>
+              <Select
+                sx={{ // ← ADD THIS
+                  borderRadius: '13px',
+                  '& .MuiOutlinedInput-notchedOutline': { borderRadius: '13px' },
+                }}
+                MenuProps={{ // ← ADD THIS
+                  PaperProps: { sx: { borderRadius: '13px' } },
+                }}
+                label={t('reportPeriod')}
+                value={period}
+                onChange={(e) => dispatch(reportsActions.updatePeriod(e.target.value))}
+              >
                 <MenuItem value="today">{t('reportToday')}</MenuItem>
                 <MenuItem value="yesterday">{t('reportYesterday')}</MenuItem>
                 <MenuItem value="thisWeek">{t('reportThisWeek')}</MenuItem>
@@ -140,6 +204,13 @@ const ReportFilter = ({
                 value={from}
                 onChange={(e) => dispatch(reportsActions.updateFrom(e.target.value))}
                 fullWidth
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: '13px',
+                    '& fieldset': { borderRadius: '13px' },
+                  },
+                  ...sx,
+                }}
               />
             </div>
           )}
@@ -151,6 +222,13 @@ const ReportFilter = ({
                 value={to}
                 onChange={(e) => dispatch(reportsActions.updateTo(e.target.value))}
                 fullWidth
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: '13px',
+                    '& fieldset': { borderRadius: '13px' },
+                  },
+                  ...sx,
+                }}
               />
             </div>
           )}
@@ -163,6 +241,13 @@ const ReportFilter = ({
               onChange={(event) => setDescription(event.target.value)}
               label={t('sharedDescription')}
               fullWidth
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '13px',
+                  '& fieldset': { borderRadius: '13px' },
+                },
+                ...sx,
+              }}
             />
           </div>
           <div className={classes.filterItem}>
@@ -172,6 +257,13 @@ const ReportFilter = ({
               endpoint="/api/calendars"
               label={t('sharedCalendar')}
               fullWidth
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '13px',
+                  '& fieldset': { borderRadius: '13px' },
+                },
+                ...sx,
+              }}
             />
           </div>
         </>
@@ -185,6 +277,7 @@ const ReportFilter = ({
             color="secondary"
             disabled={disabled}
             onClick={() => handleClick('json')}
+            sx={{ borderRadius: '13px' }}
           >
             <Typography variant="button" noWrap>{t(loading ? 'sharedLoading' : 'reportShow')}</Typography>
           </Button>
@@ -206,6 +299,13 @@ const ReportFilter = ({
               export: t('reportExport'),
               mail: t('reportEmail'),
               schedule: t('reportSchedule'),
+            }}
+            sx={{
+              borderRadius: '13px',
+              '& .MuiOutlinedInput-notchedOutline': { borderRadius: '13px' },
+            }}
+            MenuProps={{
+              PaperProps: { sx: { borderRadius: '13px' } },
             }}
           />
         )}
