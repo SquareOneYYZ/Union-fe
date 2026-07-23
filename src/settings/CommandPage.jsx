@@ -17,6 +17,15 @@ const CommandPage = () => {
 
   const validate = () => item && item.type;
 
+  const roundedFieldSx = {
+    '& .MuiOutlinedInput-root': {
+      borderRadius: '13px',
+      '& fieldset': { borderRadius: '13px', borderColor: 'rgba(255,255,255,0.23)' },
+      '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.5)' },
+      '&.Mui-focused fieldset': { borderColor: 'primary.main' },
+    },
+  };
+
   return (
     <EditItemView
       endpoint="commands"
@@ -38,6 +47,7 @@ const CommandPage = () => {
               value={item.description || ''}
               onChange={(event) => setItem({ ...item, description: event.target.value })}
               label={t('sharedDescription')}
+              sx={roundedFieldSx}
             />
             <BaseCommandView item={item} setItem={setItem} />
           </AccordionDetails>

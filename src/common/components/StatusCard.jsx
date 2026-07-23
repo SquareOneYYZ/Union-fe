@@ -57,6 +57,8 @@ const useStyles = makeStyles((theme) => ({
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: theme.spacing(1, 1, 0, 2),
+    cursor: 'move',
+
   },
   content: {
     paddingTop: theme.spacing(1),

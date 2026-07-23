@@ -1,9 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   IconButton,
-  Table, TableBody, TableCell, TableHead, TableRow,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
+  TableSortLabel,
+  Box,
+  Pagination,
+  FormControl,
+  Select,
+  MenuItem,
+  Typography,
 } from '@mui/material';
+import { visuallyHidden } from '@mui/utils';
 import GpsFixedIcon from '@mui/icons-material/GpsFixed';
 import LocationSearchingIcon from '@mui/icons-material/LocationSearching';
 import { useSelector } from 'react-redux';
@@ -72,6 +84,7 @@ const StopReportPage = () => {
         });
         if (response.ok) {
           setItems(await response.json());
+          setPage(0);
         } else {
           throw Error(await response.text());
         }
@@ -131,6 +144,47 @@ const StopReportPage = () => {
     }
   };
 
+  let tableBodyContent;
+
+  if (loading) {
+    tableBodyContent = <TableShimmer columns={columns.length + 1} startAction />;
+  } else if (sortedAndPaginatedData.length === 0) {
+    tableBodyContent = (
+      <TableRow>
+        <TableCell colSpan={columns.length + 1} align="center">
+          <Typography variant="body2" color="text.secondary" sx={{ py: 3 }}>
+            {t('sharedNoData') || 'No data available'}
+          </Typography>
+        </TableCell>
+      </TableRow>
+    );
+  } else {
+    tableBodyContent = sortedAndPaginatedData.map((item) => {
+      const isSelectedItem = selectedItem === item;
+
+      const locationAction = isSelectedItem ? (
+        <IconButton size="small" onClick={() => setSelectedItem(null)}>
+          <GpsFixedIcon fontSize="small" />
+        </IconButton>
+      ) : (
+        <IconButton size="small" onClick={() => setSelectedItem(item)}>
+          <LocationSearchingIcon fontSize="small" />
+        </IconButton>
+      );
+
+      return (
+        <TableRow key={item.positionId} hover>
+          <TableCell className={classes.columnAction} padding="none">
+            {locationAction}
+          </TableCell>
+          {columns.map((key) => (
+            <TableCell key={key}>{formatValue(item, key)}</TableCell>
+          ))}
+        </TableRow>
+      );
+    });
+  }
+
   return (
     <PageLayout menu={<ReportsMenu />} breadcrumbs={['reportTitle', 'reportStops']}>
       <div
@@ -175,6 +229,7 @@ const StopReportPage = () => {
 
             <button
               type="button"
+              aria-label="Resize map"
               onMouseDown={handleMouseDown}
               style={{
                 height: '8px',
@@ -188,10 +243,15 @@ const StopReportPage = () => {
                 borderBottom: '1px solid #ccc',
                 transition: 'background-color 0.2s',
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#d0d0d0')}
-              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#e0e0e0')}
+              onMouseEnter={(e) => {
+                const target = e.currentTarget;
+                target.style.backgroundColor = '#d0d0d0';
+              }}
+              onMouseLeave={(e) => {
+                const target = e.currentTarget;
+                target.style.backgroundColor = '#e0e0e0';
+              }}
             >
-              {' '}
               <div
                 style={{
                   width: '40px',
@@ -229,36 +289,85 @@ const StopReportPage = () => {
             <TableHead>
               <TableRow>
                 <TableCell className={classes.columnAction} />
-                {columns.map((key) => (
-                  <TableCell key={key}>{t(columnsMap.get(key))}</TableCell>
-                ))}
+                {columns.map((key) => {
+                  const isSortable = key === 'startTime' || key === 'endTime' || key === 'duration' || key === 'startOdometer';
+                  if (isSortable) {
+                    return (
+                      <TableCell key={key}>
+                        <TableSortLabel
+                          active={orderBy === key}
+                          direction={orderBy === key ? order : 'asc'}
+                          onClick={() => handleRequestSort(key)}
+                        >
+                          {t(columnsMap.get(key))}
+                          {orderBy === key ? (
+                            <Box component="span" sx={visuallyHidden}>
+                              {order === 'desc' ? 'sorted descending' : 'sorted ascending'}
+                            </Box>
+                          ) : null}
+                        </TableSortLabel>
+                      </TableCell>
+                    );
+                  }
+                  return (
+                    <TableCell key={key}>{t(columnsMap.get(key))}</TableCell>
+                  );
+                })}
               </TableRow>
             </TableHead>
-            <TableBody>
-              {!loading ? (
-                items.map((item) => (
-                  <TableRow key={item.positionId}>
-                    <TableCell className={classes.columnAction} padding="none">
-                      {selectedItem === item ? (
-                        <IconButton size="small" onClick={() => setSelectedItem(null)}>
-                          <GpsFixedIcon fontSize="small" />
-                        </IconButton>
-                      ) : (
-                        <IconButton size="small" onClick={() => setSelectedItem(item)}>
-                          <LocationSearchingIcon fontSize="small" />
-                        </IconButton>
-                      )}
-                    </TableCell>
-                    {columns.map((key) => (
-                      <TableCell key={key}>{formatValue(item, key)}</TableCell>
-                    ))}
-                  </TableRow>
-                ))
-              ) : (
-                <TableShimmer columns={columns.length + 1} startAction />
-              )}
-            </TableBody>
+            <TableBody>{tableBodyContent}</TableBody>
           </Table>
+          {!loading && sortedAndPaginatedData.length > 0 && (
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: 'space-evenly',
+                alignItems: 'center',
+                p: 2,
+                borderTop: '1px solid rgba(224, 224, 224, 1)',
+                flexWrap: 'wrap',
+                gap: 2,
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography variant="body2">
+                  {t('sharedRowsPerPage') || 'Rows per page'}
+                  :
+                </Typography>
+                <FormControl size="small">
+                  <Select
+                    value={rowsPerPage}
+                    onChange={handleChangeRowsPerPage}
+                    sx={{ minWidth: 80 }}
+                  >
+                    <MenuItem value={10}>10</MenuItem>
+                    <MenuItem value={25}>25</MenuItem>
+                    <MenuItem value={50}>50</MenuItem>
+                    <MenuItem value={100}>100</MenuItem>
+                  </Select>
+                </FormControl>
+                <Typography variant="body2" color="text.secondary" sx={{ ml: 2 }}>
+                  {startRow}
+                  -
+                  {endRow}
+                  {' '}
+                  {t('sharedOf') || 'of'}
+                  {' '}
+                  {totalCount}
+                </Typography>
+              </Box>
+
+              <Pagination
+                count={totalPages}
+                page={page + 1}
+                onChange={handleChangePage}
+                color="primary"
+                showFirstButton
+                showLastButton
+                siblingCount={1}
+                boundaryCount={1}
+              />
+            </Box>
           )}
         </div>
       </div>

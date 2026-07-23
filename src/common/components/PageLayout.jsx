@@ -29,11 +29,27 @@ const useStyles = makeStyles((theme) => ({
     flexDirection: 'column',
   },
   desktopDrawer: {
+    paddingLeft: theme.spacing(0.5),
     width: (props) => (props.miniVariant ? `calc(${theme.spacing(8)} + 1px)` : theme.dimensions.drawerWidthDesktop),
     transition: theme.transitions.create('width', {
       easing: theme.transitions.easing.sharp,
       duration: theme.transitions.duration.enteringScreen,
     }),
+    overflowX: 'hidden',
+    overflowY: 'auto',
+    '&::-webkit-scrollbar': {
+      width: '5px',
+    },
+    '&::-webkit-scrollbar-track': {
+      background: 'rgba(90, 74, 74, 0.1)',
+    },
+    '&::-webkit-scrollbar-thumb': {
+      background: 'rgba(0, 0, 0, 0.3)',
+      borderRadius: '4px',
+      '&:hover': {
+        background: 'rgba(0, 0, 0, 0.5)',
+      },
+    },
   },
   mobileDrawer: {
     width: theme.dimensions.drawerWidthTablet,

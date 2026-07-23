@@ -1,6 +1,7 @@
 import React, {
   useState,
   useEffect,
+  useMemo,
 } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -15,7 +16,12 @@ import {
   MenuItem,
   TextField,
   IconButton,
+  TableSortLabel,
+  Box,
+  Pagination,
+  Typography,
 } from '@mui/material';
+import { visuallyHidden } from '@mui/utils';
 import GpsFixedIcon from '@mui/icons-material/GpsFixed';
 import LocationSearchingIcon from '@mui/icons-material/LocationSearching';
 import { useSelector } from 'react-redux';
@@ -58,8 +64,8 @@ const columnsMap = new Map(columnsArray);
 
 const allEventTypes = [
   ['allTypes', 'sharedAll'],
-  ['Inside', 'Inside'],
-  ['Outside', 'Outside'],
+  ['inside', 'inside'],
+  ['outside', 'outside'],
 ];
 
 const segmentTypes = [
@@ -100,6 +106,10 @@ const GeofenceDistanceReportPage = () => {
   const [selectedItem, setSelectedItem] = useState(null);
   const [positions, setPositions] = useState([]);
   const [route, setRoute] = useState(null);
+  const [order, setOrder] = useState('desc');
+  const [orderBy, setOrderBy] = useState('startTime');
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
 
   useEffect(() => {
     const fetchGeofences = async () => {
@@ -199,7 +209,77 @@ const GeofenceDistanceReportPage = () => {
     }
   }, [selectedItem]);
 
-  const handleSubmit = useCatch(async ({ deviceId, groupIds, from, to, type, ...otherParams }, options = {}) => {
+  const handleRequestSort = (property) => {
+    const isAsc = orderBy === property && order === 'asc';
+    setOrder(isAsc ? 'desc' : 'asc');
+    setOrderBy(property);
+    setPage(0);
+  };
+
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage - 1);
+  };
+
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  const preparedData = useMemo(() => items.map((item) => ({
+    ...item,
+    deviceName: devices[item.deviceId]?.name || '',
+    geofenceName: geofences[item.geofenceId]?.name || '',
+  })), [items, devices, geofences]);
+
+  const sortedAndPaginatedData = useMemo(() => {
+    if (!preparedData || preparedData.length === 0) return [];
+
+    const comparator = (a, b) => {
+      let aVal = a[orderBy];
+      let bVal = b[orderBy];
+
+      if (aVal == null) return 1;
+      if (bVal == null) return -1;
+
+      if (orderBy.toLowerCase().includes('time') || orderBy.toLowerCase().includes('date')) {
+        aVal = new Date(aVal).getTime();
+        bVal = new Date(bVal).getTime();
+      } else if (typeof aVal === 'number' && typeof bVal === 'number') {
+        return order === 'asc' ? aVal - bVal : bVal - aVal;
+      } else if (typeof aVal === 'string') {
+        aVal = aVal.toLowerCase();
+        bVal = String(bVal).toLowerCase();
+      }
+
+      if (order === 'asc') {
+        if (aVal < bVal) {
+          return -1;
+        }
+        if (aVal > bVal) {
+          return 1;
+        }
+        return 0;
+      }
+
+      if (aVal > bVal) {
+        return -1;
+      }
+      if (aVal < bVal) {
+        return 1;
+      }
+      return 0;
+    };
+
+    const sorted = [...preparedData].sort(comparator);
+    return sorted.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+  }, [preparedData, order, orderBy, page, rowsPerPage]);
+
+  const totalCount = preparedData.length;
+  const totalPages = Math.ceil(totalCount / rowsPerPage);
+  const startRow = totalCount === 0 ? 0 : page * rowsPerPage + 1;
+  const endRow = Math.min((page + 1) * rowsPerPage, totalCount);
+
+  const handleSubmit = useCatch(async ({ deviceId, from, to, type }) => {
     const query = new URLSearchParams({ deviceId, from, to });
 
     if (selectedTypes[0] !== 'allTypes') {
@@ -269,6 +349,7 @@ const GeofenceDistanceReportPage = () => {
 
           setItems(data);
           setFilterRange({ from, to });
+          setPage(0);
         } else {
           throw Error(await response.text());
         }
@@ -324,22 +405,13 @@ const GeofenceDistanceReportPage = () => {
 
   const formatValue = (item, key) => {
     if (item.isPlaceholder) {
-      switch (key) {
-        case 'deviceId':
-          return devices[item.deviceId]?.name || item.deviceId;
-        case 'geofenceId':
-          return geofences[item.geofenceId]?.name || item.geofenceId;
-        case 'type':
-        case 'startTime':
-        case 'endTime':
-        case 'totalDistance':
-        case 'startDistance':
-        case 'endDistance':
-        case 'distanceTraveled':
-          return 'N/A';
-        default:
-          return 'N/A';
+      if (key === 'deviceId') {
+        return devices[item.deviceId]?.name || item.deviceId;
       }
+      if (key === 'geofenceId') {
+        return geofences[item.geofenceId]?.name || item.geofenceId;
+      }
+      return 'N/A';
     }
 
     const value = item[key];
@@ -351,48 +423,95 @@ const GeofenceDistanceReportPage = () => {
         return geofences[value]?.name || value;
 
       case 'startTime':
-        return item.startTime
-          ? formatTime(item.startTime, 'minutes')
-          : 'N/A';
+        return item.startTime ? formatTime(item.startTime, 'minutes') : 'N/A';
 
-      case 'endTime':
+      case 'endTime': {
         if (item.open === true) {
           return 'In Progress';
         }
-        return item.endTime
-          ? formatTime(item.endTime, 'minutes')
-          : 'N/A';
+        return item.endTime ? formatTime(item.endTime, 'minutes') : 'N/A';
+      }
 
-      case 'type':
+      case 'type': {
         if (value === 'enter') return t('geofenceEnter');
         if (value === 'exit') return t('geofenceExit');
         if (value === 'Inside' || value === 'inside') return 'Inside';
         if (value === 'Outside' || value === 'outside') return 'Outside';
         return value;
+      }
 
-      case 'startDistance':
+      case 'startDistance': {
         if (item.odoStart !== null && item.odoStart !== undefined) {
           return formatDistance(item.odoStart, distanceUnit, t);
         }
         return 'N/A';
+      }
 
-      case 'endDistance':
+      case 'endDistance': {
         if (item.odoEnd !== null && item.odoEnd !== undefined) {
           return formatDistance(item.odoEnd, distanceUnit, t);
         }
         return 'N/A';
+      }
 
-      case 'distanceTraveled':
+      case 'distanceTraveled': {
         if (item.distance !== null && item.distance !== undefined) {
           const formattedDistance = formatDistance(item.distance, distanceUnit, t);
           return item.open === true ? `${formattedDistance} (current)` : formattedDistance;
         }
         return 'N/A';
+      }
 
       default:
         return value;
     }
   };
+
+  let tableBodyContent;
+
+  if (loading) {
+    tableBodyContent = <TableShimmer columns={columns.length + 1} startAction />;
+  } else if (sortedAndPaginatedData.length === 0) {
+    tableBodyContent = (
+      <TableRow>
+        <TableCell colSpan={columns.length + 1} align="center">
+          <Typography variant="body2" color="text.secondary" sx={{ py: 3 }}>
+            {t('sharedNoData') || 'No data available'}
+          </Typography>
+        </TableCell>
+      </TableRow>
+    );
+  } else {
+    tableBodyContent = sortedAndPaginatedData.map((item) => {
+      const isSelectedItem = selectedItem === item;
+      const hasPositionId = !item.isPlaceholder && (item.enterPositionId || item.exitPositionId);
+
+      let locationAction = null;
+
+      if (hasPositionId) {
+        locationAction = isSelectedItem ? (
+          <IconButton size="small" onClick={() => setSelectedItem(null)}>
+            <GpsFixedIcon fontSize="small" />
+          </IconButton>
+        ) : (
+          <IconButton size="small" onClick={() => setSelectedItem(item)}>
+            <LocationSearchingIcon fontSize="small" />
+          </IconButton>
+        );
+      }
+
+      return (
+        <TableRow key={item.id} hover>
+          <TableCell className={classes.columnAction} padding="none">
+            {locationAction}
+          </TableCell>
+          {columns.map((key) => (
+            <TableCell key={key}>{formatValue(item, key)}</TableCell>
+          ))}
+        </TableRow>
+      );
+    });
+  }
 
   return (
     <PageLayout
@@ -449,8 +568,14 @@ const GeofenceDistanceReportPage = () => {
                 borderBottom: '1px solid #ccc',
                 transition: 'background-color 0.2s',
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#d0d0d0')}
-              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#e0e0e0')}
+              onMouseEnter={(e) => {
+                const target = e.currentTarget;
+                target.style.backgroundColor = '#d0d0d0';
+              }}
+              onMouseLeave={(e) => {
+                const target = e.currentTarget;
+                target.style.backgroundColor = '#e0e0e0';
+              }}
             >
               <div
                 style={{
@@ -486,6 +611,13 @@ const GeofenceDistanceReportPage = () => {
                       label="Segment Type"
                       value={selectedSegmentType}
                       onChange={(e) => setSelectedSegmentType(e.target.value)}
+                      sx={{ // ← ADD THIS
+                        borderRadius: '13px',
+                        '& .MuiOutlinedInput-notchedOutline': { borderRadius: '13px' },
+                      }}
+                      MenuProps={{ // ← ADD THIS
+                        PaperProps: { sx: { borderRadius: '13px' } },
+                      }}
                     >
                       {segmentTypes.map(([key, label]) => (
                         <MenuItem key={key} value={key}>
@@ -503,6 +635,13 @@ const GeofenceDistanceReportPage = () => {
                     value={minDistance}
                     onChange={(e) => setMinDistance(e.target.value)}
                     inputProps={{ min: 0, step: 0.1 }}
+                    sx={{ // ← ADD THIS
+                      borderRadius: '13px',
+                      '& .MuiOutlinedInput-notchedOutline': { borderRadius: '13px' },
+                    }}
+                    MenuProps={{ // ← ADD THIS
+                      PaperProps: { sx: { borderRadius: '13px' } },
+                    }}
                   />
                 </div>
                 <div className={classes.filterItem}>
@@ -520,6 +659,13 @@ const GeofenceDistanceReportPage = () => {
                         setSelectedTypes(values);
                       }}
                       multiple
+                      sx={{ // ← ADD THIS
+                        borderRadius: '13px',
+                        '& .MuiOutlinedInput-notchedOutline': { borderRadius: '13px' },
+                      }}
+                      MenuProps={{ // ← ADD THIS
+                        PaperProps: { sx: { borderRadius: '13px' } },
+                      }}
                     >
                       {allEventTypes.map(([key, string]) => (
                         <MenuItem key={key} value={key}>
@@ -544,6 +690,13 @@ const GeofenceDistanceReportPage = () => {
                         setSelectedGeofences(values);
                       }}
                       multiple
+                      sx={{ // ← ADD THIS
+                        borderRadius: '13px',
+                        '& .MuiOutlinedInput-notchedOutline': { borderRadius: '13px' },
+                      }}
+                      MenuProps={{ // ← ADD THIS
+                        PaperProps: { sx: { borderRadius: '13px' } },
+                      }}
                     >
                       <MenuItem key="allGeofences" value="allGeofences">
                         All Geofences
@@ -576,44 +729,85 @@ const GeofenceDistanceReportPage = () => {
               <TableHead>
                 <TableRow>
                   <TableCell className={classes.columnAction} />
-                  {columns.map((key) => (
-                    <TableCell key={key}>{t(columnsMap.get(key))}</TableCell>
-                  ))}
+                  {columns.map((key) => {
+                    const isSortable = key === 'startTime' || key === 'endTime' || key === 'deviceId' || key === 'geofenceId';
+                    if (isSortable) {
+                      return (
+                        <TableCell key={key}>
+                          <TableSortLabel
+                            active={orderBy === key}
+                            direction={orderBy === key ? order : 'asc'}
+                            onClick={() => handleRequestSort(key)}
+                          >
+                            {t(columnsMap.get(key))}
+                            {orderBy === key ? (
+                              <Box component="span" sx={visuallyHidden}>
+                                {order === 'desc' ? 'sorted descending' : 'sorted ascending'}
+                              </Box>
+                            ) : null}
+                          </TableSortLabel>
+                        </TableCell>
+                      );
+                    }
+                    return (
+                      <TableCell key={key}>{t(columnsMap.get(key))}</TableCell>
+                    );
+                  })}
                 </TableRow>
               </TableHead>
-              <TableBody>
-                {!loading ? (
-                  items.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell className={classes.columnAction} padding="none">
-                        {!item.isPlaceholder && (item.enterPositionId || item.exitPositionId) && (
-                          selectedItem === item ? (
-                            <IconButton
-                              size="small"
-                              onClick={() => setSelectedItem(null)}
-                            >
-                              <GpsFixedIcon fontSize="small" />
-                            </IconButton>
-                          ) : (
-                            <IconButton
-                              size="small"
-                              onClick={() => setSelectedItem(item)}
-                            >
-                              <LocationSearchingIcon fontSize="small" />
-                            </IconButton>
-                          )
-                        )}
-                      </TableCell>
-                      {columns.map((key) => (
-                        <TableCell key={key}>{formatValue(item, key)}</TableCell>
-                      ))}
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableShimmer columns={columns.length + 1} startAction />
-                )}
-              </TableBody>
+              <TableBody>{tableBodyContent}</TableBody>
             </Table>
+            {!loading && sortedAndPaginatedData.length > 0 && (
+              <Box
+                sx={{
+                  display: 'flex',
+                  justifyContent: 'space-evenly',
+                  alignItems: 'center',
+                  p: 2,
+                  borderTop: '1px solid rgba(224, 224, 224, 1)',
+                  flexWrap: 'wrap',
+                  gap: 2,
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Typography variant="body2">
+                    {t('sharedRowsPerPage') || 'Rows per page'}
+                    :
+                  </Typography>
+                  <FormControl size="small">
+                    <Select
+                      value={rowsPerPage}
+                      onChange={handleChangeRowsPerPage}
+                      sx={{ minWidth: 80 }}
+                    >
+                      <MenuItem value={10}>10</MenuItem>
+                      <MenuItem value={25}>25</MenuItem>
+                      <MenuItem value={50}>50</MenuItem>
+                      <MenuItem value={100}>100</MenuItem>
+                    </Select>
+                  </FormControl>
+                  <Typography variant="body2" color="text.secondary" sx={{ ml: 2 }}>
+                    {startRow}
+                    -
+                    {endRow}
+                    {' '}
+                    {t('sharedOf') || 'of'}
+                    {' '}
+                    {totalCount}
+                  </Typography>
+                </Box>
+
+                <Pagination
+                  count={totalPages}
+                  page={page + 1}
+                  onChange={handleChangePage}
+                  color="primary"
+                  showFirstButton
+                  showLastButton
+                  siblingCount={1}
+                  boundaryCount={1}
+                />
+              </Box>
             )}
           </div>
         </div>

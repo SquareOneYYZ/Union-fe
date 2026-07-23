@@ -28,8 +28,6 @@ const DriversPage = () => {
   const [items, setItems] = useState([]);
   const [searchKeyword, setSearchKeyword] = useState('');
   const [loading, setLoading] = useState(false);
-
-  // Sorting
   const [sortField, setSortField] = useState('name');
   const [sortOrder, setSortOrder] = useState('asc');
 
@@ -50,7 +48,6 @@ const DriversPage = () => {
   const filteredItems = useMemo(() => {
     let list = [...items];
 
-    // Global search by name or uniqueId
     if (searchKeyword.trim() !== '') {
       const lower = searchKeyword.toLowerCase();
       list = list.filter(
@@ -88,6 +85,15 @@ const DriversPage = () => {
     );
   };
 
+  const roundedFieldSx = {
+    '& .MuiOutlinedInput-root': {
+      borderRadius: '13px',
+      '& fieldset': { borderRadius: '13px', borderColor: 'rgba(255,255,255,0.23)' },
+      '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.5)' },
+      '&.Mui-focused fieldset': { borderColor: 'primary.main' },
+    },
+  };
+
   return (
     <PageLayout
       menu={<SettingsMenu />}
@@ -100,7 +106,7 @@ const DriversPage = () => {
           value={searchKeyword}
           onChange={(e) => setSearchKeyword(e.target.value)}
           size="small"
-          sx={{ width: '50%' }}
+          sx={{ width: '50%', ...roundedFieldSx }}
         />
       </Box>
 

@@ -13,6 +13,7 @@ class NotificationControl {
     this.button = document.createElement('button');
     this.button.className = statusClass('off');
     this.button.type = 'button';
+    this.button.title = 'Notifications';
     this.button.onclick = () => this.eventHandler(this);
 
     this.container = document.createElement('div');
@@ -28,6 +29,7 @@ class NotificationControl {
 
   setEnabled(enabled) {
     this.button.className = statusClass(enabled ? 'on' : 'off');
+    this.button.title = enabled ? 'Notifications (active)' : 'Notifications';
   }
 }
 
@@ -35,7 +37,7 @@ const MapNotification = ({ enabled, onClick }) => {
   const control = useMemo(() => new NotificationControl(onClick), [onClick]);
 
   useEffect(() => {
-    map.addControl(control);
+    map.addControl(control, 'top-right');
     return () => map.removeControl(control);
   }, [onClick]);
 
