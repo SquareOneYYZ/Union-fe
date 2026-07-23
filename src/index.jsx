@@ -16,6 +16,9 @@ import AppThemeProvider from './AppThemeProvider';
 
 preloadImages();
 
+// eslint-disable-next-line no-console
+console.log(`[build] v${import.meta.env.VITE_APP_VERSION} ${typeof __GIT_COMMIT__ !== 'undefined' ? __GIT_COMMIT__ : 'dev'}`);
+
 const projectId = 'qk7ivvfgua';
 Clarity.init(projectId);
 

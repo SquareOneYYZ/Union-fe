@@ -121,6 +121,15 @@ const MaintenancePage = () => {
 
   const validate = () => item && item.name && item.type && item.start && item.period;
 
+  const roundedFieldSx = {
+    '& .MuiOutlinedInput-root': {
+      borderRadius: '13px',
+      '& fieldset': { borderRadius: '13px', borderColor: 'rgba(255,255,255,0.23)' },
+      '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.5)' },
+      '&.Mui-focused fieldset': { borderColor: 'primary.main' },
+    },
+  };
+
   return (
     <EditItemView
       endpoint="maintenance"
@@ -143,8 +152,9 @@ const MaintenancePage = () => {
                 value={item.name || ''}
                 onChange={(e) => setItem({ ...item, name: e.target.value })}
                 label={t('sharedName')}
+                sx={roundedFieldSx}
               />
-              <FormControl>
+              <FormControl sx={roundedFieldSx}>
                 <InputLabel>{t('sharedType')}</InputLabel>
                 <Select
                   label={t('sharedType')}
@@ -161,12 +171,14 @@ const MaintenancePage = () => {
                 value={rawToValue(true, item.start) || ''}
                 onChange={(e) => setItem({ ...item, start: valueToRaw(true, e.target.value) })}
                 label={labels.start ? `${t('maintenanceStart')} (${labels.start})` : t('maintenanceStart')}
+                sx={roundedFieldSx}
               />
               <TextField
                 type="number"
                 value={rawToValue(false, item.period) || ''}
                 onChange={(e) => setItem({ ...item, period: valueToRaw(false, e.target.value) })}
                 label={labels.period ? `${t('maintenancePeriod')} (${labels.period})` : t('maintenancePeriod')}
+                sx={roundedFieldSx}
               />
             </AccordionDetails>
           </Accordion>

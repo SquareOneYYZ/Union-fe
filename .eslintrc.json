@@ -3,6 +3,9 @@
   "env": {
     "browser": true
   },
+  "globals": {
+    "__GIT_COMMIT__": "readonly"
+  },
   "parserOptions": {
     "ecmaVersion": 2020
   },

@@ -15,6 +15,7 @@
     "@mui/lab": "^5.0.0-alpha.173",
     "@mui/material": "^5.16.14",
     "@mui/styles": "^5.16.14",
+    "@mui/utils": "^7.3.6",
     "@reduxjs/toolkit": "^2.5.0",
     "@tmcw/togeojson": "^5.8.1",
     "@turf/circle": "^7.2.0",
@@ -51,7 +52,10 @@
     "build": "vite build",
     "generate-pwa-assets": "pwa-assets-generator --preset minimal public/logo.svg",
     "lint": "eslint .",
-    "lint:fix": "eslint --fix ."
+    "lint:fix": "eslint --fix .",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage"
   },
   "browserslist": {
     "production": [
@@ -66,11 +70,14 @@
   },
   "devDependencies": {
     "@vite-pwa/assets-generator": "^0.2.6",
+    "@vitest/coverage-v8": "^4.1.6",
     "eslint": "^8.57.1",
     "eslint-config-airbnb": "^19.0.4",
     "eslint-plugin-import": "^2.31.0",
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "eslint-plugin-react": "^7.37.3",
-    "eslint-plugin-react-hooks": "^4.6.2"
+    "eslint-plugin-react-hooks": "^4.6.2",
+    "jsdom": "^29.1.1",
+    "vitest": "^4.1.6"
   }
 }

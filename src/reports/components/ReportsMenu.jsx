@@ -1,8 +1,8 @@
 import React from 'react';
 import { Divider, List } from '@mui/material';
 import StarIcon from '@mui/icons-material/Star';
-// import TimelineIcon from '@mui/icons-material/Timeline';
 import PauseCircleFilledIcon from '@mui/icons-material/PauseCircleFilled';
+import CreateIcon from '@mui/icons-material/Create';
 import PlayCircleFilledIcon from '@mui/icons-material/PlayCircleFilled';
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
 import FormatListBulletedIcon from '@mui/icons-material/FormatListBulleted';
@@ -43,6 +43,12 @@ const ReportsMenu = () => {
           link="/reports/event"
           icon={<NotificationsActiveIcon />}
           selected={location.pathname === '/reports/event'}
+        />
+        <MenuItem
+          title={t('reportGeofenceActivity')}
+          link="/reports/geofence-activity"
+          icon={<CreateIcon />}
+          selected={location.pathname === '/reports/geofence-activity'}
         />
         <MenuItem
           title={t('reportTrips')}
