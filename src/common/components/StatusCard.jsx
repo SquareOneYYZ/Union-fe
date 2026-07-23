@@ -86,20 +86,25 @@ const useStyles = makeStyles((theme) => ({
   actions: {
     justifyContent: 'space-between',
   },
-  root: ({ desktopPadding }) => ({
+  root: ({ desktopPadding, hideCardActions }) => ({
     pointerEvents: 'none',
     position: 'fixed',
     zIndex: 5,
-    left: '50%',
-    [theme.breakpoints.up('md')]: {
-      left: `calc(50% + ${desktopPadding} / 2)`,
-      bottom: theme.spacing(3),
-    },
-    [theme.breakpoints.down('md')]: {
+    ...(hideCardActions ? {
+      left: '21.5%',
+      top: theme.spacing(25),
+    } : {
       left: '50%',
-      bottom: `calc(${theme.spacing(3)} + ${theme.dimensions.bottomBarHeight}px)`,
-    },
-    transform: 'translateX(-50%)',
+      [theme.breakpoints.up('md')]: {
+        left: `calc(50% + ${desktopPadding} / 2)`,
+        bottom: theme.spacing(3),
+      },
+      [theme.breakpoints.down('md')]: {
+        left: '50%',
+        bottom: `calc(${theme.spacing(3)} + ${theme.dimensions.bottomBarHeight}px)`,
+      },
+      transform: 'translateX(-50%)',
+    }),
   }),
 }));
 
@@ -118,8 +123,16 @@ const StatusRow = ({ name, content }) => {
   );
 };
 
-const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPadding = 0 }) => {
-  const classes = useStyles({ desktopPadding });
+const StatusCard = ({
+  deviceId,
+  position,
+  onClose,
+  disableActions,
+  hideCardActions,
+  desktopPadding = 0,
+  customStyles = null,
+}) => {
+  const classes = useStyles({ desktopPadding, hideCardActions });
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const t = useTranslation();
@@ -182,9 +195,13 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
     }
   }, [navigate, position]);
 
+  // Use customStyles if provided, otherwise use default classes.root
+  const rootStyles = customStyles || {};
+  const rootClassName = customStyles ? '' : classes.root;
+
   return (
     <>
-      <div className={classes.root}>
+      <div className={rootClassName} style={customStyles || {}}>
         {device && (
           <Draggable
             handle={`.${classes.media}, .${classes.header}`}
@@ -248,6 +265,7 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
                   </Table>
                 </CardContent>
               )}
+              {!hideCardActions && (
               <CardActions classes={{ root: classes.actions }} disableSpacing>
                 <Tooltip title={t('sharedConnections')}>
                   <IconButton
@@ -302,6 +320,7 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
                 </Tooltip>
                 )}
               </CardActions>
+              )}
             </Card>
           </Draggable>
         )}
