@@ -104,7 +104,7 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
   // deviceId -> 'entering' | 'active' | 'landed' | 'reconciling'
   const glidePhaseRef = useRef({});
   const glideLastWriteRef = useRef(0);
-  const writeGlideSourceRef = useRef(() => {});
+  const writeGlideSourceRef = useRef(() => { });
   // per-source Map<deviceId, feature> mirroring what the map sources hold;
   // null means the source content is unknown (small-fleet path wrote it)
   const lastWrittenRef = useRef(null);
@@ -113,7 +113,7 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
   // ('load' after source creation, 'hard-reset' after derived-prop changes)
   const fullRewriteReasonRef = useRef('load');
   const lastDeferredWriteRef = useRef(0);
-  const updateMapDataRef = useRef(() => {});
+  const updateMapDataRef = useRef(() => { });
   const onClickRef = useRef(onClick);
 
   useEffect(() => {
@@ -856,10 +856,6 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
     selectedPosition,
     selectedDeviceId,
   ]);
-    const filtered = positions.filter((p) => Object.prototype.hasOwnProperty.call(devices, p.deviceId));
-    updateAnimationState(filtered);
-    updateMapData();
-  }, [positions, devices, enableSmoothing, updateAnimationState, updateMapData]);
 
   useEffect(() => {
     const faded = selectedPosition ? 0.5 : 1;
@@ -876,5 +872,4 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
   }, [selectedPosition?.deviceId]);
   return null;
 };
-
 export default MapPositions;

@@ -681,9 +681,8 @@ const EventReportPage = () => {
             return item.attributes.driverUniqueId;
 
           case 'media': {
-            const mediaUrl = `/api/media/${devices[item.deviceId]?.uniqueId}/${
-              item.attributes.file
-            }`;
+            const mediaUrl = `/api/media/${devices[item.deviceId]?.uniqueId}/${item.attributes.file
+              }`;
             return (
               <Link
                 href={mediaUrl}
@@ -715,14 +714,14 @@ const EventReportPage = () => {
             }
             return tollDetails;
           }
-          if ('tollDistance' in item.attributes) {
-            tollDetails += `Toll Distance: ${formatDistance(
-              item.attributes.tollDistance,
-              distanceUnit,
-              t,
-            )}`;
-          }
-          return tollDetails;
+            if ('tollDistance' in item.attributes) {
+              tollDetails += `Toll Distance: ${formatDistance(
+                item.attributes.tollDistance,
+                distanceUnit,
+                t,
+              )}`;
+            }
+            return tollDetails;
         }
         if (item.type === 'deviceTollRouteEnter') {
           let tollDetails = '';
@@ -735,70 +734,68 @@ const EventReportPage = () => {
           return tollDetails;
         }
         return '';
-      }
-
-      default:
-        return value;
     }
-  };
-
-  if (replayMode) {
-    return (
-      <ReplayControl
-        replayPositions={replayPositions}
-        selectedItem={selectedItem}
-        deviceName={deviceName}
-        eventPosition={eventPosition}
-        onClose={handleReplayStop}
-        showEventType
-        initialSpeed={1}
-      />
-    );
+    return value;
   }
+};
 
-  const showAlarmSelect = eventTypes[0] !== 'allEvents' && eventTypes.includes('alarm');
+if (replayMode) {
+  return (
+    <ReplayControl
+      replayPositions={replayPositions}
+      selectedItem={selectedItem}
+      deviceName={deviceName}
+      eventPosition={eventPosition}
+      onClose={handleReplayStop}
+      showEventType
+      initialSpeed={1}
+    />
+  );
+}
 
-  let tableBodyContent;
+const showAlarmSelect = eventTypes[0] !== 'allEvents' && eventTypes.includes('alarm');
 
-  if (loading) {
-    tableBodyContent = <TableShimmer columns={columns.length + 2} />;
-  } else if (sortedAndPaginatedData.length === 0) {
-    tableBodyContent = (
-      <TableRow>
-        <TableCell colSpan={columns.length + 2} align="center">
-          <Typography variant="body2" color="text.secondary" sx={{ py: 3 }}>
-            {t('sharedNoData') || 'No data available'}
-          </Typography>
+let tableBodyContent;
+
+if (loading) {
+  tableBodyContent = <TableShimmer columns={columns.length + 2} />;
+} else if (sortedAndPaginatedData.length === 0) {
+  tableBodyContent = (
+    <TableRow>
+      <TableCell colSpan={columns.length + 2} align="center">
+        <Typography variant="body2" color="text.secondary" sx={{ py: 3 }}>
+          {t('sharedNoData') || 'No data available'}
+        </Typography>
+      </TableCell>
+    </TableRow>
+  );
+} else {
+  tableBodyContent = sortedAndPaginatedData.map((item) => {
+    const isSelectedItem = selectedItem === item;
+    const hasPositionId = Boolean(item.positionId);
+
+    let locationAction = null;
+
+    if (hasPositionId) {
+      locationAction = isSelectedItem ? (
+        <IconButton size="small" onClick={() => setSelectedItem(null)}>
+          <GpsFixedIcon fontSize="small" />
+        </IconButton>
+      ) : (
+        <IconButton size="small" onClick={() => setSelectedItem(item)}>
+          <LocationSearchingIcon fontSize="small" />
+        </IconButton>
+      );
+    }
+
+    return (
+      <TableRow key={item.id} hover>
+        <TableCell className={classes.columnAction} padding="none">
+          {locationAction}
         </TableCell>
-      </TableRow>
-    );
-  } else {
-    tableBodyContent = sortedAndPaginatedData.map((item) => {
-      const isSelectedItem = selectedItem === item;
-      const hasPositionId = Boolean(item.positionId);
 
-      let locationAction = null;
-
-      if (hasPositionId) {
-        locationAction = isSelectedItem ? (
-          <IconButton size="small" onClick={() => setSelectedItem(null)}>
-            <GpsFixedIcon fontSize="small" />
-          </IconButton>
-        ) : (
-          <IconButton size="small" onClick={() => setSelectedItem(item)}>
-            <LocationSearchingIcon fontSize="small" />
-          </IconButton>
-        );
-      }
-
-      return (
-        <TableRow key={item.id} hover>
-          <TableCell className={classes.columnAction} padding="none">
-            {locationAction}
-          </TableCell>
-
-          <TableCell className={classes.columnAction} padding="none">
-            {hasPositionId && (
+        <TableCell className={classes.columnAction} padding="none">
+          {hasPositionId && (
             <IconButton
               size="small"
               onClick={() => handleReplayStart(item)}
@@ -806,200 +803,199 @@ const EventReportPage = () => {
             >
               <ReplayIcon fontSize="small" />
             </IconButton>
-            )}
-          </TableCell>
+          )}
+        </TableCell>
 
-          {columns.map((key) => (
-            <TableCell key={key}>{formatValue(item, key)}</TableCell>
-          ))}
-        </TableRow>
-      );
-    });
-  }
+        {columns.map((key) => (
+          <TableCell key={key}>{formatValue(item, key)}</TableCell>
+        ))}
+      </TableRow>
+    );
+  });
+}
 
-  return (
-    <PageLayout
-      menu={<ReportsMenu />}
-      breadcrumbs={['reportTitle', 'reportEvents']}
-    >
-      <div className={classes.container}>
-        {selectedItem && (
-          <div className={classes.containerMap}>
-            <MapView>
-              <MapGeofence />
-              {position && (
-                <MapPositions positions={[position]} titleField="fixTime" />
-              )}
-            </MapView>
-            <MapScale />
+return (
+  <PageLayout
+    menu={<ReportsMenu />}
+    breadcrumbs={['reportTitle', 'reportEvents']}
+  >
+    <div className={classes.container}>
+      {selectedItem && (
+        <div className={classes.containerMap}>
+          <MapView>
+            <MapGeofence />
             {position && (
-              <MapCamera
-                latitude={position.latitude}
-                longitude={position.longitude}
-              />
+              <MapPositions positions={[position]} titleField="fixTime" />
             )}
-          </div>
-        )}
-        <div className={classes.containerMain}>
-          <div className={classes.header}>
-            <ReportFilter
-              handleSubmit={handleSubmit}
-              handleSchedule={handleSchedule}
-              loading={loading}
-            >
-              <div className={classes.filterItem}>
-                <FormControl fullWidth>
-                  <InputLabel>{t('reportEventTypes')}</InputLabel>
-                  <Select
-                    label={t('reportEventTypes')}
-                    value={eventTypes}
-                    onChange={(e, child) => {
-                      let values = e.target.value;
-                      const clicked = child.props.value;
-                      if (values.includes('allEvents') && values.length > 1) {
-                        values = [clicked];
-                      }
-                      setEventTypes(values);
-                    }}
-                    multiple
-                    sx={{
-                      borderRadius: '13px',
-                      '& .MuiOutlinedInput-notchedOutline': { borderRadius: '13px' },
-                    }}
-                    MenuProps={{
-                      PaperProps: { sx: { borderRadius: '13px' } },
-                    }}
-                  >
-                    {allEventTypes.map(([key, string]) => (
-                      <MenuItem key={key} value={key}>
-                        {t(string)}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </div>
-              {showAlarmSelect && (
-                <div className={classes.filterItem}>
-                  <SelectField
-                    multiple
-                    value={alarmTypes}
-                    onChange={(e) => setAlarmTypes(e.target.value)}
-                    data={alarms}
-                    keyGetter={(it) => it.key}
-                    label={t('sharedAlarms')}
-                    fullWidth
-                    sx={{
-                      borderRadius: '13px',
-                      '& .MuiOutlinedInput-notchedOutline': { borderRadius: '13px' },
-                    }}
-                    MenuProps={{
-                      PaperProps: { sx: { borderRadius: '13px' } },
-                    }}
-                  />
-                </div>
-              )}
-              <ColumnSelect
-                columns={columns}
-                setColumns={setColumns}
-                columnsArray={columnsArray}
-              />
-            </ReportFilter>
-          </div>
-          <Table stickyHeader>
-            <TableHead>
-              <TableRow>
-                <TableCell className={classes.columnAction} />
-                <TableCell className={classes.columnAction} />
-                {columns.map((key) => {
-                  const isSortable = key === 'eventTime' || key === 'type';
-                  if (isSortable) {
-                    return (
-                      <TableCell key={key}>
-                        <TableSortLabel
-                          active={orderBy === key}
-                          direction={orderBy === key ? order : 'asc'}
-                          onClick={() => handleRequestSort(key)}
-                        >
-                          {t(columnsMap.get(key))}
-                          {orderBy === key ? (
-                            <Box component="span" sx={visuallyHidden}>
-                              {order === 'desc' ? 'sorted descending' : 'sorted ascending'}
-                            </Box>
-                          ) : null}
-                        </TableSortLabel>
-                      </TableCell>
-                    );
-                  }
-                  return (
-                    <TableCell key={key}>{t(columnsMap.get(key))}</TableCell>
-                  );
-                })}
-              </TableRow>
-            </TableHead>
-            <TableBody>{tableBodyContent}</TableBody>
-          </Table>
-          {!loading && sortedAndPaginatedData.length > 0 && (
-            <Box
-              sx={{
-                display: 'flex',
-                justifyContent: 'space-evenly',
-                alignItems: 'center',
-                p: 2,
-                borderTop: '1px solid rgba(224, 224, 224, 1)',
-                flexWrap: 'wrap',
-                gap: 2,
-              }}
-            >
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Typography variant="body2">
-                  {t('sharedRowsPerPage') || 'Rows per page'}
-                  :
-                </Typography>
-                <FormControl size="small">
-                  <Select
-                    value={rowsPerPage}
-                    onChange={handleChangeRowsPerPage}
-                    sx={{ minWidth: 80 }}
-                  >
-                    <MenuItem value={10}>10</MenuItem>
-                    <MenuItem value={25}>25</MenuItem>
-                    <MenuItem value={50}>50</MenuItem>
-                    <MenuItem value={100}>100</MenuItem>
-                  </Select>
-                </FormControl>
-                <Typography variant="body2" color="text.secondary" sx={{ ml: 2 }}>
-                  {startRow}
-                  -
-                  {endRow}
-                  {' '}
-                  {t('sharedOf') || 'of'}
-                  {' '}
-                  {totalCount}
-                </Typography>
-              </Box>
-
-              <Pagination
-                count={totalPages}
-                page={page + 1}
-                onChange={handleChangePage}
-                color="primary"
-                showFirstButton
-                showLastButton
-                siblingCount={1}
-                boundaryCount={1}
-              />
-            </Box>
+          </MapView>
+          <MapScale />
+          {position && (
+            <MapCamera
+              latitude={position.latitude}
+              longitude={position.longitude}
+            />
           )}
         </div>
-      </div>
+      )}
+      <div className={classes.containerMain}>
+        <div className={classes.header}>
+          <ReportFilter
+            handleSubmit={handleSubmit}
+            handleSchedule={handleSchedule}
+            loading={loading}
+          >
+            <div className={classes.filterItem}>
+              <FormControl fullWidth>
+                <InputLabel>{t('reportEventTypes')}</InputLabel>
+                <Select
+                  label={t('reportEventTypes')}
+                  value={eventTypes}
+                  onChange={(e, child) => {
+                    let values = e.target.value;
+                    const clicked = child.props.value;
+                    if (values.includes('allEvents') && values.length > 1) {
+                      values = [clicked];
+                    }
+                    setEventTypes(values);
+                  }}
+                  multiple
+                  sx={{
+                    borderRadius: '13px',
+                    '& .MuiOutlinedInput-notchedOutline': { borderRadius: '13px' },
+                  }}
+                  MenuProps={{
+                    PaperProps: { sx: { borderRadius: '13px' } },
+                  }}
+                >
+                  {allEventTypes.map(([key, string]) => (
+                    <MenuItem key={key} value={key}>
+                      {t(string)}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </div>
+            {showAlarmSelect && (
+              <div className={classes.filterItem}>
+                <SelectField
+                  multiple
+                  value={alarmTypes}
+                  onChange={(e) => setAlarmTypes(e.target.value)}
+                  data={alarms}
+                  keyGetter={(it) => it.key}
+                  label={t('sharedAlarms')}
+                  fullWidth
+                  sx={{
+                    borderRadius: '13px',
+                    '& .MuiOutlinedInput-notchedOutline': { borderRadius: '13px' },
+                  }}
+                  MenuProps={{
+                    PaperProps: { sx: { borderRadius: '13px' } },
+                  }}
+                />
+              </div>
+            )}
+            <ColumnSelect
+              columns={columns}
+              setColumns={setColumns}
+              columnsArray={columnsArray}
+            />
+          </ReportFilter>
+        </div>
+        <Table stickyHeader>
+          <TableHead>
+            <TableRow>
+              <TableCell className={classes.columnAction} />
+              <TableCell className={classes.columnAction} />
+              {columns.map((key) => {
+                const isSortable = key === 'eventTime' || key === 'type';
+                if (isSortable) {
+                  return (
+                    <TableCell key={key}>
+                      <TableSortLabel
+                        active={orderBy === key}
+                        direction={orderBy === key ? order : 'asc'}
+                        onClick={() => handleRequestSort(key)}
+                      >
+                        {t(columnsMap.get(key))}
+                        {orderBy === key ? (
+                          <Box component="span" sx={visuallyHidden}>
+                            {order === 'desc' ? 'sorted descending' : 'sorted ascending'}
+                          </Box>
+                        ) : null}
+                      </TableSortLabel>
+                    </TableCell>
+                  );
+                }
+                return (
+                  <TableCell key={key}>{t(columnsMap.get(key))}</TableCell>
+                );
+              })}
+            </TableRow>
+          </TableHead>
+          <TableBody>{tableBodyContent}</TableBody>
+        </Table>
+        {!loading && sortedAndPaginatedData.length > 0 && (
+          <Box
+            sx={{
+              display: 'flex',
+              justifyContent: 'space-evenly',
+              alignItems: 'center',
+              p: 2,
+              borderTop: '1px solid rgba(224, 224, 224, 1)',
+              flexWrap: 'wrap',
+              gap: 2,
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography variant="body2">
+                {t('sharedRowsPerPage') || 'Rows per page'}
+                :
+              </Typography>
+              <FormControl size="small">
+                <Select
+                  value={rowsPerPage}
+                  onChange={handleChangeRowsPerPage}
+                  sx={{ minWidth: 80 }}
+                >
+                  <MenuItem value={10}>10</MenuItem>
+                  <MenuItem value={25}>25</MenuItem>
+                  <MenuItem value={50}>50</MenuItem>
+                  <MenuItem value={100}>100</MenuItem>
+                </Select>
+              </FormControl>
+              <Typography variant="body2" color="text.secondary" sx={{ ml: 2 }}>
+                {startRow}
+                -
+                {endRow}
+                {' '}
+                {t('sharedOf') || 'of'}
+                {' '}
+                {totalCount}
+              </Typography>
+            </Box>
 
-      <MediaPreview
-        open={!!mediaPreviewUrl}
-        mediaUrl={mediaPreviewUrl}
-        onClose={() => setMediaPreviewUrl(null)}
-      />
-    </PageLayout>
-  );
-};
+            <Pagination
+              count={totalPages}
+              page={page + 1}
+              onChange={handleChangePage}
+              color="primary"
+              showFirstButton
+              showLastButton
+              siblingCount={1}
+              boundaryCount={1}
+            />
+          </Box>
+        )}
+      </div>
+    </div>
+
+    <MediaPreview
+      open={!!mediaPreviewUrl}
+      mediaUrl={mediaPreviewUrl}
+      onClose={() => setMediaPreviewUrl(null)}
+    />
+  </PageLayout>
+);
 
 export default EventReportPage;

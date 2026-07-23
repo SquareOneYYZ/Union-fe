@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Grid,
+import {
+  Grid,
   FormControl, InputLabel, Select, MenuItem, Button, TextField, Typography, Tooltip,
 } from '@mui/material';
 import { useDispatch, useSelector } from 'react-redux';
@@ -73,11 +74,6 @@ const ReportFilter = ({
     const end = dayjs(`${selectedDate}T${toTime}`);
     setTimeRangeValid(end.isAfter(start));
   }, [selectedDate, fromTime, toTime, showLast24Hours]);
-
-  const notifyError = (msg) => {
-    // TODO: replace with your snackbar dispatch
-    console.error('SNACKBAR ERROR:', msg);
-  };
 
   const handleClick = (type) => {
     if (type === 'schedule') {
@@ -267,9 +263,6 @@ const ReportFilter = ({
                 sx={{
                   borderRadius: '13px',
                   '& .MuiOutlinedInput-notchedOutline': { borderRadius: '13px' },
-                }}
-                MenuProps={{ // ← ADD THIS
-                  PaperProps: { sx: { borderRadius: '13px' } },
                 }}
                 label={t('reportPeriod')}
                 value={period}

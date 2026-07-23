@@ -128,7 +128,7 @@ const ReplayControl = ({
   const classes = useStyles();
   const timerRef = useRef();
   const animationRef = useRef();
-   initialSpeed = 1,
+  const initialSpeed = 1,
 
   const [replayIndex, setReplayIndex] = useState(0);
   const [replayPlaying, setReplayPlaying] = useState(false);
