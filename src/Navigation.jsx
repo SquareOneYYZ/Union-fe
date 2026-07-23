@@ -20,6 +20,7 @@ import PositionPage from './other/PositionPage';
 import NetworkPage from './other/NetworkPage';
 import LiveStreamingPage from './other/LiveStreamingPage';
 import EventReportPage from './reports/EventReportPage';
+import GeofenceActivityReportPage from './reports/GeofenceActivityReportPage';
 import ReplayPage from './other/ReplayPage';
 import TripReportPage from './reports/TripReportPage';
 import StopReportPage from './reports/StopReportPage';
@@ -41,6 +42,8 @@ import RegisterPage from './login/RegisterPage';
 import ResetPasswordPage from './login/ResetPasswordPage';
 import GeofencesPage from './other/GeofencesPage';
 import GeofencePage from './settings/GeofencePage';
+import VinPage from './settings/VinPage';
+import VinsPage from './settings/VinsPage';
 import useQuery from './common/util/useQuery';
 import { useEffectAsync } from './reactHelper';
 import { devicesActions } from './store';
@@ -84,7 +87,7 @@ const Navigation = () => {
     if (query.get('token')) {
       const token = query.get('token');
       await fetch(`/api/session?token=${encodeURIComponent(token)}`);
-      navigate(pathname);
+      navigate(pathname, { replace: true });
     } else if (query.get('deviceId')) {
       const deviceId = query.get('deviceId');
       const response = await fetch(`/api/devices?uniqueId=${deviceId}`);
@@ -130,6 +133,9 @@ const Navigation = () => {
         <Route path="livestream" element={<LiveStreamingPage />} />
         <Route path="geofences" element={<GeofencesPage />} />
         <Route path="emulator" element={<EmulatorPage />} />
+        <Route path="/settings/vins" element={<VinsPage />} />
+        <Route path="/vin" element={<VinPage />} />
+        <Route path="/vin/:id" element={<VinPage />} />
 
         <Route path="settings">
           <Route path="accumulators/:deviceId" element={<AccumulatorsPage />} />
@@ -191,6 +197,7 @@ const Navigation = () => {
           <Route path="combined" element={<CombinedReportPage />} />
           <Route path="chart" element={<ChartReportPage />} />
           <Route path="event" element={<EventReportPage />} />
+          <Route path="geofence-activity" element={<GeofenceActivityReportPage />} />
           <Route path="route" element={<RouteReportPage />} />
           <Route path="media" element={<MediaEventPage />} />
           <Route path="media/details" element={<MediaDetailsPage />} />

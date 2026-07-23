@@ -7,8 +7,10 @@ export default makeStyles((theme) => ({
     flexDirection: 'column',
   },
   containerMap: {
-    flexBasis: '70%',
-    flexShrink: 0,
+    flex: 'none',
+    height: '70%',
+    minHeight: 150,
+    overflow: 'hidden',
   },
   containerMain: {
     overflow: 'auto',
