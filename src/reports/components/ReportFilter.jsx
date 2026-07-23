@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
+  Grid,
   FormControl, InputLabel, Select, MenuItem, Button, TextField, Typography, Tooltip,
 } from '@mui/material';
 import { useDispatch, useSelector } from 'react-redux';
@@ -12,7 +13,18 @@ import SelectField from '../../common/components/SelectField';
 import { useRestriction } from '../../common/util/permissions';
 
 const ReportFilter = ({
-  children, handleSubmit, handleSchedule, showOnly, ignoreDevice, multiDevice, includeGroups, loading, sx,
+  children,
+  handleSubmit,
+  handleSchedule,
+  showOnly,
+  ignoreDevice,
+  multiDevice,
+  includeGroups,
+  loading,
+  showLast24Hours,
+  backdateToday,
+  initialFilters,
+  sx,
 }) => {
   const classes = useReportStyles();
   const dispatch = useDispatch();
@@ -29,13 +41,39 @@ const ReportFilter = ({
   const period = useSelector((state) => state.reports.period);
   const from = useSelector((state) => state.reports.from);
   const to = useSelector((state) => state.reports.to);
-  const [button, setButton] = useState('json');
 
+  const [button, setButton] = useState('json');
   const [description, setDescription] = useState();
   const [calendarId, setCalendarId] = useState();
 
-  const scheduleDisabled = button === 'schedule' && (!description || !calendarId);
-  const disabled = (!ignoreDevice && !deviceId && !deviceIds.length && !groupIds.length) || scheduleDisabled || loading;
+  // Initialize with saved filters if available
+  const [selectedDate, setSelectedDate] = useState(initialFilters?.selectedDate || '');
+  const [fromTime, setFromTime] = useState(initialFilters?.fromTime || '');
+  const [toTime, setToTime] = useState(initialFilters?.toTime || '');
+  const [timeRangeValid, setTimeRangeValid] = useState(false);
+
+  // Restore filters when initialFilters changes (on component mount)
+  useEffect(() => {
+    if (initialFilters && showLast24Hours) {
+      if (initialFilters.selectedDate) setSelectedDate(initialFilters.selectedDate);
+      if (initialFilters.fromTime) setFromTime(initialFilters.fromTime);
+      if (initialFilters.toTime) setToTime(initialFilters.toTime);
+    }
+  }, [initialFilters, showLast24Hours]);
+
+  useEffect(() => {
+    if (!showLast24Hours) {
+      setTimeRangeValid(true);
+      return;
+    }
+    if (!selectedDate || !fromTime || !toTime) {
+      setTimeRangeValid(false);
+      return;
+    }
+    const start = dayjs(`${selectedDate}T${fromTime}`);
+    const end = dayjs(`${selectedDate}T${toTime}`);
+    setTimeRangeValid(end.isAfter(start));
+  }, [selectedDate, fromTime, toTime, showLast24Hours]);
 
   const handleClick = (type) => {
     if (type === 'schedule') {
@@ -44,13 +82,40 @@ const ReportFilter = ({
         calendarId,
         attributes: {},
       });
+      return;
+    }
+
+    let selectedFrom;
+    let selectedTo;
+
+    if (showLast24Hours) {
+      // Use local state for date/time selection
+      if (!selectedDate || !fromTime || !toTime) {
+        notifyError(t('reportSelectDateAndTime') || 'Please select date, from time and to time');
+        return;
+      }
+      selectedFrom = dayjs(`${selectedDate}T${fromTime}`);
+      selectedTo = dayjs(`${selectedDate}T${toTime}`);
+
+      if (!selectedFrom.isValid() || !selectedTo.isValid()) {
+        notifyError(t('reportInvalidDateOrTime') || 'Invalid date/time');
+        return;
+      }
+      if (!selectedTo.isAfter(selectedFrom)) {
+        notifyError(t('End time must be after start time') || 'End time must be after start time');
+        return;
+      }
     } else {
-      let selectedFrom;
-      let selectedTo;
+      // Original behavior - use Redux state
       switch (period) {
         case 'today':
-          selectedFrom = dayjs().startOf('day');
-          selectedTo = dayjs().endOf('day');
+          if (backdateToday) {
+            selectedFrom = dayjs().subtract(24, 'hour');
+            selectedTo = dayjs();
+          } else {
+            selectedFrom = dayjs().startOf('day');
+            selectedTo = dayjs();
+          }
           break;
         case 'yesterday':
           selectedFrom = dayjs().subtract(1, 'day').startOf('day');
@@ -73,22 +138,35 @@ const ReportFilter = ({
           selectedTo = dayjs().subtract(1, 'month').endOf('month');
           break;
         default:
-          selectedFrom = dayjs(from, 'YYYY-MM-DDTHH:mm');
-          selectedTo = dayjs(to, 'YYYY-MM-DDTHH:mm');
+          selectedFrom = from ? dayjs(from, 'YYYY-MM-DDTHH:mm') : null;
+          selectedTo = to ? dayjs(to, 'YYYY-MM-DDTHH:mm') : null;
           break;
       }
-
-      handleSubmit({
-        deviceId,
-        deviceIds,
-        groupIds,
-        from: selectedFrom.toISOString(),
-        to: selectedTo.toISOString(),
-        calendarId,
-        type,
-      });
     }
+
+    if (!selectedFrom || !selectedTo || !selectedFrom.isValid() || !selectedTo.isValid()) {
+      return;
+    }
+
+    handleSubmit({
+      deviceId,
+      deviceIds,
+      groupIds,
+      from: selectedFrom.toISOString(),
+      to: selectedTo.toISOString(),
+      calendarId,
+      type,
+      selectedDate: showLast24Hours ? selectedDate : undefined,
+      fromTime: showLast24Hours ? fromTime : undefined,
+      toTime: showLast24Hours ? toTime : undefined,
+    });
   };
+  const deviceMissing = (!ignoreDevice && !deviceId && !deviceIds.length && !groupIds.length);
+  const scheduleDisabled = button === 'schedule' && (!description || !calendarId);
+
+  const baseDisabled = deviceMissing || scheduleDisabled || loading;
+
+  const finalDisabled = showLast24Hours ? (baseDisabled || !timeRangeValid) : baseDisabled;
 
   return (
     <div className={classes.filter}>
@@ -150,6 +228,8 @@ const ReportFilter = ({
         />
       </div>
       )}
+
+      {/* Groups */}
       {includeGroups && (
         <div className={classes.filterItem}>
           <SelectField
@@ -169,18 +249,20 @@ const ReportFilter = ({
           />
         </div>
       )}
+
       {button !== 'schedule' ? (
         <>
           <div className={classes.filterItem}>
             <FormControl fullWidth>
               <InputLabel>{t('reportPeriod')}</InputLabel>
               <Select
-                sx={{ // ← ADD THIS
+                label={t('reportPeriod')}
+                value={showLast24Hours ? 'custom' : period}
+                onChange={(e) => dispatch(reportsActions.updatePeriod(e.target.value))}
+                disabled={showLast24Hours}
+                sx={{
                   borderRadius: '13px',
                   '& .MuiOutlinedInput-notchedOutline': { borderRadius: '13px' },
-                }}
-                MenuProps={{ // ← ADD THIS
-                  PaperProps: { sx: { borderRadius: '13px' } },
                 }}
                 label={t('reportPeriod')}
                 value={period}
@@ -238,7 +320,7 @@ const ReportFilter = ({
           <div className={classes.filterItem}>
             <TextField
               value={description || ''}
-              onChange={(event) => setDescription(event.target.value)}
+              onChange={(e) => setDescription(e.target.value)}
               label={t('sharedDescription')}
               fullWidth
               sx={{
@@ -250,10 +332,11 @@ const ReportFilter = ({
               }}
             />
           </div>
+
           <div className={classes.filterItem}>
             <SelectField
               value={calendarId}
-              onChange={(event) => setCalendarId(Number(event.target.value))}
+              onChange={(e) => setCalendarId(Number(e.target.value))}
               endpoint="/api/calendars"
               label={t('sharedCalendar')}
               fullWidth
@@ -268,14 +351,16 @@ const ReportFilter = ({
           </div>
         </>
       )}
+
       {children}
+
       <div className={classes.filterItem}>
         {showOnly ? (
           <Button
             fullWidth
             variant="outlined"
             color="secondary"
-            disabled={disabled}
+            disabled={finalDisabled}
             onClick={() => handleClick('json')}
             sx={{ borderRadius: '13px' }}
           >
@@ -286,7 +371,7 @@ const ReportFilter = ({
             fullWidth
             variant="outlined"
             color="secondary"
-            disabled={disabled}
+            disabled={finalDisabled}
             onClick={handleClick}
             selected={button}
             setSelected={(value) => setButton(value)}

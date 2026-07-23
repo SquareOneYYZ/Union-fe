@@ -11,6 +11,7 @@ import {
   Chip,
   Tooltip,
 } from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
 import makeStyles from '@mui/styles/makeStyles';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
@@ -122,12 +123,12 @@ const ReplayControl = ({
   eventPosition,
   onClose,
   showEventType = false,
-  initialSpeed = 1,
 }) => {
   const t = useTranslation();
   const classes = useStyles();
   const timerRef = useRef();
   const animationRef = useRef();
+  const initialSpeed = 1,
 
   const [replayIndex, setReplayIndex] = useState(0);
   const [replayPlaying, setReplayPlaying] = useState(false);

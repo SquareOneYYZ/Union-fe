@@ -104,7 +104,7 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
   // deviceId -> 'entering' | 'active' | 'landed' | 'reconciling'
   const glidePhaseRef = useRef({});
   const glideLastWriteRef = useRef(0);
-  const writeGlideSourceRef = useRef(() => {});
+  const writeGlideSourceRef = useRef(() => { });
   // per-source Map<deviceId, feature> mirroring what the map sources hold;
   // null means the source content is unknown (small-fleet path wrote it)
   const lastWrittenRef = useRef(null);
@@ -113,7 +113,7 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
   // ('load' after source creation, 'hard-reset' after derived-prop changes)
   const fullRewriteReasonRef = useRef('load');
   const lastDeferredWriteRef = useRef(0);
-  const updateMapDataRef = useRef(() => {});
+  const updateMapDataRef = useRef(() => { });
   const onClickRef = useRef(onClick);
 
   useEffect(() => {
@@ -139,9 +139,6 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
       case 'all': showDirection = position.course > 0; break;
       default: showDirection = selectedPositionId === position.id && position.course > 0; break;
     }
-    // formatTime parses the ISO string through dayjs and Intl on every call;
-    // at fleet scale this dominates the main thread, so only re-format when
-    // the device actually has a new fix time.
     const cache = fixTimeCacheRef.current;
     let fixTimeEntry = cache[position.deviceId];
     if (!fixTimeEntry || fixTimeEntry.raw !== position.fixTime) {
@@ -231,10 +228,6 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
     writeGlideSourceRef.current = writeGlideSource;
   }, [writeGlideSource]);
 
-  // 'reason' is the call site's cause ('data' for a positions/devices flush,
-  // 'animation'/'landing' from the loop, 'selection', 'moveend'); the logged
-  // trigger is derived from the lane a write actually takes: load,
-  // flush-urgent, reconcile-15s, moveend, selection, hard-reset.
   const updateMapData = useCallback((stateVals, reason = 'data') => {
     const vals = stateVals ?? Object.values(animationStateRef.current);
     const currentDevices = devicesRef.current;
@@ -242,9 +235,6 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
     const currentSelectedPos = selectedPositionRef.current;
 
     if (vals.length <= PER_FRAME_WRITE_MAX_FLEET) {
-      // small fleets and replay keep the original per-frame full-write path;
-      // it writes outside the mirror, so a later large-fleet write must
-      // rebuild without trusting it
       const smallTrigger = lastMapWriteRef.current === 0 && reason === 'data'
         ? 'load' : laneTrigger(reason, true);
       lastWrittenRef.current = null;
@@ -282,17 +272,12 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
       return;
     }
 
-    // Large-fleet incremental path. Stamp the attempt (not just the write) so
-    // the animation loop diffs at most once per ANIMATION_WRITE_INTERVAL_MS.
     const now = Date.now();
     lastMapWriteRef.current = now;
     const titleKey = titleField || 'name';
     const phases = glidePhaseRef.current;
     const mirror = lastWrittenRef.current;
     const fullReason = fullRewriteReasonRef.current;
-    // diff only when the mirror exists AND still matches the sources; after a
-    // hard reset its features are stale, but its per-source sizes still say
-    // which sources hold content (used to skip empty->empty rewrites below)
     const diffable = !!mirror && !fullReason;
     const next = { [id]: new Map(), [selected]: new Map() };
     const urgent = { [id]: [], [selected]: [] };
@@ -322,14 +307,10 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
       }
       const phase = phases[deviceId];
       if (prev && (phase === 'entering' || phase === 'active')) {
-        // twin hidden, copy rendering live from the glide source: writing
-        // intermediate coordinates would be invisible churn
         next[sourceKey].set(deviceId, prev);
         return;
       }
       if (prev && sourceKey === id && !ds.jumped && propsRenderEqual(prev, feature, titleKey)) {
-        // pure motion of something not individually visible (clustered,
-        // off-viewport, or a hidden landed twin): slow reconcile lane
         deferred[sourceKey].push(feature);
         next[sourceKey].set(deviceId, prev);
         deferredCount += 1;
@@ -352,18 +333,12 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
       });
     }
 
-    // 'landing' (fleet-wide quiescence) deliberately does NOT force the flush:
-    // the throttle middleware synchronizes flushes, so glides finish together
-    // between flushes and quiescence recurs every cycle — forcing here would
-    // reinstate a per-cycle full re-tile. Parked glide copies render the exact
-    // final coordinates until the interval (or a pan) reconciles them.
     const deferredDue = deferredCount > 0 && (
       reason === 'moveend'
       || now - lastDeferredWriteRef.current >= DEFERRED_RECONCILE_INTERVAL_MS
     );
     if (diffable && urgentCount === 0 && !deferredDue) return;
 
-    // any write flushes the deferred backlog too: the re-tile happens anyway
     [id, selected].forEach((sourceKey) => {
       deferred[sourceKey].forEach((feature) => next[sourceKey].set(feature.properties.deviceId, feature));
     });
@@ -374,9 +349,6 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
       if (!sourceObj) return;
       if (!diffable) {
         const features = [...next[sourceKey].values()];
-        // rewriting a known-empty source with zero features would re-tile for
-        // nothing (this was the recurring 0-feature write on the selected
-        // source); a null mirror means content is unknown, so still write
         if (!features.length && mirror && mirror[sourceKey].size === 0) return;
         sourceObj.setData({ type: 'FeatureCollection', features });
         logMapWrite(sourceKey, 'setData', features.length, fullReason || 'hard-reset');
@@ -395,8 +367,6 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
     fullRewriteReasonRef.current = null;
     jumpedDs.forEach((ds) => { ds.jumped = false; });
 
-    // landed gliders are part of this write; once it is loaded their twin
-    // shows the exact final position and the copy can be swapped out
     Object.keys(phases).forEach((key) => {
       if (phases[key] === 'landed') {
         phases[key] = 'reconciling';
@@ -406,11 +376,6 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
 
   useEffect(() => {
     updateMapDataRef.current = updateMapData;
-    // feature properties are derived through createFeature/titleField; when
-    // those change the mirror's features no longer match the sources, so the
-    // next write rebuilds fully (the mirror maps are kept: their sizes still
-    // say which sources hold content). On mount this runs before the source
-    // effect, which overwrites the reason with 'load'.
     fullRewriteReasonRef.current = 'hard-reset';
   }, [updateMapData]);
 
@@ -457,8 +422,6 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
       }
       if (Object.keys(glidePhaseRef.current).length
         && (!stillAnimating || now - glideLastWriteRef.current >= GLIDE_WRITE_INTERVAL_MS)) {
-        // the !stillAnimating write parks every copy at its exact final
-        // coordinates for the reconcile handoff
         writeGlideSource();
       }
     }
@@ -861,14 +824,38 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
   }, [mapCluster, clusters, onMarkerClick, onClusterClick, iconScale, titleField, id, selected, animating, onMapClick, setTwinHidden, glideEligibleIds]);
 
   useEffect(() => {
-    const filtered = positions.filter((p) => Object.prototype.hasOwnProperty.call(devices, p.deviceId));
-    updateAnimationState(filtered);
-    // Always push current state to the map sources. The animation loop only
-    // runs for devices that moved, so with smoothing enabled the initial
-    // positions would otherwise never reach the sources and no markers or
-    // clusters would render until something else called updateMapData.
-    updateMapData();
-  }, [positions, devices, enableSmoothing, updateAnimationState, updateMapData]);
+    [id, selected].forEach((source) => {
+      map.getSource(source)?.setData({
+        type: 'FeatureCollection',
+        features: positions
+          .filter((it) => devices.hasOwnProperty(it.deviceId))
+          .filter((it) => (source === id
+            ? it.deviceId !== selectedDeviceId
+            : it.deviceId === selectedDeviceId))
+          .map((position) => ({
+            type: 'Feature',
+            geometry: {
+              type: 'Point',
+              coordinates: [position.longitude, position.latitude],
+            },
+            properties: createFeature(
+              devices,
+              position,
+              selectedPosition && selectedPosition.id,
+            ),
+          })),
+      });
+    });
+  }, [
+    mapCluster,
+    clusters,
+    onMarkerClick,
+    onClusterClick,
+    devices,
+    positions,
+    selectedPosition,
+    selectedDeviceId,
+  ]);
 
   useEffect(() => {
     const faded = selectedPosition ? 0.5 : 1;
@@ -885,5 +872,4 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
   }, [selectedPosition?.deviceId]);
   return null;
 };
-
 export default MapPositions;

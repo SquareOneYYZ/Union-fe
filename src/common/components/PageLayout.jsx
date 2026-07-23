@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   AppBar,
   Breadcrumbs,
@@ -22,6 +22,7 @@ const useStyles = makeStyles((theme) => ({
   desktopRoot: {
     height: '100%',
     display: 'flex',
+    overflowX: 'hidden',
   },
   mobileRoot: {
     height: '100%',
@@ -31,6 +32,8 @@ const useStyles = makeStyles((theme) => ({
   desktopDrawer: {
     paddingLeft: theme.spacing(0.5),
     width: (props) => (props.miniVariant ? `calc(${theme.spacing(8)} + 1px)` : theme.dimensions.drawerWidthDesktop),
+    whiteSpace: 'nowrap',
+    overflowX: 'hidden',
     transition: theme.transitions.create('width', {
       easing: theme.transitions.easing.sharp,
       duration: theme.transitions.duration.enteringScreen,
@@ -63,6 +66,7 @@ const useStyles = makeStyles((theme) => ({
     display: 'flex',
     flexDirection: 'column',
     overflowY: 'auto',
+    overflowX: 'hidden',
   },
 }));
 
@@ -97,7 +101,18 @@ const PageLayout = ({ menu, breadcrumbs, children }) => {
 
   const [openDrawer, setOpenDrawer] = useState(false);
 
-  const toggleDrawer = () => setMiniVariant(!miniVariant);
+  const toggleDrawer = () => {
+    setMiniVariant(!miniVariant);
+  };
+
+  useEffect(() => {
+    if (desktop) {
+      const event = new CustomEvent('drawerStateChange', {
+        detail: { miniVariant },
+      });
+      window.dispatchEvent(event);
+    }
+  }, [miniVariant, desktop]);
 
   return desktop ? (
     <div className={classes.desktopRoot}>

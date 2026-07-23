@@ -26,3 +26,23 @@ export const useRestriction = (key) => useSelector((state) => {
   const userValue = state.session.user[key];
   return !admin && (serverValue || userValue);
 });
+
+export const useDashcamPermission = () => useSelector((state) => {
+  const admin = state.session.user?.administrator ?? false;
+  const hasDashcamFeatures = state.session.user?.attributes?.DashcamFeatures === true;
+
+  return admin || hasDashcamFeatures;
+});
+
+export const useDeviceHasLivestream = (deviceId) => useSelector((state) => {
+  if (!deviceId) return false;
+  const device = state.devices.items[deviceId];
+  return device?.attributes?.LiveStream === true;
+});
+
+export const useCanAccessLivestream = (deviceId) => {
+  const hasDashcamPermission = useDashcamPermission();
+  const deviceHasLivestream = useDeviceHasLivestream(deviceId);
+
+  return hasDashcamPermission && deviceHasLivestream;
+};

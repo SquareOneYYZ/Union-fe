@@ -13,7 +13,7 @@ import BatteryCharging20Icon from '@mui/icons-material/BatteryCharging20';
 import ErrorIcon from '@mui/icons-material/Error';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
-import { devicesActions } from '../store';
+import { devicesActions, livestreamActions } from '../store';
 import {
   formatAlarm, formatBoolean, formatPercentage, formatStatus, getStatusColor,
 } from '../common/util/formatter';
@@ -91,7 +91,10 @@ const DeviceRow = ({ data, index, style }) => {
     <div style={style}>
       <ListItemButton
         key={item.id}
-        onClick={() => dispatch(devicesActions.selectId(item.id))}
+        onClick={() => {
+          dispatch(devicesActions.selectId(item.id));
+          dispatch(livestreamActions.closeLivestream());
+        }}
         disabled={!admin && item.disabled}
         selected={isSelected}
         className={isSelected ? classes.selected : ''}
