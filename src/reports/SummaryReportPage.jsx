@@ -31,6 +31,7 @@ import { useCatch } from '../reactHelper';
 import useReportStyles from './common/useReportStyles';
 import TableShimmer from '../common/components/TableShimmer';
 import scheduleReport from './common/scheduleReport';
+import RecentReportsWrapper from './components/RecentReportWrapper';
 
 const columnsArray = [
   ['startTime', 'reportStartDate'],
@@ -52,6 +53,7 @@ const SummaryReportPage = () => {
   const t = useTranslation();
 
   const devices = useSelector((state) => state.devices.items);
+  const userId = useSelector((state) => state.session.user?.id || 1);
 
   const distanceUnit = useAttributePreference('distanceUnit');
   const speedUnit = useAttributePreference('speedUnit');
@@ -140,6 +142,7 @@ const SummaryReportPage = () => {
     const query = new URLSearchParams({ from, to, daily });
     deviceIds.forEach((deviceId) => query.append('deviceId', deviceId));
     groupIds.forEach((groupId) => query.append('groupId', groupId));
+
     if (type === 'export') {
       window.location.assign(`/api/reports/summary/xlsx?${query.toString()}`);
     } else if (type === 'mail') {
@@ -164,6 +167,25 @@ const SummaryReportPage = () => {
       }
     }
   });
+
+  const handleReRunReport = (config) => {
+    if (!config) return;
+
+    if (config.additionalParams && config.additionalParams.daily !== undefined) {
+      setDaily(config.additionalParams.daily);
+    }
+
+    handleSubmit(
+      {
+        deviceIds: config.deviceIds || [],
+        groupIds: config.groupIds || [],
+        from: config.from,
+        to: config.to,
+        ...config.additionalParams,
+      },
+      { skipHistorySave: true },
+    );
+  };
 
   const handleSchedule = useCatch(async (deviceIds, groupIds, report) => {
     report.type = 'summary';
@@ -255,7 +277,15 @@ const SummaryReportPage = () => {
           <ColumnSelect columns={columns} setColumns={setColumns} columnsArray={columnsArray} />
         </ReportFilter>
       </div>
-      <Table stickyHeader>
+
+      {!loading && items.length === 0 && (
+        <RecentReportsWrapper
+          reportType="summary"
+          onReRunReport={handleReRunReport}
+        />
+      )}
+      {items.length > 0 && (
+      <Table>
         <TableHead>
           <TableRow>
             <TableCell>
@@ -300,57 +330,6 @@ const SummaryReportPage = () => {
         </TableHead>
         <TableBody>{tableBodyContent}</TableBody>
       </Table>
-      {!loading && sortedAndPaginatedData.length > 0 && (
-        <Box
-          sx={{
-            display: 'flex',
-            justifyContent: 'space-evenly',
-            alignItems: 'center',
-            p: 2,
-            borderTop: '1px solid rgba(224, 224, 224, 1)',
-            flexWrap: 'wrap',
-            gap: 2,
-          }}
-        >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Typography variant="body2">
-              {t('sharedRowsPerPage') || 'Rows per page'}
-              :
-            </Typography>
-            <FormControl size="small">
-              <Select
-                value={rowsPerPage}
-                onChange={handleChangeRowsPerPage}
-                sx={{ minWidth: 80 }}
-              >
-                <MenuItem value={10}>10</MenuItem>
-                <MenuItem value={25}>25</MenuItem>
-                <MenuItem value={50}>50</MenuItem>
-                <MenuItem value={100}>100</MenuItem>
-              </Select>
-            </FormControl>
-            <Typography variant="body2" color="text.secondary" sx={{ ml: 2 }}>
-              {startRow}
-              -
-              {endRow}
-              {' '}
-              {t('sharedOf') || 'of'}
-              {' '}
-              {totalCount}
-            </Typography>
-          </Box>
-
-          <Pagination
-            count={totalPages}
-            page={page + 1}
-            onChange={handleChangePage}
-            color="primary"
-            showFirstButton
-            showLastButton
-            siblingCount={1}
-            boundaryCount={1}
-          />
-        </Box>
       )}
     </PageLayout>
   );

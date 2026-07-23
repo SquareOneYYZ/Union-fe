@@ -52,6 +52,7 @@ import scheduleReport from './common/scheduleReport';
 import MapScale from '../map/MapScale';
 import SelectField from '../common/components/SelectField';
 import ReplayControl from './components/ReplayControl';
+import RecentReportsWrapper from './components/RecentReportWrapper';
 
 const columnsArray = [
   ['eventTime', 'positionFixTime'],
@@ -66,31 +67,26 @@ const filterEvents = (events, typesToExclude) => {
   const excludeSet = new Set(typesToExclude);
   return events.filter((event) => !excludeSet.has(event.type));
 };
-
 const columnsMap = new Map(columnsArray);
 
 const EventReportPage = () => {
+  const userId = useSelector((state) => state.session.user?.id || 1);
   const navigate = useNavigate();
   const classes = useReportStyles();
   const t = useTranslation();
-
   const devices = useSelector((state) => state.devices.items);
   const geofences = useSelector((state) => state.geofences.items);
-
   const speedUnit = useAttributePreference('speedUnit');
   const distanceUnit = useAttributePreference('distanceUnit');
-
   const [allEventTypes, setAllEventTypes] = useState([
     ['allEvents', 'eventAll'],
   ]);
-
   const alarms = useTranslationKeys((it) => it.startsWith('alarm')).map(
     (it) => ({
       key: unprefixString('alarm', it),
       name: t(it),
     }),
   );
-
   const [columns, setColumns] = usePersistedState('eventColumns', [
     'eventTime',
     'type',
@@ -281,6 +277,21 @@ const EventReportPage = () => {
       }
     }
   });
+
+  const handleReRunReport = (config) => {
+    if (!config) return;
+
+    handleSubmit(
+      {
+        deviceIds: config.deviceIds || [],
+        groupIds: config.groupIds || [],
+        from: config.from,
+        to: config.to,
+        ...config.additionalParams,
+      },
+      { skipHistorySave: true },
+    );
+  };
 
   const handleSchedule = useCatch(async (deviceIds, groupIds, report) => {
     report.type = 'events';
@@ -523,6 +534,7 @@ const EventReportPage = () => {
             )}
           </div>
         )}
+
         <div className={classes.containerMain}>
           <div className={classes.header}>
             <ReportFilter
@@ -530,6 +542,7 @@ const EventReportPage = () => {
               handleSchedule={handleSchedule}
               loading={loading}
             >
+
               <div className={classes.filterItem}>
                 <FormControl fullWidth>
                   <InputLabel>{t('reportEventTypes')}</InputLabel>
@@ -588,7 +601,14 @@ const EventReportPage = () => {
               />
             </ReportFilter>
           </div>
-          <Table stickyHeader>
+          {!loading && items.length === 0 && (
+          <RecentReportsWrapper
+            reportType="events"
+            onReRunReport={handleReRunReport}
+          />
+          )}
+          {items.length > 0 && (
+          <Table>
             <TableHead>
               <TableRow>
                 <TableCell className={classes.columnAction} />
@@ -621,6 +641,7 @@ const EventReportPage = () => {
             </TableHead>
             <TableBody>{tableBodyContent}</TableBody>
           </Table>
+          )}
           {!loading && sortedAndPaginatedData.length > 0 && (
             <Box
               sx={{

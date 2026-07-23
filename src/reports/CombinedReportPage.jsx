@@ -20,11 +20,14 @@ import MapMarkers from '../map/MapMarkers';
 import MapRouteCoordinates from '../map/MapRouteCoordinates';
 import MapScale from '../map/MapScale';
 import useResizableMap from './common/useResizableMap';
+import RecentReportsWrapper from './components/RecentReportWrapper';
 
 const CombinedReportPage = () => {
   const classes = useReportStyles();
   const t = useTranslation();
   const devices = useSelector((state) => state.devices.items);
+  const userId = useSelector((state) => state.session.user?.id || 1);
+
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -36,6 +39,7 @@ const CombinedReportPage = () => {
   const { containerRef, mapHeight, handleMouseDown } = useResizableMap(60, 20, 80);
 
   const itemsCoordinates = useMemo(() => items.flatMap((item) => item.route), [items]);
+
   const createMarkers = () => items.flatMap((item) => item.events
     .map((event) => item.positions.find((p) => event.positionId === p.id))
     .filter((position) => position != null)
@@ -112,6 +116,7 @@ const CombinedReportPage = () => {
     const query = new URLSearchParams({ from, to });
     deviceIds.forEach((deviceId) => query.append('deviceId', deviceId));
     groupIds.forEach((groupId) => query.append('groupId', groupId));
+
     setLoading(true);
     try {
       const response = await fetch(`/api/reports/combined?${query.toString()}`);
@@ -121,10 +126,32 @@ const CombinedReportPage = () => {
       } else {
         throw Error(await response.text());
       }
+
+      const data = await response.json();
+      setItems(data);
     } finally {
       setLoading(false);
     }
   });
+
+  const handleReRunReport = (config) => {
+    if (!config) return;
+
+    const deviceId = Array.isArray(config.deviceIds) && config.deviceIds.length > 0
+      ? config.deviceIds[0]
+      : config.deviceIds;
+
+    handleSubmit(
+      {
+        deviceId,
+        groupIds: config.groupIds || [],
+        from: config.from,
+        to: config.to,
+        ...config.additionalParams,
+      },
+      { skipHistorySave: true },
+    );
+  };
 
   let tableBodyContent;
 
@@ -194,7 +221,7 @@ const CombinedReportPage = () => {
 
             <button
               type="button"
-              aria-label="button"
+              aria-label="resize"
               onMouseDown={handleMouseDown}
               style={{
                 height: '8px',
@@ -238,110 +265,40 @@ const CombinedReportPage = () => {
             />
           </div>
 
-          <Table stickyHeader>
-            <TableHead>
-              <TableRow>
-                <TableCell>
-                  <TableSortLabel
-                    active={orderBy === 'deviceName'}
-                    direction={orderBy === 'deviceName' ? order : 'asc'}
-                    onClick={() => handleRequestSort('deviceName')}
-                  >
-                    {t('sharedDevice')}
-                    {orderBy === 'deviceName' && (
-                    <Box component="span" sx={visuallyHidden}>
-                      {order === 'desc' ? 'sorted descending' : 'sorted ascending'}
-                    </Box>
-                    )}
-                  </TableSortLabel>
-                </TableCell>
+          {!loading && items.length === 0 && (
+            <RecentReportsWrapper
+              reportType="combined"
+              onReRunReport={handleReRunReport}
+            />
+          )}
 
-                <TableCell>
-                  <TableSortLabel
-                    active={orderBy === 'eventTime'}
-                    direction={orderBy === 'eventTime' ? order : 'asc'}
-                    onClick={() => handleRequestSort('eventTime')}
-                  >
-                    {t('positionFixTime')}
-                    {orderBy === 'eventTime' && (
-                    <Box component="span" sx={visuallyHidden}>
-                      {order === 'desc' ? 'sorted descending' : 'sorted ascending'}
-                    </Box>
-                    )}
-                  </TableSortLabel>
-                </TableCell>
+          {items.length > 0 && (
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>{t('sharedDevice')}</TableCell>
+                  <TableCell>{t('positionFixTime')}</TableCell>
+                  <TableCell>{t('sharedType')}</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {!loading ? (
+                  items.flatMap((item) => item.events.map((event, index) => (
+                    <TableRow key={event.id}>
+                      <TableCell>{index ? '' : devices[item.deviceId].name}</TableCell>
+                      <TableCell>{formatTime(event.eventTime, 'seconds')}</TableCell>
+                      <TableCell>{t(prefixString('event', event.type))}</TableCell>
+                    </TableRow>
+                  )))
+                ) : (
+                  <TableShimmer columns={3} />
+                )}
+              </TableBody>
+            </Table>
+          )}
 
-                <TableCell>
-                  <TableSortLabel
-                    active={orderBy === 'eventType'}
-                    direction={orderBy === 'eventType' ? order : 'asc'}
-                    onClick={() => handleRequestSort('eventType')}
-                  >
-                    {t('sharedType')}
-                    {orderBy === 'eventType' && (
-                    <Box component="span" sx={visuallyHidden}>
-                      {order === 'desc' ? 'sorted descending' : 'sorted ascending'}
-                    </Box>
-                    )}
-                  </TableSortLabel>
-                </TableCell>
-              </TableRow>
-            </TableHead>
-
-            <TableBody>{tableBodyContent}</TableBody>
-          </Table>
-
-          {!loading && sortedAndPaginatedData.length > 0 && (
-            <Box
-              sx={{
-                display: 'flex',
-                justifyContent: 'space-evenly',
-                alignItems: 'center',
-                p: 2,
-                borderTop: '1px solid rgba(224, 224, 224, 1)',
-                flexWrap: 'wrap',
-                gap: 2,
-              }}
-            >
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Typography variant="body2">
-                  {t('sharedRowsPerPage') || 'Rows per page'}
-                  :
-                </Typography>
-                <FormControl size="small">
-                  <Select
-                    value={rowsPerPage}
-                    onChange={handleChangeRowsPerPage}
-                    sx={{ minWidth: 80 }}
-                  >
-                    <MenuItem value={10}>10</MenuItem>
-                    <MenuItem value={25}>25</MenuItem>
-                    <MenuItem value={50}>50</MenuItem>
-                    <MenuItem value={100}>100</MenuItem>
-                  </Select>
-                </FormControl>
-                <Typography variant="body2" color="text.secondary" sx={{ ml: 2 }}>
-                  {startRow}
-                  -
-                  {endRow}
-                  {' '}
-                  {t('sharedOf') || 'of'}
-                  {' '}
-                  {totalCount}
-                </Typography>
-              </Box>
-
-              <Pagination
-                count={totalPages}
-                page={page + 1}
-                onChange={handleChangePage}
-                color="primary"
-                showFirstButton
-                showLastButton
-                siblingCount={1}
-                boundaryCount={1}
-              />
-            </Box>
+          {loading && items.length === 0 && (
+            <TableShimmer columns={3} />
           )}
         </div>
       </div>

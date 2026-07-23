@@ -18,6 +18,7 @@ import {
 import { visuallyHidden } from '@mui/utils';
 import GpsFixedIcon from '@mui/icons-material/GpsFixed';
 import LocationSearchingIcon from '@mui/icons-material/LocationSearching';
+import { useSelector } from 'react-redux';
 import {
   formatDistance, formatSpeed, formatVolume, formatTime, formatNumericHours,
 } from '../common/util/formatter';
@@ -40,6 +41,7 @@ import MapGeofence from '../map/MapGeofence';
 import scheduleReport from './common/scheduleReport';
 import MapScale from '../map/MapScale';
 import useResizableMap from './common/useResizableMap';
+import RecentReportsWrapper from './components/RecentReportWrapper';
 
 const columnsArray = [
   ['startTime', 'reportStartTime'],
@@ -65,6 +67,7 @@ const TripReportPage = () => {
   const distanceUnit = useAttributePreference('distanceUnit');
   const speedUnit = useAttributePreference('speedUnit');
   const volumeUnit = useAttributePreference('volumeUnit');
+  const userId = useSelector((state) => state.session.user?.id || 1);
 
   const [columns, setColumns] = usePersistedState('tripColumns', ['startTime', 'endTime', 'distance', 'averageSpeed']);
   const [items, setItems] = useState([]);
@@ -178,6 +181,7 @@ const TripReportPage = () => {
 
   const handleSubmit = useCatch(async ({ deviceId, from, to, type }) => {
     const query = new URLSearchParams({ deviceId, from, to });
+
     if (type === 'export') {
       window.location.assign(`/api/reports/trips/xlsx?${query.toString()}`);
     } else if (type === 'mail') {
@@ -202,6 +206,25 @@ const TripReportPage = () => {
       }
     }
   });
+
+  const handleReRunReport = (config) => {
+    if (!config) return;
+
+    const deviceId = Array.isArray(config.deviceIds) && config.deviceIds.length > 0
+      ? config.deviceIds[0]
+      : config.deviceIds;
+
+    handleSubmit(
+      {
+        deviceId,
+        groupIds: config.groupIds || [],
+        from: config.from,
+        to: config.to,
+        ...config.additionalParams,
+      },
+      { skipHistorySave: true },
+    );
+  };
 
   const handleSchedule = useCatch(async (deviceIds, groupIds, report) => {
     report.type = 'trips';
@@ -368,7 +391,15 @@ const TripReportPage = () => {
               <ColumnSelect columns={columns} setColumns={setColumns} columnsArray={columnsArray} />
             </ReportFilter>
           </div>
-          <Table stickyHeader>
+
+          {!loading && items.length === 0 && (
+            <RecentReportsWrapper
+              reportType="trips"
+              onReRunReport={handleReRunReport}
+            />
+          )}
+          {items.length > 0 && (
+          <Table>
             <TableHead>
               <TableRow>
                 <TableCell className={classes.columnAction} />
@@ -400,57 +431,6 @@ const TripReportPage = () => {
             </TableHead>
             <TableBody>{tableBodyContent}</TableBody>
           </Table>
-          {!loading && sortedAndPaginatedData.length > 0 && (
-            <Box
-              sx={{
-                display: 'flex',
-                justifyContent: 'space-evenly',
-                alignItems: 'center',
-                p: 2,
-                borderTop: '1px solid rgba(224, 224, 224, 1)',
-                flexWrap: 'wrap',
-                gap: 2,
-              }}
-            >
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Typography variant="body2">
-                  {t('sharedRowsPerPage') || 'Rows per page'}
-                  :
-                </Typography>
-                <FormControl size="small">
-                  <Select
-                    value={rowsPerPage}
-                    onChange={handleChangeRowsPerPage}
-                    sx={{ minWidth: 80 }}
-                  >
-                    <MenuItem value={10}>10</MenuItem>
-                    <MenuItem value={25}>25</MenuItem>
-                    <MenuItem value={50}>50</MenuItem>
-                    <MenuItem value={100}>100</MenuItem>
-                  </Select>
-                </FormControl>
-                <Typography variant="body2" color="text.secondary" sx={{ ml: 2 }}>
-                  {startRow}
-                  -
-                  {endRow}
-                  {' '}
-                  {t('sharedOf') || 'of'}
-                  {' '}
-                  {totalCount}
-                </Typography>
-              </Box>
-
-              <Pagination
-                count={totalPages}
-                page={page + 1}
-                onChange={handleChangePage}
-                color="primary"
-                showFirstButton
-                showLastButton
-                siblingCount={1}
-                boundaryCount={1}
-              />
-            </Box>
           )}
         </div>
       </div>

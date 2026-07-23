@@ -8,6 +8,7 @@ import {
   Area, AreaChart, CartesianGrid, Line, LineChart, ResponsiveContainer,
   Tooltip, XAxis, YAxis, Brush,
 } from 'recharts';
+import { useSelector } from 'react-redux';
 import ReportFilter from './components/ReportFilter';
 import { formatTime } from '../common/util/formatter';
 import { useTranslation } from '../common/components/LocalizationProvider';
@@ -20,6 +21,7 @@ import {
   altitudeFromMeters, distanceFromMeters, speedFromKnots, volumeFromLiters,
 } from '../common/util/converter';
 import useReportStyles from './common/useReportStyles';
+import RecentReportsWrapper from './components/RecentReportWrapper';
 
 const CustomTooltip = ({ active, payload, label, positionAttributes }) => {
   if (active && payload && payload.length) {
@@ -77,20 +79,19 @@ const ChartReportPage = () => {
   const classes = useReportStyles();
   const theme = useTheme();
   const t = useTranslation();
-
   const positionAttributes = usePositionAttributes(t);
-
+  const userId = useSelector((state) => state.session.user?.id || 1);
   const distanceUnit = useAttributePreference('distanceUnit');
   const altitudeUnit = useAttributePreference('altitudeUnit');
   const speedUnit = useAttributePreference('speedUnit');
   const volumeUnit = useAttributePreference('volumeUnit');
-
   const [items, setItems] = useState([]);
   const [types, setTypes] = useState(['speed']);
   const [selectedTypes, setSelectedTypes] = useState(['speed']);
   const [timeType, setTimeType] = useState('fixTime');
   const [brushDomain, setBrushDomain] = useState(null);
   const [zoomLevel, setZoomLevel] = useState('all');
+  const [loading, setLoading] = useState(false);
 
   const aggregateData = (data, maxPoints = 200) => {
     if (data.length <= maxPoints) return data;
@@ -109,62 +110,96 @@ const ChartReportPage = () => {
   const chartMaxValue = maxValue + valueRange / 5;
   const handleSubmit = useCatch(async ({ deviceId, from, to }) => {
     const query = new URLSearchParams({ deviceId, from, to });
-    const response = await fetch(`/api/reports/route?${query.toString()}`, {
-      headers: { Accept: 'application/json' },
-    });
-    if (response.ok) {
-      const positions = await response.json();
-      const keySet = new Set();
-      const keyList = [];
-      const formattedPositions = positions.map((position) => {
-        const data = { ...position, ...position.attributes };
-        const formatted = {};
-        formatted.fixTime = dayjs(position.fixTime).valueOf();
-        formatted.deviceTime = dayjs(position.deviceTime).valueOf();
-        formatted.serverTime = dayjs(position.serverTime).valueOf();
-        Object.keys(data).filter((key) => !['id', 'deviceId'].includes(key)).forEach((key) => {
-          const value = data[key];
-          if (typeof value === 'number') {
-            keySet.add(key);
-            const definition = positionAttributes[key] || {};
-            switch (definition.dataType) {
-              case 'speed':
-                formatted[key] = speedFromKnots(value, speedUnit).toFixed(2);
-                break;
-              case 'altitude':
-                formatted[key] = altitudeFromMeters(value, altitudeUnit).toFixed(2);
-                break;
-              case 'distance':
-                formatted[key] = distanceFromMeters(value, distanceUnit).toFixed(2);
-                break;
-              case 'volume':
-                formatted[key] = volumeFromLiters(value, volumeUnit).toFixed(2);
-                break;
-              case 'hours':
-                formatted[key] = (value / 1000).toFixed(2);
-                break;
-              default:
-                formatted[key] = value;
-                break;
+
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/reports/route?${query.toString()}`, {
+        headers: { Accept: 'application/json' },
+      });
+      if (response.ok) {
+        const positions = await response.json();
+        const keySet = new Set();
+        const keyList = [];
+        const formattedPositions = positions.map((position) => {
+          const data = { ...position, ...position.attributes };
+          const formatted = {};
+          formatted.fixTime = dayjs(position.fixTime).valueOf();
+          formatted.deviceTime = dayjs(position.deviceTime).valueOf();
+          formatted.serverTime = dayjs(position.serverTime).valueOf();
+          Object.keys(data).filter((key) => !['id', 'deviceId'].includes(key)).forEach((key) => {
+            const value = data[key];
+            if (typeof value === 'number') {
+              keySet.add(key);
+              const definition = positionAttributes[key] || {};
+              switch (definition.dataType) {
+                case 'speed':
+                  formatted[key] = speedFromKnots(value, speedUnit).toFixed(2);
+                  break;
+                case 'altitude':
+                  formatted[key] = altitudeFromMeters(value, altitudeUnit).toFixed(2);
+                  break;
+                case 'distance':
+                  formatted[key] = distanceFromMeters(value, distanceUnit).toFixed(2);
+                  break;
+                case 'volume':
+                  formatted[key] = volumeFromLiters(value, volumeUnit).toFixed(2);
+                  break;
+                case 'hours':
+                  formatted[key] = (value / 1000).toFixed(2);
+                  break;
+                default:
+                  formatted[key] = value;
+                  break;
+              }
             }
+          });
+          return formatted;
+        });
+        Object.keys(positionAttributes).forEach((key) => {
+          if (keySet.has(key)) {
+            keyList.push(key);
+            keySet.delete(key);
           }
         });
-        return formatted;
-      });
-      Object.keys(positionAttributes).forEach((key) => {
-        if (keySet.has(key)) {
-          keyList.push(key);
-          keySet.delete(key);
-        }
-      });
-      setTypes([...keyList, ...keySet]);
-      setItems(formattedPositions);
-      setBrushDomain(null);
-      setZoomLevel('all');
-    } else {
-      throw Error(await response.text());
+        setTypes([...keyList, ...keySet]);
+        setItems(formattedPositions);
+        setBrushDomain(null);
+        setZoomLevel('all');
+      } else {
+        throw Error(await response.text());
+      }
+    } finally {
+      setLoading(false);
     }
   });
+
+  const handleReRunReport = (config) => {
+    if (!config) return;
+
+    const deviceId = Array.isArray(config.deviceIds) && config.deviceIds.length > 0
+      ? config.deviceIds[0]
+      : config.deviceIds;
+
+    if (config.additionalParams) {
+      if (config.additionalParams.selectedTypes) {
+        setSelectedTypes(config.additionalParams.selectedTypes);
+      }
+      if (config.additionalParams.timeType) {
+        setTimeType(config.additionalParams.timeType);
+      }
+    }
+
+    handleSubmit(
+      {
+        deviceId,
+        groupIds: config.groupIds || [],
+        from: config.from,
+        to: config.to,
+        ...config.additionalParams,
+      },
+      { skipHistorySave: true },
+    );
+  };
 
   const handleZoom = (level) => {
     if (displayData.length === 0) return;
@@ -200,7 +235,7 @@ const ChartReportPage = () => {
 
   return (
     <PageLayout menu={<ReportsMenu />} breadcrumbs={['reportTitle', 'reportChart']}>
-      <ReportFilter handleSubmit={handleSubmit} showOnly>
+      <ReportFilter handleSubmit={handleSubmit} showOnly loading={loading}>
         <div className={classes.filterItem}>
           <FormControl fullWidth>
             <InputLabel>{t('reportChartType')}</InputLabel>
@@ -248,6 +283,14 @@ const ChartReportPage = () => {
           </FormControl>
         </div>
       </ReportFilter>
+
+      {!loading && displayData.length === 0 && (
+        <RecentReportsWrapper
+          reportType="route"
+          onReRunReport={handleReRunReport}
+        />
+      )}
+
       {displayData.length > 0 && (
         <Card
           sx={{

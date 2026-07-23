@@ -47,6 +47,7 @@ import MapMarkers from '../map/MapMarkers';
 import MapCamera from '../map/MapCamera';
 import MapScale from '../map/MapScale';
 import useResizableMap from './common/useResizableMap';
+import RecentReportsWrapper from './components/RecentReportWrapper';
 
 const columnsArray = [
   ['deviceId', 'sharedDevice'],
@@ -78,12 +79,10 @@ const GeofenceDistanceReportPage = () => {
   const classes = useReportStyles();
   const t = useTranslation();
   const { containerRef, mapHeight, handleMouseDown } = useResizableMap(60, 20, 80);
-
   const devices = useSelector((state) => state.devices.items);
-
+  const userId = useSelector((state) => state.session.user?.id || 1);
   const distanceUnit = useAttributePreference('distanceUnit');
   const [filterRange, setFilterRange] = useState({ from: null, to: null });
-
   const [columns, setColumns] = usePersistedState('geofenceDistanceColumns', [
     'deviceId',
     'geofenceId',
@@ -300,7 +299,7 @@ const GeofenceDistanceReportPage = () => {
       setLoading(true);
       try {
         const response = await fetch(
-          `/api/devicegeofencedistances?${query.toString()}`,
+          `/api/reports/geofencedistances?${query.toString()}`,
           {
             headers: { Accept: 'application/json' },
           },
@@ -359,6 +358,40 @@ const GeofenceDistanceReportPage = () => {
       }
     }
   });
+
+  const handleReRunReport = (config) => {
+    if (!config) return;
+
+    const deviceId = Array.isArray(config.deviceIds) && config.deviceIds.length > 0
+      ? config.deviceIds[0]
+      : config.deviceIds;
+
+    if (config.additionalParams) {
+      if (config.additionalParams.selectedTypes) {
+        setSelectedTypes(config.additionalParams.selectedTypes);
+      }
+      if (config.additionalParams.selectedSegmentType) {
+        setSelectedSegmentType(config.additionalParams.selectedSegmentType);
+      }
+      if (config.additionalParams.selectedGeofences) {
+        setSelectedGeofences(config.additionalParams.selectedGeofences);
+      }
+      if (config.additionalParams.minDistance !== undefined) {
+        setMinDistance(config.additionalParams.minDistance);
+      }
+    }
+
+    handleSubmit(
+      {
+        deviceId,
+        groupIds: config.groupIds || [],
+        from: config.from,
+        to: config.to,
+        ...config.additionalParams,
+      },
+      { skipHistorySave: true },
+    );
+  };
 
   const handleSchedule = useCatch(async (deviceIds, groupIds, report) => {
     report.type = 'geofence-distance';
@@ -683,7 +716,16 @@ const GeofenceDistanceReportPage = () => {
                 />
               </ReportFilter>
             </div>
-            <Table stickyHeader>
+
+            {!loading && items.length === 0 && (
+              <RecentReportsWrapper
+                reportType="devicegeofencedistances"
+                onReRunReport={handleReRunReport}
+              />
+            )}
+
+            {items.length > 0 && (
+            <Table>
               <TableHead>
                 <TableRow>
                   <TableCell className={classes.columnAction} />
@@ -715,6 +757,7 @@ const GeofenceDistanceReportPage = () => {
               </TableHead>
               <TableBody>{tableBodyContent}</TableBody>
             </Table>
+            )}
             {!loading && sortedAndPaginatedData.length > 0 && (
               <Box
                 sx={{
