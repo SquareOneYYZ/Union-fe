@@ -27,7 +27,6 @@ const CombinedReportPage = () => {
   const t = useTranslation();
   const devices = useSelector((state) => state.devices.items);
   const userId = useSelector((state) => state.session.user?.id || 1);
-  const { containerRef, mapHeight, handleMouseDown } = useResizableMap(60, 20, 80);
 
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -134,6 +133,25 @@ const CombinedReportPage = () => {
       setLoading(false);
     }
   });
+
+  const handleReRunReport = (config) => {
+    if (!config) return;
+
+    const deviceId = Array.isArray(config.deviceIds) && config.deviceIds.length > 0
+      ? config.deviceIds[0]
+      : config.deviceIds;
+
+    handleSubmit(
+      {
+        deviceId,
+        groupIds: config.groupIds || [],
+        from: config.from,
+        to: config.to,
+        ...config.additionalParams,
+      },
+      { skipHistorySave: true },
+    );
+  };
 
   let tableBodyContent;
 

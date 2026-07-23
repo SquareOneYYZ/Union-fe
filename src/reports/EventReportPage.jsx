@@ -641,6 +641,7 @@ const EventReportPage = () => {
             </TableHead>
             <TableBody>{tableBodyContent}</TableBody>
           </Table>
+          )}
           {!loading && sortedAndPaginatedData.length > 0 && (
             <Box
               sx={{
