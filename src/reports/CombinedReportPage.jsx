@@ -273,8 +273,8 @@ const CombinedReportPage = () => {
                     borderRadius: '2px',
                   }}
                 />
-              </button>
-            </div>
+              </div>
+            </button>
           </>
         )}
 
@@ -308,9 +308,9 @@ const CombinedReportPage = () => {
                   >
                     {t('sharedDevice')}
                     {orderBy === 'deviceName' && (
-                    <Box component="span" sx={visuallyHidden}>
-                      {order === 'desc' ? 'sorted descending' : 'sorted ascending'}
-                    </Box>
+                      <Box component="span" sx={visuallyHidden}>
+                        {order === 'desc' ? 'sorted descending' : 'sorted ascending'}
+                      </Box>
                     )}
                   </TableSortLabel>
                 </TableCell>
@@ -323,9 +323,9 @@ const CombinedReportPage = () => {
                   >
                     {t('positionFixTime')}
                     {orderBy === 'eventTime' && (
-                    <Box component="span" sx={visuallyHidden}>
-                      {order === 'desc' ? 'sorted descending' : 'sorted ascending'}
-                    </Box>
+                      <Box component="span" sx={visuallyHidden}>
+                        {order === 'desc' ? 'sorted descending' : 'sorted ascending'}
+                      </Box>
                     )}
                   </TableSortLabel>
                 </TableCell>
@@ -338,9 +338,9 @@ const CombinedReportPage = () => {
                   >
                     {t('sharedType')}
                     {orderBy === 'eventType' && (
-                    <Box component="span" sx={visuallyHidden}>
-                      {order === 'desc' ? 'sorted descending' : 'sorted ascending'}
-                    </Box>
+                      <Box component="span" sx={visuallyHidden}>
+                        {order === 'desc' ? 'sorted descending' : 'sorted ascending'}
+                      </Box>
                     )}
                   </TableSortLabel>
                 </TableCell>
