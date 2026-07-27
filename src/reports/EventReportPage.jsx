@@ -1,5 +1,5 @@
 import React, {
-  useState,
+  useState, useCallback, useEffect, useRef,
   useMemo,
 } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -15,15 +15,18 @@ import {
   TableBody,
   Link,
   IconButton,
-  TableSortLabel,
+  Collapse,
   Box,
-  Pagination,
   Typography,
+  TableSortLabel,
+  Pagination,
 } from '@mui/material';
 import { visuallyHidden } from '@mui/utils';
 import GpsFixedIcon from '@mui/icons-material/GpsFixed';
 import LocationSearchingIcon from '@mui/icons-material/LocationSearching';
 import ReplayIcon from '@mui/icons-material/Replay';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import { useSelector } from 'react-redux';
 import {
   formatSpeed,
@@ -52,6 +55,8 @@ import scheduleReport from './common/scheduleReport';
 import MapScale from '../map/MapScale';
 import SelectField from '../common/components/SelectField';
 import ReplayControl from './components/ReplayControl';
+import MediaPreview from './components/MediaPreview';
+import { MediaBar } from './components/EventMedia';
 
 const columnsArray = [
   ['eventTime', 'positionFixTime'],
@@ -62,12 +67,33 @@ const columnsArray = [
   ['speedLimit', 'attributeSpeedLimit'],
 ];
 
+const columnsMap = new Map(columnsArray);
+
 const filterEvents = (events, typesToExclude) => {
   const excludeSet = new Set(typesToExclude);
   return events.filter((event) => !excludeSet.has(event.type));
 };
 
-const columnsMap = new Map(columnsArray);
+const groupEventsWithMedia = (events) => {
+  const grouped = [];
+  let currentAlarm = null;
+
+  events.forEach((event) => {
+    if (event.type === 'alarm') {
+      currentAlarm = {
+        alarm: event,
+        media: [],
+      };
+      grouped.push(currentAlarm);
+    } else if (event.type === 'media' && currentAlarm) {
+      currentAlarm.media.push(event);
+    } else {
+      grouped.push({ event });
+    }
+  });
+
+  return grouped;
+};
 
 const EventReportPage = () => {
   const navigate = useNavigate();
@@ -100,6 +126,8 @@ const EventReportPage = () => {
   const [eventTypes, setEventTypes] = useState(['allEvents']);
   const [alarmTypes, setAlarmTypes] = useState([]);
   const [items, setItems] = useState([]);
+  const [groupedItems, setGroupedItems] = useState([]);
+  const [openAlarms, setOpenAlarms] = useState({});
   const [loading, setLoading] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
   const [position, setPosition] = useState(null);
@@ -107,6 +135,7 @@ const EventReportPage = () => {
   const [replayPositions, setReplayPositions] = useState([]);
   const [replayLoading, setReplayLoading] = useState(false);
   const [eventPosition, setEventPosition] = useState(null);
+  const [mediaPreviewUrl, setMediaPreviewUrl] = useState(null);
 
   const [order, setOrder] = useState('desc');
   const [orderBy, setOrderBy] = useState('eventTime');
@@ -265,14 +294,14 @@ const EventReportPage = () => {
             'commandResult',
             'queuedCommandSent',
           ];
-
           const modifiedData = data.map((item) => ({
             ...item,
             speedLimit: item.attributes?.speedLimit || null,
           }));
           const filteredEvents = filterEvents(modifiedData, typesToExclude);
           setItems(filteredEvents);
-          setPage(0);
+          const grouped = groupEventsWithMedia(filteredEvents);
+          setGroupedItems(grouped);
         } else {
           throw Error(await response.text());
         }
@@ -343,6 +372,17 @@ const EventReportPage = () => {
     setSelectedItem(null);
   };
 
+  const handleMediaClick = useCallback((mediaUrl) => {
+    setMediaPreviewUrl(mediaUrl);
+  }, []);
+
+  const toggleAlarmDropdown = (alarmId) => {
+    setOpenAlarms((prev) => ({
+      ...prev,
+      [alarmId]: !prev[alarmId],
+    }));
+  };
+
   const formatValue = (item, key) => {
     const value = item[key];
     switch (key) {
@@ -370,56 +410,72 @@ const EventReportPage = () => {
         return null;
       }
 
-      case 'attributes': {
-        if (item.type === 'alarm') {
-          return t(prefixString('alarm', item.attributes.alarm));
-        }
-        if (item.type === 'deviceOverspeed') {
-          return formatSpeed(item.attributes.speed, speedUnit, t);
-        }
-        if (item.type === 'driverChanged') {
-          return item.attributes.driverUniqueId;
-        }
-        if (item.type === 'media') {
-          return (
-            <Link
-              href={`/api/media/${devices[item.deviceId]?.uniqueId}/${item.attributes.file}`}
-              target="_blank"
-            >
-              {item.attributes.file}
-            </Link>
-          );
-        }
-        if (item.type === 'commandResult') {
-          return item.attributes.result;
-        }
-        if (item.type === 'deviceTollRouteExit') {
-          let tollDetails = '';
-          if ('tollName' in item.attributes) {
-            tollDetails += `Toll name: ${item.attributes.tollName} | `;
-          }
-          if ('tollDistance' in item.attributes) {
-            tollDetails += `Toll Distance: ${formatDistance(
-              item.attributes.tollDistance,
-              distanceUnit,
-              t,
-            )}`;
-          }
-          return tollDetails;
-        }
-        if (item.type === 'deviceTollRouteEnter') {
-          let tollDetails = '';
-          if ('tollName' in item.attributes) {
-            tollDetails += `Toll name: ${item.attributes.trollName} | `;
-          }
-          if ('tollRef' in item.attributes) {
-            tollDetails += `Toll Reference: ${item.attributes.tollRef} | `;
-          }
-          return tollDetails;
-        }
-        return '';
-      }
+      case 'attributes':
+        switch (item.type) {
+          case 'alarm':
+            return t(prefixString('alarm', item.attributes.alarm));
 
+          case 'deviceOverspeed':
+            return formatSpeed(item.attributes.speed, speedUnit, t);
+
+          case 'driverChanged':
+            return item.attributes.driverUniqueId;
+
+          case 'media': {
+            const mediaUrl = `/api/media/${devices[item.deviceId]?.uniqueId}/${item.attributes.file}`;
+
+            return (
+              <Link
+                href={mediaUrl}
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleMediaClick(mediaUrl);
+                }}
+                style={{ cursor: 'pointer' }}
+              >
+                {item.attributes.file}
+              </Link>
+            );
+          }
+
+          case 'commandResult':
+            return item.attributes.result;
+
+          case 'deviceTollRouteExit': {
+            let tollDetails = '';
+
+            if ('tollName' in item.attributes) {
+              tollDetails += `Toll name: ${item.attributes.tollName} | `;
+            }
+
+            if ('tollDistance' in item.attributes) {
+              tollDetails += `Toll Distance: ${formatDistance(
+                item.attributes.tollDistance,
+                distanceUnit,
+                t,
+              )}`;
+            }
+
+            return tollDetails;
+          }
+
+          case 'deviceTollRouteEnter': {
+            let tollDetails = '';
+
+            if ('tollName' in item.attributes) {
+              tollDetails += `Toll name: ${item.attributes.tollName} | `;
+            }
+
+            if ('tollRef' in item.attributes) {
+              tollDetails += `Toll Reference: ${item.attributes.tollRef} | `;
+            }
+
+            return tollDetails;
+          }
+
+          default:
+            return '';
+        }
       default:
         return value;
     }
@@ -482,13 +538,13 @@ const EventReportPage = () => {
 
           <TableCell className={classes.columnAction} padding="none">
             {hasPositionId && (
-            <IconButton
-              size="small"
-              onClick={() => handleReplayStart(item)}
-              disabled={replayLoading}
-            >
-              <ReplayIcon fontSize="small" />
-            </IconButton>
+              <IconButton
+                size="small"
+                onClick={() => handleReplayStart(item)}
+                disabled={replayLoading}
+              >
+                <ReplayIcon fontSize="small" />
+              </IconButton>
             )}
           </TableCell>
 
@@ -675,6 +731,12 @@ const EventReportPage = () => {
           )}
         </div>
       </div>
+
+      <MediaPreview
+        open={!!mediaPreviewUrl}
+        mediaUrl={mediaPreviewUrl}
+        onClose={() => setMediaPreviewUrl(null)}
+      />
     </PageLayout>
   );
 };

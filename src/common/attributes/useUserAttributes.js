@@ -61,4 +61,8 @@ export default (t) => useMemo(() => ({
     name: t('userTermsAccepted'),
     type: 'boolean',
   },
+  DashcamFeatures: {
+    name: t('attributeDashcamFeatures'),
+    type: 'boolean',
+  },
 }), [t]);

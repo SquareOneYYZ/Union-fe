@@ -10,7 +10,9 @@ import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import RouteIcon from '@mui/icons-material/Route';
 import EventRepeatIcon from '@mui/icons-material/EventRepeat';
+import PermMediaIcon from '@mui/icons-material/PermMedia';
 import NotesIcon from '@mui/icons-material/Notes';
+import ReplayCircleFilledIcon from '@mui/icons-material/ReplayCircleFilled';
 import { useLocation } from 'react-router-dom';
 import { useTranslation } from '../../common/components/LocalizationProvider';
 import { useAdministrator, useRestriction } from '../../common/util/permissions';
@@ -55,6 +57,12 @@ const ReportsMenu = () => {
           link="/reports/trip"
           icon={<PlayCircleFilledIcon />}
           selected={location.pathname === '/reports/trip'}
+        />
+        <MenuItem
+          title={t('reportReplayMedia')}
+          link="/reports/replay-media"
+          icon={<ReplayCircleFilledIcon />}
+          selected={location.pathname === '/reports/replay-media'}
         />
         <MenuItem
           title={t('reportStops')}

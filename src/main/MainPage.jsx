@@ -18,6 +18,8 @@ import MainToolbar from './MainToolbar';
 import MainMap from './MainMap';
 import ClusterPopup from './ClusterPopUp';
 import { useAttributePreference } from '../common/util/preferences';
+import LiveStreamDialog from '../common/components/LiveStreamDialog';
+import { livestreamActions } from '../store/livestream';
 import WhatsNewPopup from '../common/components/WhatsNewPopup';
 import VinFAB from '../settings/VinFab';
 
@@ -57,21 +59,20 @@ const MainPage = () => {
   const selectedDeviceId = useSelector((state) => state.devices.selectedId);
   const positions = useSelector((state) => state.session.positions);
   const [filteredPositions, setFilteredPositions] = useState([]);
-  const [filteredDevices, setFilteredDevices] = useState([]);
   const selectedPosition = filteredPositions.find(
     (position) => selectedDeviceId && position.deviceId === selectedDeviceId,
   );
-
   const [keyword, setKeyword] = useState('');
   const [filter, setFilter] = usePersistedState('filter', { statuses: [], groups: [] });
   const [filterSort, setFilterSort] = usePersistedState('filterSort', '');
+  const [filteredDevices, setFilteredDevices] = useState([]);
   const [filterMap, setFilterMap] = usePersistedState('filterMap', false);
   const [filterByViewport, setFilterByViewport] = usePersistedState('filterByViewport', false);
   const [viewportBounds, setViewportBounds] = useState(null);
   const [devicesOpen, setDevicesOpen] = useState(desktop);
   const [eventsOpen, setEventsOpen] = useState(false);
-
-  const onEventsClick = useCallback(() => setEventsOpen(true), []);
+  const { open, deviceId } = useSelector((state) => state.livestream);
+  const onEventsClick = useCallback(() => setEventsOpen(true), [setEventsOpen]);
 
   useEffect(() => {
     if (!desktop && mapOnSelect && selectedDeviceId) {
@@ -79,7 +80,15 @@ const MainPage = () => {
     }
   }, [desktop, mapOnSelect, selectedDeviceId]);
 
-  useFilter(keyword, filter, filterSort, filterMap, positions, setFilteredDevices, setFilteredPositions);
+  useFilter(
+    keyword,
+    filter,
+    filterSort,
+    filterMap,
+    positions,
+    setFilteredDevices,
+    setFilteredPositions,
+  );
 
   useEffect(() => {
     const updateBounds = () => {
@@ -165,6 +174,14 @@ const MainPage = () => {
           position={selectedPosition}
           onClose={() => dispatch(devicesActions.selectId(null))}
           desktopPadding={theme.dimensions.drawerWidthDesktop}
+        />
+      )}
+
+      {open && (
+        <LiveStreamDialog
+          open={open}
+          deviceId={deviceId}
+          onClose={() => dispatch(livestreamActions.closeLivestream())}
         />
       )}
       <VinFAB />

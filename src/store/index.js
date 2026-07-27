@@ -13,6 +13,7 @@ import { reportsReducer as reports } from './reports';
 import { mapInteractionsReducer as mapInteractions } from './mapInteractions';
 import { clustersReducer as clusters } from './cluster';
 import throttleMiddleware from './throttleMiddleware';
+import { livestreamReducer as livestream } from './livestream';
 
 const reducer = combineReducers({
   errors,
@@ -25,6 +26,7 @@ const reducer = combineReducers({
   maintenances,
   calendars,
   reports,
+  livestream,
   mapInteractions,
   clusters,
 });
@@ -39,6 +41,7 @@ export { driversActions } from './drivers';
 export { maintenancesActions } from './maintenances';
 export { calendarsActions } from './calendars';
 export { reportsActions } from './reports';
+export { livestreamActions } from './livestream';
 export { mapInteractionsActions } from './mapInteractions';
 export { clustersActions } from './cluster';
 
