@@ -24,6 +24,33 @@ const DeviceConnectionsPage = () => {
   const { id } = useParams();
   const features = useFeatures();
 
+  // Custom title getter for notifications to handle zoneViolation type
+  const getNotificationTitle = (notification) => {
+    // If type is zoneViolation, show zoneTypes + violationTypes
+    if (notification.type === 'zoneViolation' && notification.attributes) {
+      const { zoneTypes, violationTypes } = notification.attributes;
+
+      // Capitalize first letter of each
+      const capitalizeFirst = (str) => {
+        if (!str) return '';
+        return str.charAt(0).toUpperCase() + str.slice(1);
+      };
+
+      const zone = capitalizeFirst(zoneTypes);
+      const violation = capitalizeFirst(violationTypes);
+
+      // Combine: "Geofence Enter" or just show what's available
+      if (zone && violation) {
+        return `${zone} ${violation}`;
+      }
+      if (zone) return zone;
+      if (violation) return violation;
+    }
+
+    // Default: use the standard formatter
+    return formatNotificationTitle(t, notification);
+  };
+
   return (
     <PageLayout
       menu={<SettingsMenu />}
@@ -51,7 +78,7 @@ const DeviceConnectionsPage = () => {
               baseId={id}
               keyBase="deviceId"
               keyLink="notificationId"
-              titleGetter={(it) => formatNotificationTitle(t, it)}
+              titleGetter={getNotificationTitle}
               label={t('sharedNotifications')}
             />
             {!features.disableDrivers && (
@@ -103,7 +130,7 @@ const DeviceConnectionsPage = () => {
           variant="outlined"
           startIcon={<ArrowBackIcon />}
           onClick={() => window.history.back()}
-          sx={{ mt: 2 }} // adds top margin
+          sx={{ mt: 2 }}
         >
           {t('back') || 'Back'}
         </Button>

@@ -48,6 +48,13 @@ const useStyles = makeStyles((theme) => ({
   neutral: {
     color: theme.palette.neutral.main,
   },
+  selected: {
+    backgroundColor: theme.palette.action.selected,
+    borderLeft: `4px solid ${theme.palette.primary.main}`,
+    '&:hover': {
+      backgroundColor: theme.palette.action.selected,
+    },
+  },
 }));
 
 const DeviceRow = ({ data, index, style }) => {
@@ -59,6 +66,8 @@ const DeviceRow = ({ data, index, style }) => {
 
   const item = data[index];
   const position = useSelector((state) => state.session.positions[item.id]);
+  const selectedDeviceId = useSelector((state) => state.devices.selectedId);
+  const isSelected = item.id === selectedDeviceId;
 
   const devicePrimary = useAttributePreference('devicePrimary', 'name');
   const deviceSecondary = useAttributePreference('deviceSecondary', '');
@@ -84,6 +93,8 @@ const DeviceRow = ({ data, index, style }) => {
         key={item.id}
         onClick={() => dispatch(devicesActions.selectId(item.id))}
         disabled={!admin && item.disabled}
+        selected={isSelected}
+        className={isSelected ? classes.selected : ''}
       >
         <ListItemAvatar>
           <Avatar>

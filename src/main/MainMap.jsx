@@ -2,6 +2,7 @@ import React, { useCallback } from 'react';
 import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useDispatch, useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import MapView from '../map/core/MapView';
 import MapSelectedDevice from '../map/main/MapSelectedDevice';
 import MapAccuracy from '../map/main/MapAccuracy';
@@ -18,20 +19,27 @@ import MapGeocoder from '../map/geocoder/MapGeocoder';
 import MapScale from '../map/MapScale';
 import MapNotification from '../map/notification/MapNotification';
 import useFeatures from '../common/util/useFeatures';
+import MapFullScreen from '../map/controls/MapFullScreen';
+import MapZoomBar from '../map/controls/MapZoomBar';
+import MapMeasureDistance from '../map/controls/MapMeasureDistance';
+import MapGeofenceAccess from '../map/controls/MapGeofenceAccess';
 
 const MainMap = ({ filteredPositions, selectedPosition, onEventsClick }) => {
   const theme = useTheme();
   const dispatch = useDispatch();
+  const navigate = useNavigate();
 
   const desktop = useMediaQuery(theme.breakpoints.up('md'));
-
   const eventsAvailable = useSelector((state) => !!state.events.items.length);
-
   const features = useFeatures();
 
   const onMarkerClick = useCallback((_, deviceId) => {
     dispatch(devicesActions.selectId(deviceId));
   }, [dispatch]);
+
+  const onGeofenceAccessClick = useCallback(() => {
+    navigate('/geofences');
+  }, [navigate]);
 
   return (
     <>
@@ -50,12 +58,19 @@ const MainMap = ({ filteredPositions, selectedPosition, onEventsClick }) => {
         <MapSelectedDevice />
         <PoiMap />
       </MapView>
+
       <MapScale />
+
+      <MapFullScreen />
       <MapCurrentLocation />
       <MapGeocoder />
       {!features.disableEvents && (
         <MapNotification enabled={eventsAvailable} onClick={onEventsClick} />
       )}
+      <MapGeofenceAccess onClick={onGeofenceAccessClick} />
+      <MapMeasureDistance />
+      <MapZoomBar />
+
       {desktop && (
         <MapPadding left={parseInt(theme.dimensions.drawerWidthDesktop, 10) + parseInt(theme.spacing(1.5), 10)} />
       )}

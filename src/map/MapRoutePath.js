@@ -1,13 +1,19 @@
 import { useTheme } from '@mui/styles';
-import { useId, useEffect, useMemo } from 'react';
-import { useSelector } from 'react-redux';
+import { useId, useEffect, useMemo, useCallback } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
 import { map } from './core/MapView';
 import getSpeedColor from '../common/util/colors';
 import { useAttributePreference } from '../common/util/preferences';
+import { mapInteractionsActions } from '../store';
 
-const MapRoutePath = ({ positions }) => {
+const MapRoutePath = ({
+  positions,
+  onClick,
+  expandPointsOnClick = false,
+}) => {
   const id = useId();
   const theme = useTheme();
+  const dispatch = useDispatch();
 
   const mapLineWidth = useAttributePreference('mapLineWidth', 2);
   const mapLineOpacity = useAttributePreference('mapLineOpacity', 1);
@@ -15,67 +21,128 @@ const MapRoutePath = ({ positions }) => {
   const reportColor = useSelector((state) => {
     if (!positions?.length) return null;
 
-    const p = positions[0];
-    const attributes = state.devices.items[p.deviceId]?.attributes;
+    const position = positions[0];
+    const attributes = state.devices.items[position.deviceId]?.attributes;
+
     return attributes?.['web.reportColor'] || null;
   });
 
   const { minSpeed, maxSpeed } = useMemo(() => {
-    if (!positions?.length) return { minSpeed: 0, maxSpeed: 0 };
+    if (!positions?.length) {
+      return { minSpeed: 0, maxSpeed: 0 };
+    }
 
     let min = Infinity;
     let max = -Infinity;
 
     for (let i = 0; i < positions.length; i += 1) {
-      const s = positions[i].speed;
-      if (s < min) min = s;
-      if (s > max) max = s;
+      const speed = positions[i].speed;
+
+      if (speed < min) min = speed;
+      if (speed > max) max = speed;
     }
-    return { minSpeed: min, maxSpeed: max };
+
+    return {
+      minSpeed: min,
+      maxSpeed: max,
+    };
   }, [positions]);
 
   const routeFeatures = useMemo(() => {
     if (!positions?.length) return [];
 
-    const list = [];
-    for (let i = 0; i < positions.length - 1; i += 1) {
-      const p1 = positions[i];
-      const p2 = positions[i + 1];
+    const features = [];
 
-      list.push({
+    for (let i = 0; i < positions.length - 1; i += 1) {
+      const current = positions[i];
+      const next = positions[i + 1];
+
+      features.push({
         type: 'Feature',
         geometry: {
           type: 'LineString',
           coordinates: [
-            [p1.longitude, p1.latitude],
-            [p2.longitude, p2.latitude],
+            [current.longitude, current.latitude],
+            [next.longitude, next.latitude],
           ],
         },
         properties: {
-          color:
-            reportColor
-            || getSpeedColor(p2.speed, minSpeed, maxSpeed),
-
+          color: reportColor || getSpeedColor(
+            next.speed,
+            minSpeed,
+            maxSpeed,
+          ),
           width: mapLineWidth,
           opacity: mapLineOpacity,
         },
       });
     }
-    return list;
-  }, [positions, minSpeed, maxSpeed, reportColor, mapLineWidth, mapLineOpacity]);
+
+    return features;
+  }, [
+    positions,
+    reportColor,
+    minSpeed,
+    maxSpeed,
+    mapLineWidth,
+    mapLineOpacity,
+  ]);
+
+  const onLineClick = useCallback((event) => {
+    event.preventDefault();
+
+    if (!event.features?.length) {
+      return;
+    }
+
+    if (onClick) {
+      const clickedLngLat = event.lngLat;
+
+      let closestIndex = 0;
+      let minDistance = Infinity;
+
+      positions.forEach((position, index) => {
+        if (index >= positions.length - 1) return;
+
+        const distance = Math.sqrt(
+          (position.longitude - clickedLngLat.lng) ** 2
+          + (position.latitude - clickedLngLat.lat) ** 2,
+        );
+
+        if (distance < minDistance) {
+          minDistance = distance;
+          closestIndex = index;
+        }
+      });
+
+      onClick(positions[closestIndex].id, closestIndex);
+    }
+
+    if (expandPointsOnClick) {
+      dispatch(mapInteractionsActions.expandRoutePoints());
+    }
+  }, [
+    positions,
+    onClick,
+    expandPointsOnClick,
+    dispatch,
+  ]);
 
   useEffect(() => {
     if (!map.getSource(id)) {
       map.addSource(id, {
         type: 'geojson',
-        data: { type: 'FeatureCollection', features: [] },
+        data: {
+          type: 'FeatureCollection',
+          features: [],
+        },
       });
     }
 
     if (!map.getLayer(`${id}-line`)) {
       map.addLayer({
-        source: id,
         id: `${id}-line`,
+        source: id,
         type: 'line',
         layout: {
           'line-join': 'round',
@@ -89,14 +156,38 @@ const MapRoutePath = ({ positions }) => {
       });
     }
 
+    if (expandPointsOnClick) {
+      map.on('click', `${id}-line`, onLineClick);
+
+      map.on('mouseenter', `${id}-line`, () => {
+        map.getCanvas().style.cursor = 'pointer';
+      });
+
+      map.on('mouseleave', `${id}-line`, () => {
+        map.getCanvas().style.cursor = '';
+      });
+    }
+
     return () => {
-      if (map.getLayer(`${id}-line`)) map.removeLayer(`${id}-line`);
-      if (map.getSource(id)) map.removeSource(id);
+      if (expandPointsOnClick) {
+        map.off('click', `${id}-line`, onLineClick);
+        map.off('mouseenter', `${id}-line`);
+        map.off('mouseleave', `${id}-line`);
+      }
+
+      if (map.getLayer(`${id}-line`)) {
+        map.removeLayer(`${id}-line`);
+      }
+
+      if (map.getSource(id)) {
+        map.removeSource(id);
+      }
     };
-  }, [id]);
+  }, [id, expandPointsOnClick, onLineClick]);
 
   useEffect(() => {
     const source = map.getSource(id);
+
     if (!source) return;
 
     requestAnimationFrame(() => {
@@ -105,7 +196,7 @@ const MapRoutePath = ({ positions }) => {
         features: routeFeatures,
       });
     });
-  }, [routeFeatures, id]);
+  }, [id, routeFeatures, theme]);
 
   return null;
 };

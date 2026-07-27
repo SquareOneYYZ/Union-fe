@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import { useSelector } from 'react-redux';
 import {
-  Table, TableBody, TableCell, TableHead, TableRow,
+  Table, TableBody, TableCell, TableHead, TableRow, TableSortLabel, Box, Pagination, FormControl, Select, MenuItem, Typography,
 } from '@mui/material';
+import { visuallyHidden } from '@mui/utils';
 import ReportFilter from './components/ReportFilter';
 import { useTranslation } from '../common/components/LocalizationProvider';
 import PageLayout from '../common/components/PageLayout';
@@ -18,7 +19,7 @@ import { prefixString } from '../common/util/stringUtils';
 import MapMarkers from '../map/MapMarkers';
 import MapRouteCoordinates from '../map/MapRouteCoordinates';
 import MapScale from '../map/MapScale';
-import useResizableMap from './common/useResizableMap'; // 👈 your new hook
+import useResizableMap from './common/useResizableMap';
 
 const CombinedReportPage = () => {
   const classes = useReportStyles();
@@ -26,6 +27,11 @@ const CombinedReportPage = () => {
   const devices = useSelector((state) => state.devices.items);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
+
+  const [order, setOrder] = useState('asc');
+  const [orderBy, setOrderBy] = useState('eventTime');
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
 
   const { containerRef, mapHeight, handleMouseDown } = useResizableMap(60, 20, 80);
 
@@ -38,6 +44,70 @@ const CombinedReportPage = () => {
       longitude: position.longitude,
     })));
 
+  const handleRequestSort = (property) => {
+    const isAsc = orderBy === property && order === 'asc';
+    setOrder(isAsc ? 'desc' : 'asc');
+    setOrderBy(property);
+    setPage(0);
+  };
+
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage - 1);
+  };
+
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  const flattenedData = useMemo(() => items.flatMap((item) => item.events.map((event) => ({
+    id: event.id,
+    deviceId: item.deviceId,
+    deviceName: devices[item.deviceId]?.name || '',
+    eventTime: event.eventTime,
+    eventType: event.type,
+  }))), [items, devices]);
+
+  const sortedAndPaginatedData = useMemo(() => {
+    if (!flattenedData || flattenedData.length === 0) return [];
+
+    const comparator = (a, b) => {
+      let aVal = a[orderBy];
+      let bVal = b[orderBy];
+
+      if (aVal == null) return 1;
+      if (bVal == null) return -1;
+
+      if (orderBy.toLowerCase().includes('time') || orderBy.toLowerCase().includes('date')) {
+        aVal = new Date(aVal).getTime();
+        bVal = new Date(bVal).getTime();
+      } else if (typeof aVal === 'number' && typeof bVal === 'number') {
+        return order === 'asc' ? aVal - bVal : bVal - aVal;
+      } else if (typeof aVal === 'string') {
+        aVal = aVal.toLowerCase();
+        bVal = String(bVal).toLowerCase();
+      }
+
+      if (order === 'asc') {
+        if (aVal < bVal) return -1;
+        if (aVal > bVal) return 1;
+        return 0;
+      }
+
+      if (aVal > bVal) return -1;
+      if (aVal < bVal) return 1;
+      return 0;
+    };
+
+    const sorted = [...flattenedData].sort(comparator);
+    return sorted.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+  }, [flattenedData, order, orderBy, page, rowsPerPage]);
+
+  const totalCount = flattenedData.length;
+  const totalPages = Math.ceil(totalCount / rowsPerPage);
+  const startRow = totalCount === 0 ? 0 : page * rowsPerPage + 1;
+  const endRow = Math.min((page + 1) * rowsPerPage, totalCount);
+
   const handleSubmit = useCatch(async ({ deviceIds, groupIds, from, to }) => {
     const query = new URLSearchParams({ from, to });
     deviceIds.forEach((deviceId) => query.append('deviceId', deviceId));
@@ -47,6 +117,7 @@ const CombinedReportPage = () => {
       const response = await fetch(`/api/reports/combined?${query.toString()}`);
       if (response.ok) {
         setItems(await response.json());
+        setPage(0);
       } else {
         throw Error(await response.text());
       }
@@ -54,6 +125,33 @@ const CombinedReportPage = () => {
       setLoading(false);
     }
   });
+
+  let tableBodyContent;
+
+  if (loading) {
+    tableBodyContent = <TableShimmer columns={3} />;
+  } else if (sortedAndPaginatedData.length === 0) {
+    tableBodyContent = (
+      <TableRow>
+        <TableCell colSpan={3} align="center">
+          <Typography variant="body2" color="text.secondary" sx={{ py: 3 }}>
+            {t('sharedNoData') || 'No data available'}
+          </Typography>
+        </TableCell>
+      </TableRow>
+    );
+  } else {
+    tableBodyContent = sortedAndPaginatedData.map((row, index, arr) => {
+      const showDeviceName = index === 0 || arr[index - 1].deviceId !== row.deviceId;
+      return (
+        <TableRow key={row.id} hover>
+          <TableCell>{showDeviceName ? row.deviceName : ''}</TableCell>
+          <TableCell>{formatTime(row.eventTime, 'seconds')}</TableCell>
+          <TableCell>{t(prefixString('event', row.eventType))}</TableCell>
+        </TableRow>
+      );
+    });
+  }
 
   return (
     <PageLayout menu={<ReportsMenu />} breadcrumbs={['reportTitle', 'reportCombined']}>
@@ -96,6 +194,7 @@ const CombinedReportPage = () => {
 
             <button
               type="button"
+              aria-label="button"
               onMouseDown={handleMouseDown}
               style={{
                 height: '8px',
@@ -109,7 +208,6 @@ const CombinedReportPage = () => {
                 borderBottom: '1px solid #ccc',
               }}
             >
-              {' '}
               <div
                 style={{
                   width: '40px',
@@ -139,28 +237,112 @@ const CombinedReportPage = () => {
               loading={loading}
             />
           </div>
-          <Table>
+
+          <Table stickyHeader>
             <TableHead>
               <TableRow>
-                <TableCell>{t('sharedDevice')}</TableCell>
-                <TableCell>{t('positionFixTime')}</TableCell>
-                <TableCell>{t('sharedType')}</TableCell>
+                <TableCell>
+                  <TableSortLabel
+                    active={orderBy === 'deviceName'}
+                    direction={orderBy === 'deviceName' ? order : 'asc'}
+                    onClick={() => handleRequestSort('deviceName')}
+                  >
+                    {t('sharedDevice')}
+                    {orderBy === 'deviceName' && (
+                    <Box component="span" sx={visuallyHidden}>
+                      {order === 'desc' ? 'sorted descending' : 'sorted ascending'}
+                    </Box>
+                    )}
+                  </TableSortLabel>
+                </TableCell>
+
+                <TableCell>
+                  <TableSortLabel
+                    active={orderBy === 'eventTime'}
+                    direction={orderBy === 'eventTime' ? order : 'asc'}
+                    onClick={() => handleRequestSort('eventTime')}
+                  >
+                    {t('positionFixTime')}
+                    {orderBy === 'eventTime' && (
+                    <Box component="span" sx={visuallyHidden}>
+                      {order === 'desc' ? 'sorted descending' : 'sorted ascending'}
+                    </Box>
+                    )}
+                  </TableSortLabel>
+                </TableCell>
+
+                <TableCell>
+                  <TableSortLabel
+                    active={orderBy === 'eventType'}
+                    direction={orderBy === 'eventType' ? order : 'asc'}
+                    onClick={() => handleRequestSort('eventType')}
+                  >
+                    {t('sharedType')}
+                    {orderBy === 'eventType' && (
+                    <Box component="span" sx={visuallyHidden}>
+                      {order === 'desc' ? 'sorted descending' : 'sorted ascending'}
+                    </Box>
+                    )}
+                  </TableSortLabel>
+                </TableCell>
               </TableRow>
             </TableHead>
-            <TableBody>
-              {!loading ? (
-                items.flatMap((item) => item.events.map((event, index) => (
-                  <TableRow key={event.id}>
-                    <TableCell>{index ? '' : devices[item.deviceId].name}</TableCell>
-                    <TableCell>{formatTime(event.eventTime, 'seconds')}</TableCell>
-                    <TableCell>{t(prefixString('event', event.type))}</TableCell>
-                  </TableRow>
-                )))
-              ) : (
-                <TableShimmer columns={3} />
-              )}
-            </TableBody>
+
+            <TableBody>{tableBodyContent}</TableBody>
           </Table>
+
+          {!loading && sortedAndPaginatedData.length > 0 && (
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: 'space-evenly',
+                alignItems: 'center',
+                p: 2,
+                borderTop: '1px solid rgba(224, 224, 224, 1)',
+                flexWrap: 'wrap',
+                gap: 2,
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography variant="body2">
+                  {t('sharedRowsPerPage') || 'Rows per page'}
+                  :
+                </Typography>
+                <FormControl size="small">
+                  <Select
+                    value={rowsPerPage}
+                    onChange={handleChangeRowsPerPage}
+                    sx={{ minWidth: 80 }}
+                  >
+                    <MenuItem value={10}>10</MenuItem>
+                    <MenuItem value={25}>25</MenuItem>
+                    <MenuItem value={50}>50</MenuItem>
+                    <MenuItem value={100}>100</MenuItem>
+                  </Select>
+                </FormControl>
+                <Typography variant="body2" color="text.secondary" sx={{ ml: 2 }}>
+                  {startRow}
+                  -
+                  {endRow}
+                  {' '}
+                  {t('sharedOf') || 'of'}
+                  {' '}
+                  {totalCount}
+                </Typography>
+              </Box>
+
+              <Pagination
+                count={totalPages}
+                page={page + 1}
+                onChange={handleChangePage}
+                color="primary"
+                showFirstButton
+                showLastButton
+                siblingCount={1}
+                boundaryCount={1}
+              />
+            </Box>
+          )}
         </div>
       </div>
     </PageLayout>

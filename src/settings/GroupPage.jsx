@@ -19,16 +19,16 @@ import useGroupAttributes from '../common/attributes/useGroupAttributes';
 import { useCatch } from '../reactHelper';
 import { groupsActions } from '../store';
 import useSettingsStyles from './common/useSettingsStyles';
+import { useAdministrator } from '../common/util/permissions';
 
 const GroupPage = () => {
   const classes = useSettingsStyles();
   const dispatch = useDispatch();
   const t = useTranslation();
-
   const commonDeviceAttributes = useCommonDeviceAttributes(t);
   const groupAttributes = useGroupAttributes(t);
-
   const [item, setItem] = useState();
+  const admin = useAdministrator();
 
   const onItemSaved = useCatch(async () => {
     const response = await fetch('/api/groups');
@@ -40,6 +40,15 @@ const GroupPage = () => {
   });
 
   const validate = () => item && item.name;
+
+  const roundedFieldSx = {
+    '& .MuiOutlinedInput-root': {
+      borderRadius: '13px',
+      '& fieldset': { borderRadius: '13px', borderColor: 'rgba(255,255,255,0.23)' },
+      '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.5)' },
+      '&.Mui-focused fieldset': { borderColor: 'primary.main' },
+    },
+  };
 
   return (
     <EditItemView
@@ -62,6 +71,7 @@ const GroupPage = () => {
                 value={item.name || ''}
                 onChange={(event) => setItem({ ...item, name: event.target.value })}
                 label={t('sharedName')}
+                sx={roundedFieldSx}
               />
             </AccordionDetails>
           </Accordion>
@@ -76,6 +86,14 @@ const GroupPage = () => {
                 endpoint="/api/groups"
                 label={t('groupParent')}
               />
+              {admin && (
+                <SelectField
+                  value={item.organizationId || ''}
+                  onChange={(event) => setItem({ ...item, organizationId: event.target.value })}
+                  endpoint="/api/organization"
+                  label={t('organization')}
+                />
+              )}
             </AccordionDetails>
           </Accordion>
           <EditAttributesAccordion

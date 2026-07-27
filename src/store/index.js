@@ -10,6 +10,8 @@ import { driversReducer as drivers } from './drivers';
 import { maintenancesReducer as maintenances } from './maintenances';
 import { calendarsReducer as calendars } from './calendars';
 import { reportsReducer as reports } from './reports';
+import { mapInteractionsReducer as mapInteractions } from './mapInteractions';
+import { clustersReducer as clusters } from './cluster';
 import throttleMiddleware from './throttleMiddleware';
 
 const reducer = combineReducers({
@@ -23,6 +25,8 @@ const reducer = combineReducers({
   maintenances,
   calendars,
   reports,
+  mapInteractions,
+  clusters,
 });
 
 export * from './errors';

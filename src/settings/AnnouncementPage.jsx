@@ -42,6 +42,15 @@ const AnnouncementPage = () => {
     }
   }, [users, notificator, message, navigate]);
 
+  const roundedFieldSx = {
+    '& .MuiOutlinedInput-root': {
+      borderRadius: '13px',
+      '& fieldset': { borderRadius: '13px', borderColor: 'rgba(255,255,255,0.23)' },
+      '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.5)' },
+      '&.Mui-focused fieldset': { borderColor: 'primary.main' },
+    },
+  };
+
   return (
     <PageLayout menu={<SettingsMenu />} breadcrumbs={['serverAnnouncement']}>
       <Container maxWidth="xs" className={classes.container}>
@@ -71,11 +80,13 @@ const AnnouncementPage = () => {
               value={message.subject}
               onChange={(e) => setMessage({ ...message, subject: e.target.value })}
               label={t('sharedSubject')}
+              sx={roundedFieldSx}
             />
             <TextField
               value={message.body}
               onChange={(e) => setMessage({ ...message, body: e.target.value })}
               label={t('commandMessage')}
+              sx={roundedFieldSx}
             />
           </AccordionDetails>
         </Accordion>

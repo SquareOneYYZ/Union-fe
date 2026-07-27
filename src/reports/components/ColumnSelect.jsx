@@ -21,6 +21,13 @@ const ColumnSelect = ({
           onChange={(e) => setColumns(e.target.value)}
           multiple
           disabled={disabled}
+          sx={{
+            borderRadius: '13px',
+            '& .MuiOutlinedInput-notchedOutline': { borderRadius: '13px' },
+          }}
+          MenuProps={{
+            PaperProps: { sx: { borderRadius: '13px' } },
+          }}
         >
           {columnsArray.map(([key, string]) => (
             <MenuItem key={key} value={key}>{rawValues ? string : t(string)}</MenuItem>

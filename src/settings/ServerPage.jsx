@@ -76,6 +76,15 @@ const ServerPage = () => {
     }
   });
 
+  const roundedFieldSx = {
+    '& .MuiOutlinedInput-root': {
+      borderRadius: '13px',
+      '& fieldset': { borderRadius: '13px', borderColor: 'rgba(255,255,255,0.23)' },
+      '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.5)' },
+      '&.Mui-focused fieldset': { borderColor: 'primary.main' },
+    },
+  };
+
   return (
     <PageLayout menu={<SettingsMenu />} breadcrumbs={['settingsTitle', 'settingsServer']}>
       <Container maxWidth="xs" className={classes.container}>
@@ -92,13 +101,17 @@ const ServerPage = () => {
                   value={item.mapUrl || ''}
                   onChange={(event) => setItem({ ...item, mapUrl: event.target.value })}
                   label={t('mapCustomLabel')}
+                  sx={roundedFieldSx}
                 />
                 <TextField
                   value={item.overlayUrl || ''}
                   onChange={(event) => setItem({ ...item, overlayUrl: event.target.value })}
                   label={t('mapOverlayCustom')}
+                  sx={roundedFieldSx}
                 />
-                <FormControl>
+                <FormControl
+                  sx={roundedFieldSx}
+                >
                   <InputLabel>{t('mapDefault')}</InputLabel>
                   <Select
                     label={t('mapDefault')}
@@ -112,7 +125,9 @@ const ServerPage = () => {
                     ))}
                   </Select>
                 </FormControl>
-                <FormControl>
+                <FormControl
+                  sx={roundedFieldSx}
+                >
                   <InputLabel>{t('settingsCoordinateFormat')}</InputLabel>
                   <Select
                     label={t('settingsCoordinateFormat')}
@@ -124,7 +139,9 @@ const ServerPage = () => {
                     <MenuItem value="dms">{t('sharedDegreesMinutesSeconds')}</MenuItem>
                   </Select>
                 </FormControl>
-                <FormControl>
+                <FormControl
+                  sx={roundedFieldSx}
+                >
                   <InputLabel>{t('settingsSpeedUnit')}</InputLabel>
                   <Select
                     label={t('settingsSpeedUnit')}
@@ -136,7 +153,9 @@ const ServerPage = () => {
                     <MenuItem value="mph">{t('sharedMph')}</MenuItem>
                   </Select>
                 </FormControl>
-                <FormControl>
+                <FormControl
+                  sx={roundedFieldSx}
+                >
                   <InputLabel>{t('settingsDistanceUnit')}</InputLabel>
                   <Select
                     label={t('settingsDistanceUnit')}
@@ -148,7 +167,9 @@ const ServerPage = () => {
                     <MenuItem value="nmi">{t('sharedNmi')}</MenuItem>
                   </Select>
                 </FormControl>
-                <FormControl>
+                <FormControl
+                  sx={roundedFieldSx}
+                >
                   <InputLabel>{t('settingsAltitudeUnit')}</InputLabel>
                   <Select
                     label={t('settingsAltitudeUnit')}
@@ -159,7 +180,9 @@ const ServerPage = () => {
                     <MenuItem value="ft">{t('sharedFeet')}</MenuItem>
                   </Select>
                 </FormControl>
-                <FormControl>
+                <FormControl
+                  sx={roundedFieldSx}
+                >
                   <InputLabel>{t('settingsVolumeUnit')}</InputLabel>
                   <Select
                     label={t('settingsVolumeUnit')}
@@ -178,16 +201,19 @@ const ServerPage = () => {
                   keyGetter={(it) => it}
                   titleGetter={(it) => it}
                   label={t('sharedTimezone')}
+                  sx={roundedFieldSx}
                 />
                 <TextField
                   value={item.poiLayer || ''}
                   onChange={(event) => setItem({ ...item, poiLayer: event.target.value })}
                   label={t('mapPoiLayer')}
+                  sx={roundedFieldSx}
                 />
                 <TextField
                   value={item.announcement || ''}
                   onChange={(event) => setItem({ ...item, announcement: event.target.value })}
                   label={t('serverAnnouncement')}
+                  sx={roundedFieldSx}
                 />
                 <FormGroup>
                   <FormControlLabel
@@ -209,18 +235,21 @@ const ServerPage = () => {
                   value={item.latitude || 0}
                   onChange={(event) => setItem({ ...item, latitude: Number(event.target.value) })}
                   label={t('positionLatitude')}
+                  sx={roundedFieldSx}
                 />
                 <TextField
                   type="number"
                   value={item.longitude || 0}
                   onChange={(event) => setItem({ ...item, longitude: Number(event.target.value) })}
                   label={t('positionLongitude')}
+                  sx={roundedFieldSx}
                 />
                 <TextField
                   type="number"
                   value={item.zoom || 0}
                   onChange={(event) => setItem({ ...item, zoom: Number(event.target.value) })}
                   label={t('serverZoom')}
+                  sx={roundedFieldSx}
                 />
                 <Button
                   variant="outlined"

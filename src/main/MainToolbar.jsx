@@ -39,6 +39,8 @@ const MainToolbar = ({
   setFilterSort,
   filterMap,
   setFilterMap,
+  filterByViewport,
+  setFilterByViewport,
 }) => {
   const classes = useStyles();
   const theme = useTheme();
@@ -164,6 +166,10 @@ const MainToolbar = ({
             <FormControlLabel
               control={<Checkbox checked={filterMap} onChange={(e) => setFilterMap(e.target.checked)} />}
               label={t('sharedFilterMap')}
+            />
+            <FormControlLabel
+              control={<Checkbox checked={filterByViewport} onChange={(e) => setFilterByViewport(e.target.checked)} />}
+              label={t('sharedFilterByViewport')}
             />
           </FormGroup>
         </div>

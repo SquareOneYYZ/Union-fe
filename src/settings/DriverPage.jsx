@@ -18,6 +18,15 @@ const DriverPage = () => {
 
   const validate = () => item && item.name && item.uniqueId;
 
+  const roundedFieldSx = {
+    '& .MuiOutlinedInput-root': {
+      borderRadius: '13px',
+      '& fieldset': { borderRadius: '13px', borderColor: 'rgba(255,255,255,0.23)' },
+      '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.5)' },
+      '&.Mui-focused fieldset': { borderColor: 'primary.main' },
+    },
+  };
+
   return (
     <EditItemView
       endpoint="drivers"
@@ -40,11 +49,13 @@ const DriverPage = () => {
                 value={item.name || ''}
                 onChange={(event) => setItem({ ...item, name: event.target.value })}
                 label={t('sharedName')}
+                sx={roundedFieldSx}
               />
               <TextField
                 value={item.uniqueId || ''}
                 onChange={(event) => setItem({ ...item, uniqueId: event.target.value })}
                 label={t('deviceIdentifier')}
+                sx={roundedFieldSx}
               />
             </AccordionDetails>
           </Accordion>
