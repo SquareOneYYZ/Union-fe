@@ -39,6 +39,8 @@ export * from './drivers';
 export * from './maintenances';
 export * from './calendars';
 export * from './reports';
+export * from './mapInteractions';
+export * from './cluster';
 
 export default configureStore({
   reducer,

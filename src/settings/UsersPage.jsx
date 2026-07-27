@@ -1,7 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Table, TableRow, TableCell, TableHead, TableBody, Switch, TableFooter, FormControlLabel,
+  Box,
+  Grid,
+  Typography,
+  Chip,
+  TextField,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
+  TableFooter,
+  Switch,
+  FormControlLabel,
 } from '@mui/material';
 import LoginIcon from '@mui/icons-material/Login';
 import LinkIcon from '@mui/icons-material/Link';
@@ -14,7 +30,7 @@ import CollectionFab from './components/CollectionFab';
 import CollectionActions from './components/CollectionActions';
 import TableShimmer from '../common/components/TableShimmer';
 import { useManager } from '../common/util/permissions';
-import SearchHeader, { filterByKeyword } from './components/SearchHeader';
+import { filterByKeyword } from './components/SearchHeader';
 import useSettingsStyles from './common/useSettingsStyles';
 
 const UsersPage = () => {
@@ -26,9 +42,12 @@ const UsersPage = () => {
 
   const [timestamp, setTimestamp] = useState(Date.now());
   const [items, setItems] = useState([]);
-  const [searchKeyword, setSearchKeyword] = useState('');
   const [loading, setLoading] = useState(false);
   const [temporary, setTemporary] = useState(false);
+  const [globalSearch, setGlobalSearch] = useState('');
+  const [adminFilter, setAdminFilter] = useState('');
+  const [disabledFilter, setDisabledFilter] = useState('');
+  const [expirationFilter, setExpirationFilter] = useState('');
 
   const handleLogin = useCatch(async (userId) => {
     const response = await fetch(`/api/session/${userId}`);
@@ -313,7 +332,7 @@ const UsersPage = () => {
           </TableRow>
         </TableHead>
         <TableBody>
-          {!loading ? items.filter((u) => temporary || !u.temporary).filter(filterByKeyword(searchKeyword)).map((item) => (
+          {!loading ? filteredItems.map((item) => (
             <TableRow key={item.id}>
               <TableCell>{item.name}</TableCell>
               <TableCell>{item.email}</TableCell>

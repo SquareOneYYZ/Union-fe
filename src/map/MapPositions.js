@@ -1,4 +1,4 @@
-import {
+import React, {
   useId, useCallback, useEffect, useRef, useState,
 } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
@@ -36,13 +36,6 @@ const MIN_CHANGE_DEG = 0.000005;
 const PER_FRAME_WRITE_MAX_FLEET = 300;
 const ANIMATION_WRITE_INTERVAL_MS = 1000;
 const DEFERRED_RECONCILE_INTERVAL_MS = 15000;
-
-// Smooth glide for large fleets: devices with a fresh position glide through a
-// small dedicated GeoJSON source written at ~15fps (cost is O(gliding devices),
-// not fleet size), while their static twin in the full source is hidden via
-// feature-state — a paint-only change with no worker round-trip. Only devices
-// rendered individually inside the padded viewport participate; everything
-// else keeps stepping at the reconcile cadence.
 const GLIDE_WRITE_INTERVAL_MS = 66;
 const GLIDE_VIEWPORT_PAD = 0.2;
 
@@ -918,17 +911,6 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
       map.setPaintProperty(`direction-${animating}`, 'icon-opacity', copyFaded);
     }
   }, [selectedPosition?.deviceId]);
-
-  if (showLoadingIndicator && isLoading && progress < 100) {
-    return (
-      <MapLoadingIndicator
-        isLoading={isLoading}
-        progress={progress}
-        positionCount={positions?.length || 0}
-      />
-    );
-  }
-
   return null;
 };
 

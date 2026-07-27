@@ -1,10 +1,12 @@
 import { useTheme } from '@mui/styles';
-import { useId, useEffect, useMemo, useCallback } from 'react';
+import {
+  useId, useEffect, useMemo, useCallback,
+} from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { map } from './core/MapView';
 import getSpeedColor from '../common/util/colors';
 import { useAttributePreference } from '../common/util/preferences';
-import { mapInteractionsActions } from '../store';
+import { mapInteractionsActions } from '../store/index';
 
 const MapRoutePath = ({
   positions,
@@ -36,7 +38,7 @@ const MapRoutePath = ({
     let max = -Infinity;
 
     for (let i = 0; i < positions.length; i += 1) {
-      const speed = positions[i].speed;
+      const { speed } = positions[i];
 
       if (speed < min) min = speed;
       if (speed > max) max = speed;

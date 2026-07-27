@@ -25,13 +25,8 @@ const SocketController = () => {
   const socketRef = useRef(null);
   const reconnectTimerRef = useRef(null);
 
-<<<<<<< revert-96-revert-89-riq-new-throttling-feature
   const positionBuffer = useRef([]);
   const batchTimeout = useRef(null);
-
-  const [events, setEvents] = useState([]);
-=======
->>>>>>> master
   const [notifications, setNotifications] = useState([]);
 
   const soundEvents = useAttributePreference('soundEvents', '');
@@ -94,7 +89,10 @@ const SocketController = () => {
         } catch (error) {
           // ignore fetch errors during reconnect
         }
-        reconnectTimerRef.current = setTimeout(() => connectSocket(), 60000);
+        reconnectTimerRef.current = setTimeout(
+          connectSocket,
+          60000,
+        );
       }
     };
 
@@ -186,22 +184,23 @@ const SocketController = () => {
       }
 
       connectSocket();
-<<<<<<< revert-96-revert-89-riq-new-throttling-feature
-      return () => {
-        const socket = socketRef.current;
-        if (socket) {
-          socket.close(logoutCode);
-        }
-        if (batchTimeout.current) {
-          clearTimeout(batchTimeout.current);
-        }
-      };
-=======
-      return () => closeSocket();
->>>>>>> master
     }
     return null;
-  }, [authenticated]);
+  }, [
+    authenticated,
+    dispatch,
+    connectSocket,
+  ]);
+
+  useEffect(() => () => {
+    const socket = socketRef.current;
+    if (socket) {
+      closeSocket();
+    }
+    if (batchTimeout.current) {
+      clearTimeout(batchTimeout.current);
+    }
+  }, []);
 
   return (
     <>
