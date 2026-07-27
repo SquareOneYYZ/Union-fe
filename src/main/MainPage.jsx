@@ -65,6 +65,7 @@ const MainPage = () => {
   const [keyword, setKeyword] = useState('');
   const [filter, setFilter] = usePersistedState('filter', { statuses: [], groups: [] });
   const [filterSort, setFilterSort] = usePersistedState('filterSort', '');
+  const [filteredDevices, setFilteredDevices] = useState([]);
   const [filterMap, setFilterMap] = usePersistedState('filterMap', false);
   const [filterByViewport, setFilterByViewport] = usePersistedState('filterByViewport', false);
   const [viewportBounds, setViewportBounds] = useState(null);

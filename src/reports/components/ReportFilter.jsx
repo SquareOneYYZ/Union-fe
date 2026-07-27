@@ -46,13 +46,11 @@ const ReportFilter = ({
   const [description, setDescription] = useState();
   const [calendarId, setCalendarId] = useState();
 
-  // Initialize with saved filters if available
   const [selectedDate, setSelectedDate] = useState(initialFilters?.selectedDate || '');
   const [fromTime, setFromTime] = useState(initialFilters?.fromTime || '');
   const [toTime, setToTime] = useState(initialFilters?.toTime || '');
   const [timeRangeValid, setTimeRangeValid] = useState(false);
 
-  // Restore filters when initialFilters changes (on component mount)
   useEffect(() => {
     if (initialFilters && showLast24Hours) {
       if (initialFilters.selectedDate) setSelectedDate(initialFilters.selectedDate);
@@ -89,24 +87,24 @@ const ReportFilter = ({
     let selectedTo;
 
     if (showLast24Hours) {
-      // Use local state for date/time selection
       if (!selectedDate || !fromTime || !toTime) {
-        notifyError(t('reportSelectDateAndTime') || 'Please select date, from time and to time');
+        alert(t('reportSelectDateAndTime'));
         return;
       }
+
       selectedFrom = dayjs(`${selectedDate}T${fromTime}`);
       selectedTo = dayjs(`${selectedDate}T${toTime}`);
 
       if (!selectedFrom.isValid() || !selectedTo.isValid()) {
-        notifyError(t('reportInvalidDateOrTime') || 'Invalid date/time');
+        alert(t('reportInvalidDateOrTime'));
         return;
       }
+
       if (!selectedTo.isAfter(selectedFrom)) {
-        notifyError(t('End time must be after start time') || 'End time must be after start time');
+        alert(t('reportEndTimeAfterStart'));
         return;
       }
     } else {
-      // Original behavior - use Redux state
       switch (period) {
         case 'today':
           if (backdateToday) {
@@ -171,26 +169,41 @@ const ReportFilter = ({
   return (
     <div className={classes.filter}>
       {!ignoreDevice && (
-      <div className={classes.filterItem} style={{ minWidth: '280px', flex: '1.5' }}>
-        <SelectField
-          label={t(multiDevice ? 'deviceTitle' : 'reportDevice')}
-          data={Object.values(devices).sort((a, b) => a.name.localeCompare(b.name))}
-          value={multiDevice ? deviceIds : deviceId}
-          onChange={(e) => dispatch(multiDevice ? devicesActions.selectIds(e.target.value) : devicesActions.selectId(e.target.value))}
-          multiple={multiDevice}
-          fullWidth
-          sx={{
-            '& .MuiOutlinedInput-root': {
-              borderRadius: '13px',
-              '& fieldset': { borderRadius: '13px' },
-            },
-            ...sx,
-          }}
-          renderValue={(selected) => {
-            if (multiDevice && Array.isArray(selected)) {
-              const selectedDevices = selected.map((id) => devices[id]?.name || id).join(', ');
+        <div className={classes.filterItem} style={{ minWidth: '280px', flex: '1.5' }}>
+          <SelectField
+            label={t(multiDevice ? 'deviceTitle' : 'reportDevice')}
+            data={Object.values(devices).sort((a, b) => a.name.localeCompare(b.name))}
+            value={multiDevice ? deviceIds : deviceId}
+            onChange={(e) => dispatch(multiDevice ? devicesActions.selectIds(e.target.value) : devicesActions.selectId(e.target.value))}
+            multiple={multiDevice}
+            fullWidth
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                borderRadius: '13px',
+                '& fieldset': { borderRadius: '13px' },
+              },
+              ...sx,
+            }}
+            renderValue={(selected) => {
+              if (multiDevice && Array.isArray(selected)) {
+                const selectedDevices = selected.map((id) => devices[id]?.name || id).join(', ');
+                return (
+                  <Tooltip title={selectedDevices} placement="bottom-start" arrow>
+                    <span style={{
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      display: 'block',
+                    }}
+                    >
+                      {selectedDevices}
+                    </span>
+                  </Tooltip>
+                );
+              }
+              const deviceName = devices[selected]?.name || selected || '';
               return (
-                <Tooltip title={selectedDevices} placement="bottom-start" arrow>
+                <Tooltip title={deviceName} placement="bottom-start" arrow>
                   <span style={{
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
@@ -198,35 +211,20 @@ const ReportFilter = ({
                     display: 'block',
                   }}
                   >
-                    {selectedDevices}
+                    {deviceName}
                   </span>
                 </Tooltip>
               );
-            }
-            const deviceName = devices[selected]?.name || selected || '';
-            return (
-              <Tooltip title={deviceName} placement="bottom-start" arrow>
-                <span style={{
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                  display: 'block',
-                }}
-                >
-                  {deviceName}
-                </span>
-              </Tooltip>
-            );
-          }}
-          MenuProps={{
-            PaperProps: {
-              style: {
-                maxWidth: '400px',
+            }}
+            MenuProps={{
+              PaperProps: {
+                style: {
+                  maxWidth: '400px',
+                },
               },
-            },
-          }}
-        />
-      </div>
+            }}
+          />
+        </div>
       )}
 
       {/* Groups */}
@@ -264,9 +262,6 @@ const ReportFilter = ({
                   borderRadius: '13px',
                   '& .MuiOutlinedInput-notchedOutline': { borderRadius: '13px' },
                 }}
-                label={t('reportPeriod')}
-                value={period}
-                onChange={(e) => dispatch(reportsActions.updatePeriod(e.target.value))}
               >
                 <MenuItem value="today">{t('reportToday')}</MenuItem>
                 <MenuItem value="yesterday">{t('reportYesterday')}</MenuItem>

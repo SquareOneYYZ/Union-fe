@@ -33,7 +33,6 @@ const useStyles = makeStyles((theme) => ({
     paddingLeft: theme.spacing(0.5),
     width: (props) => (props.miniVariant ? `calc(${theme.spacing(8)} + 1px)` : theme.dimensions.drawerWidthDesktop),
     whiteSpace: 'nowrap',
-    overflowX: 'hidden',
     transition: theme.transitions.create('width', {
       easing: theme.transitions.easing.sharp,
       duration: theme.transitions.duration.enteringScreen,
