@@ -19,48 +19,21 @@ const CLUSTER_POPUP_MIN_ZOOM = 9;
 const TELEPORT_THRESHOLD_SQ = 0.0045 * 0.0045;
 const STALE_GAP_MS = 10000;
 const MIN_CHANGE_DEG = 0.000005;
-
-// Every content write to a GeoJSON source — setData AND updateData alike in
-// maplibre-gl 4.7.1 — re-tiles the whole source in the worker and restarts
-// symbol placement (SourceCache.reload reloads every tile on any 'content'
-// event), which reads as fleet-wide marker flicker. The only real lever is
-// writing the fleet source less. Above this fleet size, writes go through a
-// diff mirror: a write is skipped entirely when nothing render-relevant
-// changed, visible changes (adds/removes/status/jumps) flush within the
-// animation interval, and invisible geometry churn (clustered, off-viewport,
-// hidden gliding twins) batches into one reconcile write per deferred
-// interval, on moveend, or when motion stops. updateData carries the diffs so
-// the remaining writes serialize only changed features.
 const PER_FRAME_WRITE_MAX_FLEET = 300;
 const ANIMATION_WRITE_INTERVAL_MS = 1000;
 const DEFERRED_RECONCILE_INTERVAL_MS = 15000;
 
-// Smooth glide for large fleets: devices with a fresh position glide through a
-// small dedicated GeoJSON source written at ~15fps (cost is O(gliding devices),
-// not fleet size), while their static twin in the full source is hidden via
-// feature-state — a paint-only change with no worker round-trip. Only devices
-// rendered individually inside the padded viewport participate; everything
-// else keeps stepping at the reconcile cadence.
 const GLIDE_WRITE_INTERVAL_MS = 66;
 const GLIDE_VIEWPORT_PAD = 0.2;
 
 const hiddenWhenAnimating = (visible) => ['case', ['boolean', ['feature-state', 'animating'], false], 0, visible];
 
-// Render-relevant equality for the diff mirror. properties.id (per-fix
-// position id) and properties.fixTime are deliberately excluded: they refresh
-// on every fix even for a parked device, and comparing them would turn every
-// flush into a full-fleet rewrite — the exact symptom this diff exists to
-// remove. Neither is rendered on the live map (labels use titleField, default
-// 'name'); they ride along whenever a device is written for a real change.
 const propsRenderEqual = (a, b, titleKey) => a.properties.name === b.properties.name
   && a.properties.category === b.properties.category
   && a.properties.color === b.properties.color
   && a.properties.direction === b.properties.direction
   && a.properties[titleKey] === b.properties[titleKey];
 
-// Field-verification trigger taxonomy: writes caused by a selection change or
-// a pan keep that label; anything else is labeled by the lane it took —
-// urgent diffs as 'flush-urgent', pure deferred backlog as 'reconcile-15s'.
 const laneTrigger = (reason, urgentHere) => {
   if (reason === 'selection' || reason === 'moveend') return reason;
   return urgentHere ? 'flush-urgent' : 'reconcile-15s';
@@ -101,16 +74,10 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
   const lastCoordRef = useRef({});
   const lastMapWriteRef = useRef(0);
   const fixTimeCacheRef = useRef({});
-  // deviceId -> 'entering' | 'active' | 'landed' | 'reconciling'
   const glidePhaseRef = useRef({});
   const glideLastWriteRef = useRef(0);
   const writeGlideSourceRef = useRef(() => { });
-  // per-source Map<deviceId, feature> mirroring what the map sources hold;
-  // null means the source content is unknown (small-fleet path wrote it)
   const lastWrittenRef = useRef(null);
-  // truthy = the mirror's features can't be trusted for diffing and the next
-  // large-fleet write must rewrite fully; the value is the trigger label
-  // ('load' after source creation, 'hard-reset' after derived-prop changes)
   const fullRewriteReasonRef = useRef('load');
   const lastDeferredWriteRef = useRef(0);
   const updateMapDataRef = useRef(() => { });
@@ -191,10 +158,6 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
     return candidateIds.filter((deviceId) => {
       const ds = animationStateRef.current[deviceId];
       if (!ds || !(within(ds.current) || within(ds.target))) return false;
-      // devices absorbed into a cluster are not individually visible; let them
-      // snap at the reconcile cadence instead of surfacing a transient marker.
-      // Already-gliding devices stay eligible: their twin is transparent but
-      // still placed, and feature-state keeps it out of the rendered check.
       return glidePhaseRef.current[deviceId] ? true : rendered.has(deviceId);
     });
   }, [id, selected]);
@@ -357,7 +320,6 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
       const add = urgent[sourceKey].concat(deferred[sourceKey]);
       const remove = removes[sourceKey];
       if (!add.length && !remove.length) return; // untouched source: no re-tile
-      // 'add' with an existing promoteId (deviceId) replaces that feature
       sourceObj.updateData({ add, remove });
       const urgentHere = urgent[sourceKey].length + remove.length;
       logMapWrite(sourceKey, 'updateData', add.length + remove.length, laneTrigger(reason, urgentHere));
@@ -405,7 +367,6 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
         const { deviceId } = ds.properties;
         const phase = glidePhaseRef.current[deviceId];
         if (phase === 'entering') {
-          // the twin was never hidden, so just drop out of the glide source
           delete glidePhaseRef.current[deviceId];
         } else if (phase === 'active') {
           glidePhaseRef.current[deviceId] = 'landed';
@@ -474,8 +435,6 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
 
       const isJump = (longitude - cLng) ** 2 + (latitude - cLat) ** 2 > TELEPORT_THRESHOLD_SQ;
       if (isJump || !enableSmoothing) {
-        // jumped: a discontinuous (or unsmoothed) move may be visible, so the
-        // incremental writer treats it as urgent instead of deferring it
         state[deviceId] = { current: { longitude, latitude, rotation }, target: null, startTime: now, properties: position, jumped: true };
         lastUpdateTimeRef.current[deviceId] = now;
         const phase = glidePhaseRef.current[deviceId];
@@ -524,14 +483,10 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
           glidePhaseRef.current[deviceId] = 'entering';
           entered = true;
         } else if (phase === 'landed' || phase === 'reconciling') {
-          // re-glide before the reconcile swap finished: the twin is still
-          // hidden, so the copy just keeps moving
           glidePhaseRef.current[deviceId] = 'active';
         }
       });
       if (entered) {
-        // write the copy immediately so its features exist before the loaded
-        // event that hides the twins; until then both render at the same spot
         writeGlideSource();
       }
     }
@@ -544,13 +499,6 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
 
   const onMouseEnter = () => { map.getCanvas().style.cursor = 'pointer'; };
   const onMouseLeave = () => { map.getCanvas().style.cursor = ''; };
-
-  // These handlers are dependencies of the structural effect that owns the
-  // sources and layers. They read everything per-render state through refs so
-  // their identities never change: if any of them picked up a new identity on
-  // a WS flush (the devices selector changes every flush), the structural
-  // effect would tear down and recreate the sources each cycle, destroying
-  // the diff mirror and re-tiling the fleet — the prod blink.
   const onMapClick = useCallback((event) => {
     if (!event.defaultPrevented && onClickRef.current) onClickRef.current(event.lngLat.lat, event.lngLat.lng);
   }, []);
@@ -599,7 +547,6 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
       cluster: mapCluster,
       clusterMaxZoom: 14,
       clusterRadius: 50,
-      // stable per-device feature ids so feature-state can hide gliding twins
       promoteId: 'deviceId',
     });
     map.addSource(selected, {
@@ -614,8 +561,6 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
     registerMapWriteDebugSource(id, 'fleet');
     registerMapWriteDebugSource(selected, 'selected');
     registerMapWriteDebugSource(animating, 'glide');
-    // sources were just (re)created empty: start from a known-empty mirror so
-    // the first write is a 'load' setData and empty sources are never written
     lastWrittenRef.current = { [id]: new Map(), [selected]: new Map() };
     fullRewriteReasonRef.current = 'load';
 
@@ -689,8 +634,6 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
     map.on('click', clusters, onClusterClick);
     map.on('click', onMapClick);
 
-    // mirror of the marker layers fed by the small glide source; inserted
-    // below the clusters layer so stacking matches the static markers
     map.addLayer({
       id: animating,
       type: 'symbol',
@@ -761,7 +704,6 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
       const state = animationStateRef.current;
       if (Object.keys(state).length <= PER_FRAME_WRITE_MAX_FLEET) return;
       let changed = false;
-      // gliders that left the padded viewport swap back invisibly off-screen
       const eligibleNow = new Set(glideEligibleIds(Object.keys(phases).map(Number)));
       Object.keys(phases).map(Number).forEach((deviceId) => {
         if (!eligibleNow.has(deviceId)) {
@@ -770,7 +712,6 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
           changed = true;
         }
       });
-      // mid-glide devices that scrolled into view join the glide source
       const midGlide = Object.keys(state)
         .map(Number)
         .filter((deviceId) => state[deviceId].target && !phases[deviceId]);
@@ -779,8 +720,6 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
         changed = true;
       });
       if (changed) writeGlideSourceRef.current();
-      // the pan/zoom may have revealed devices whose deferred coordinates are
-      // stale; flush the backlog while the repaint masks the re-tile
       updateMapDataRef.current(undefined, 'moveend');
     };
     map.on('moveend', onGlideMoveEnd);
@@ -824,38 +763,10 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
   }, [mapCluster, clusters, onMarkerClick, onClusterClick, iconScale, titleField, id, selected, animating, onMapClick, setTwinHidden, glideEligibleIds]);
 
   useEffect(() => {
-    [id, selected].forEach((source) => {
-      map.getSource(source)?.setData({
-        type: 'FeatureCollection',
-        features: positions
-          .filter((it) => devices.hasOwnProperty(it.deviceId))
-          .filter((it) => (source === id
-            ? it.deviceId !== selectedDeviceId
-            : it.deviceId === selectedDeviceId))
-          .map((position) => ({
-            type: 'Feature',
-            geometry: {
-              type: 'Point',
-              coordinates: [position.longitude, position.latitude],
-            },
-            properties: createFeature(
-              devices,
-              position,
-              selectedPosition && selectedPosition.id,
-            ),
-          })),
-      });
-    });
-  }, [
-    mapCluster,
-    clusters,
-    onMarkerClick,
-    onClusterClick,
-    devices,
-    positions,
-    selectedPosition,
-    selectedDeviceId,
-  ]);
+    updateAnimationState(positions);
+    updateMapData(undefined, 'data');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [positions, devices, updateAnimationState, updateMapData]);
 
   useEffect(() => {
     const faded = selectedPosition ? 0.5 : 1;
@@ -864,7 +775,6 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
       map.setPaintProperty(`direction-${id}`, 'icon-opacity', hiddenWhenAnimating(faded));
     }
     if (map.getLayer(animating)) {
-      // the glide source mixes selected and non-selected devices; dim to match
       const copyFaded = ['case', ['==', ['get', 'selected'], true], 1, faded];
       map.setPaintProperty(animating, 'icon-opacity', copyFaded);
       map.setPaintProperty(`direction-${animating}`, 'icon-opacity', copyFaded);
