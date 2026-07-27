@@ -765,7 +765,6 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
   useEffect(() => {
     updateAnimationState(positions);
     updateMapData(undefined, 'data');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [positions, devices, updateAnimationState, updateMapData]);
 
   useEffect(() => {
