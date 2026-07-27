@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   IconButton,
@@ -14,6 +14,7 @@ import {
   Select,
   MenuItem,
   Typography,
+  Link,
 } from '@mui/material';
 import { visuallyHidden } from '@mui/utils';
 import GpsFixedIcon from '@mui/icons-material/GpsFixed';
@@ -21,7 +22,6 @@ import LocationSearchingIcon from '@mui/icons-material/LocationSearching';
 import WarningIcon from '@mui/icons-material/Warning';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import Collapse from '@mui/material/Collapse';
-import Box from '@mui/material/Box';
 import { useSelector } from 'react-redux';
 import {
   formatDistance, formatSpeed, formatVolume, formatTime, formatNumericHours,
@@ -208,19 +208,6 @@ const TripReportPage = () => {
   const [orderBy, setOrderBy] = useState('startTime');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);
-
-  const createMarkers = () => ([
-    {
-      latitude: selectedItem.startLat,
-      longitude: selectedItem.startLon,
-      image: 'start-success',
-    },
-    {
-      latitude: selectedItem.endLat,
-      longitude: selectedItem.endLon,
-      image: 'finish-error',
-    },
-  ]);
 
   useEffectAsync(async () => {
     if (selectedItem) {
