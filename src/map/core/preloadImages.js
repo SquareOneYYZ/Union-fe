@@ -1,11 +1,10 @@
 import { grey } from '@mui/material/colors';
 import createPalette from '@mui/material/styles/createPalette';
 import { loadImage, prepareIcon } from './mapUtil';
-import { map } from './MapView';
 
 import directionSvg from '../../resources/images/direction.svg';
 import backgroundSvg from '../../resources/images/background.svg';
-import backgroundError from "../../resources/images/red-circle-48x48.svg"
+import backgroundError from '../../resources/images/red-circle-48x48.svg';
 import animalSvg from '../../resources/images/icon/animal.svg';
 import bicycleSvg from '../../resources/images/icon/bicycle.svg';
 import boatSvg from '../../resources/images/icon/boat.svg';
@@ -29,6 +28,13 @@ import tramSvg from '../../resources/images/icon/tram.svg';
 import truckSvg from '../../resources/images/icon/truck.svg';
 import vanSvg from '../../resources/images/icon/van.svg';
 import eventSvg from '../../resources/images/icon/event.svg';
+
+// A tiny red-dot PNG used as the notification badge sprite. Kept as a data
+// URL (like the original inline base64) rather than a separate asset file,
+// but now loaded through the same loadImage/prepareIcon pipeline as every
+// other icon below, so it can be registered via mapImages instead of
+// reaching into `map` directly (see note on the default export below).
+const notificationDotDataUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAAOxAAADsQBlSsOGwAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAABASURBVBiVY2RgYPj/n+E/AxbAyMjICKKxycHlmLCpxiaHrAAmh0sDTB6XBrg8ugYmdA0wOXQNKHIwDXANyBoBhL4NIxBMJyIAAAAASUVORK5CYII=';
 
 export const mapIcons = {
   animal: animalSvg,
@@ -85,6 +91,7 @@ export default async () => {
   const background = await loadImage(backgroundSvg);
   mapImages.background = await prepareIcon(background);
   mapImages.direction = await prepareIcon(await loadImage(directionSvg));
+  mapImages['notification-dot'] = await prepareIcon(await loadImage(notificationDotDataUrl));
   await Promise.all(
     Object.keys(mapIcons).map(async (category) => {
       const results = [];
@@ -102,14 +109,4 @@ export default async () => {
       await Promise.all(results);
     }),
   );
-
-  if (map) {
-    map.loadImage(
-      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAAOxAAADsQBlSsOGwAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAABASURBVBiVY2RgYPj/n+E/AxbAyMjICKKxycHlmLCpxiaHrAAmh0sDTB6XBrg8ugYmdA0wOXQNKHIwDXANyBoBhL4NIxBMJyIAAAAASUVORK5CYII=',
-      (error, image) => {
-        if (error) throw error;
-        map.addImage('notification-dot', image);
-      },
-    );
-  }
 };

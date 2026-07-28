@@ -1,11 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { Card, CardContent, Typography, IconButton, Link } from '@mui/material';
+import {
+  Card, CardContent, Typography, IconButton, Link,
+} from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import Draggable from 'react-draggable';
 import makeStyles from '@mui/styles/makeStyles';
 import { useTranslation } from './LocalizationProvider';
-import { formatNotificationTitle } from '../../common/util/formatter';
+import { formatNotificationTitle } from '../util/formatter';
 import { eventsActions } from '../../store/events';
 import MapNotification from '../../map/notification/MapNotification';
 import EventsDrawer from '../../main/EventsDrawer';
@@ -102,7 +104,7 @@ const EventInfoCard = ({ onClose }) => {
   useEffect(() => {
     if (selectedEvent?.deviceId && allEvents.length > 0) {
       const latestDeviceEvent = allEvents.find(
-        (event) => event.deviceId === selectedEvent.deviceId
+        (event) => event.deviceId === selectedEvent.deviceId,
       );
       setDeviceEvent(latestDeviceEvent || null);
     } else {
@@ -114,13 +116,12 @@ const EventInfoCard = ({ onClose }) => {
 
   const device = devices[selectedEvent.deviceId];
 
-  const formatType = (event) =>
-    formatNotificationTitle(t, {
-      type: event?.type,
-      attributes: {
-        alarms: event?.attributes?.alarm || [],
-      },
-    });
+  const formatType = (event) => formatNotificationTitle(t, {
+    type: event?.type,
+    attributes: {
+      alarms: event?.attributes?.alarm || [],
+    },
+  });
 
   return (
     <>
@@ -131,7 +132,7 @@ const EventInfoCard = ({ onClose }) => {
           <CardContent className={classes.content}>
             <div className={classes.header}>
               <Typography className={classes.heading}>Event Details</Typography>
-              <IconButton size='small' onClick={handleClose}>
+              <IconButton size="small" onClick={handleClose}>
                 <CloseIcon className={classes.closeIcon} />
               </IconButton>
             </div>
@@ -143,19 +144,19 @@ const EventInfoCard = ({ onClose }) => {
               <strong style={{ marginRight: 6 }}>Event Type:</strong>
               {formatType(deviceEvent)}
             </Typography>
-            <Typography variant='body2'>
+            <Typography variant="body2">
               <Link
-                component='button'
-                variant='body2'
-                underline='always'
+                component="button"
+                variant="body2"
+                underline="always"
                 onClick={handleLinkClick}
-                color='primary'
+                color="primary"
               >
                 Show all events
               </Link>
             </Typography>
           </CardContent>
-          <CardContent className={classes.content}></CardContent>
+          <CardContent className={classes.content} />
           {showNotification && (
             <MapNotification
               enabled={notifEnabled}

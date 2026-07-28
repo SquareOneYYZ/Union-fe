@@ -60,7 +60,7 @@ const MainPage = () => {
   const positions = useSelector((state) => state.session.positions);
   const [filteredPositions, setFilteredPositions] = useState([]);
   const selectedPosition = filteredPositions.find(
-    (position) => selectedDeviceId && position.deviceId === selectedDeviceId
+    (position) => selectedDeviceId && position.deviceId === selectedDeviceId,
   );
 
   const [filteredDevices, setFilteredDevices] = useState([]);
@@ -88,7 +88,7 @@ const MainPage = () => {
     filterMap,
     positions,
     setFilteredDevices,
-    setFilteredPositions
+    setFilteredPositions,
   );
 
   useEffect(() => {
@@ -182,8 +182,8 @@ const MainPage = () => {
         <EventsInfoCard
           onClose={() => dispatch(eventsActions.deselect())}
           onShowAllEvents={(deviceId) => {
-            setSelectedDeviceId(deviceId);
-            setOpenEventDrawer(true);
+            dispatch(devicesActions.selectId(deviceId));
+            setEventsOpen(true);
           }}
         />
       )}

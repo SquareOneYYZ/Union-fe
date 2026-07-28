@@ -37,7 +37,7 @@ const MainMap = ({ filteredPositions, selectedPosition, onEventsClick }) => {
     (_, deviceId) => {
       dispatch(devicesActions.selectId(deviceId));
     },
-    [dispatch]
+    [dispatch],
   );
 
   const onGeofenceAccessClick = useCallback(() => {
@@ -77,8 +77,8 @@ const MainMap = ({ filteredPositions, selectedPosition, onEventsClick }) => {
       {desktop && (
         <MapPadding
           left={
-            parseInt(theme.dimensions.drawerWidthDesktop, 10) +
-            parseInt(theme.spacing(1.5), 10)
+            parseInt(theme.dimensions.drawerWidthDesktop, 10)
+            + parseInt(theme.spacing(1.5), 10)
           }
         />
       )}
