@@ -26,6 +26,7 @@ import PublishIcon from '@mui/icons-material/Publish';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import PendingIcon from '@mui/icons-material/Pending';
+import LinkIcon from '@mui/icons-material/Link';
 
 import { useTranslation } from './LocalizationProvider';
 import RemoveDialog from './RemoveDialog';
@@ -56,6 +57,8 @@ const useStyles = makeStyles((theme) => ({
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: theme.spacing(1, 1, 0, 2),
+    cursor: 'move',
+
   },
   content: {
     paddingTop: theme.spacing(1),
@@ -246,6 +249,14 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
                 </CardContent>
               )}
               <CardActions classes={{ root: classes.actions }} disableSpacing>
+                <Tooltip title={t('sharedConnections')}>
+                  <IconButton
+                    onClick={() => navigate(`/settings/device/${deviceId}/connections`)}
+                    disabled={disableActions}
+                  >
+                    <LinkIcon />
+                  </IconButton>
+                </Tooltip>
                 <Tooltip title={t('sharedExtra')}>
                   <IconButton
                     color="secondary"

@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
 import { useSelector } from 'react-redux';
-import dayjs from 'dayjs';
 
 export default (keyword, filter, filterSort, filterMap, positions, setFilteredDevices, setFilteredPositions) => {
   const groups = useSelector((state) => state.groups.items);
@@ -28,13 +27,16 @@ export default (keyword, filter, filterSort, filterMap, positions, setFilteredDe
       case 'name':
         filtered.sort((device1, device2) => device1.name.localeCompare(device2.name));
         break;
-      case 'lastUpdate':
-        filtered.sort((device1, device2) => {
-          const time1 = device1.lastUpdate ? dayjs(device1.lastUpdate).valueOf() : 0;
-          const time2 = device2.lastUpdate ? dayjs(device2.lastUpdate).valueOf() : 0;
-          return time2 - time1;
+      case 'lastUpdate': {
+        // this effect re-runs on every WS flush; parse each ISO string once
+        // per run instead of 2·N·log N dayjs constructions in the comparator
+        const updateTimes = new Map();
+        filtered.forEach((device) => {
+          updateTimes.set(device.id, device.lastUpdate ? Date.parse(device.lastUpdate) || 0 : 0);
         });
+        filtered.sort((device1, device2) => updateTimes.get(device2.id) - updateTimes.get(device1.id));
         break;
+      }
       default:
         break;
     }

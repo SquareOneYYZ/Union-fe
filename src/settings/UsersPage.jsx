@@ -179,6 +179,15 @@ const UsersPage = () => {
     }
   };
 
+  const roundedFieldSx = {
+    '& .MuiOutlinedInput-root': {
+      borderRadius: '13px',
+      '& fieldset': { borderRadius: '13px', borderColor: 'rgba(255,255,255,0.23)' },
+      '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.5)' },
+      '&.Mui-focused fieldset': { borderColor: 'primary.main' },
+    },
+  };
+
   return (
     <PageLayout
       menu={<SettingsMenu />}
@@ -202,10 +211,15 @@ const UsersPage = () => {
               value={globalSearch}
               onChange={(e) => setGlobalSearch(e.target.value)}
               size="small"
+              sx={roundedFieldSx}
             />
           </Grid>
           <Grid item xs={12} md={3}>
-            <FormControl fullWidth size="small">
+            <FormControl
+              fullWidth
+              size="small"
+              sx={roundedFieldSx}
+            >
               <InputLabel>Admin</InputLabel>
               <Select
                 value={adminFilter}
@@ -219,7 +233,11 @@ const UsersPage = () => {
             </FormControl>
           </Grid>
           <Grid item xs={12} md={3}>
-            <FormControl fullWidth size="small">
+            <FormControl
+              fullWidth
+              size="small"
+              sx={roundedFieldSx}
+            >
               <InputLabel>Status</InputLabel>
               <Select
                 value={disabledFilter}
@@ -233,7 +251,11 @@ const UsersPage = () => {
             </FormControl>
           </Grid>
           <Grid item xs={12} md={3}>
-            <FormControl fullWidth size="small">
+            <FormControl
+              fullWidth
+              size="small"
+              sx={roundedFieldSx}
+            >
               <InputLabel>Expiration</InputLabel>
               <Select
                 value={expirationFilter}

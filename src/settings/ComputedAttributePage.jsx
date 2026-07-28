@@ -63,6 +63,15 @@ const ComputedAttributePage = () => {
 
   const validate = () => item && item.description && item.expression;
 
+  const roundedFieldSx = {
+    '& .MuiOutlinedInput-root': {
+      borderRadius: '13px',
+      '& fieldset': { borderRadius: '13px', borderColor: 'rgba(255,255,255,0.23)' },
+      '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.5)' },
+      '&.Mui-focused fieldset': { borderColor: 'primary.main' },
+    },
+  };
+
   return (
     <EditItemView
       endpoint="attributes/computed"
@@ -85,6 +94,7 @@ const ComputedAttributePage = () => {
                 value={item.description || ''}
                 onChange={(e) => setItem({ ...item, description: e.target.value })}
                 label={t('sharedDescription')}
+                sx={roundedFieldSx}
               />
               <Autocomplete
                 value={options.find((option) => option.key === item.attribute) || item.attribute}
@@ -96,6 +106,7 @@ const ComputedAttributePage = () => {
                     setItem({ ...item, attribute });
                   }
                 }}
+                sx={roundedFieldSx}
                 filterOptions={(options, params) => {
                   const filtered = filter(options, params);
                   if (params.inputValue) {
@@ -124,8 +135,13 @@ const ComputedAttributePage = () => {
                 label={t('sharedExpression')}
                 multiline
                 rows={4}
+                sx={roundedFieldSx}
+
               />
-              <FormControl disabled={item.attribute in positionAttributes}>
+              <FormControl
+                disabled={item.attribute in positionAttributes}
+                sx={roundedFieldSx}
+              >
                 <InputLabel>{t('sharedType')}</InputLabel>
                 <Select
                   label={t('sharedType')}
@@ -151,6 +167,7 @@ const ComputedAttributePage = () => {
                 value={item.priority || 0}
                 onChange={(e) => setItem({ ...item, priority: Number(e.target.value) })}
                 label={t('sharedPriority')}
+                sx={roundedFieldSx}
               />
             </AccordionDetails>
           </Accordion>
