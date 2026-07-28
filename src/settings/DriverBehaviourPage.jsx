@@ -71,8 +71,7 @@ const DriverBehaviourPage = () => {
     }
   }, [item?.type]);
 
-  const validate = () =>
-    item && item.name && item.type && item.start && item.period;
+  const validate = () => item && item.name && item.type && item.start && item.period;
 
   const handleSave = () => {
     console.log('Details:', item);

@@ -40,7 +40,7 @@ const featureSelector = createSelector(
       disableEvents,
       disableComputedAttributes,
       disableCalendars,
-      disableDriversBehaviour
+      disableDriversBehaviour,
     };
   },
 );

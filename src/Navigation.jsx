@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  Route, Routes, useLocation, useNavigate
+  Route, Routes, useLocation, useNavigate,
 } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import MainPage from './main/MainPage';

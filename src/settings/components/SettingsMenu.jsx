@@ -35,7 +35,7 @@ const SettingsMenu = () => {
   const manager = useManager();
   const userId = useSelector((state) => state.session.user.id);
   const supportLink = useSelector(
-    (state) => state.session.server.attributes.support
+    (state) => state.session.server.attributes.support,
   );
 
   const features = useFeatures();
@@ -89,7 +89,7 @@ const SettingsMenu = () => {
                 link="/settings/organizations"
                 icon={<CorporateFareIcon />}
                 selected={location.pathname.startsWith(
-                  '/settings/organization'
+                  '/settings/organization',
                 )}
               />
             )}
@@ -175,8 +175,8 @@ const SettingsMenu = () => {
               link="/settings/users"
               icon={<PeopleIcon />}
               selected={
-                location.pathname.startsWith('/settings/user') &&
-                location.pathname !== `/settings/user/${userId}`
+                location.pathname.startsWith('/settings/user')
+                && location.pathname !== `/settings/user/${userId}`
               }
             />
           </List>
