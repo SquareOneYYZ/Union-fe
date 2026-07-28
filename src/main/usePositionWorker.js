@@ -12,6 +12,10 @@ const usePositionWorker = () => {
   const accumulatedFeatures = useRef([]);
 
   useEffect(() => {
+    if (typeof Worker === 'undefined') {
+      return undefined;
+    }
+
     workerRef.current = new Worker(
       new URL('./positionWorker.js', import.meta.url),
     );
@@ -19,16 +23,13 @@ const usePositionWorker = () => {
     workerRef.current.onmessage = (e) => {
       const { type, payload } = e.data;
 
-      // Handle chunked progressive updates
       if (type === 'FEATURES_CHUNK') {
         const { features: chunkFeatures, progress: chunkProgress, stats: chunkStats, isFirstChunk } = payload;
 
-        // Reset accumulator on first chunk
         if (isFirstChunk) {
           accumulatedFeatures.current = [];
         }
 
-        // Accumulate features
         accumulatedFeatures.current.push(...chunkFeatures);
 
         setFeatures([...accumulatedFeatures.current]);
@@ -36,20 +37,17 @@ const usePositionWorker = () => {
         setProgress(chunkProgress);
         setIsLoading(true);
 
-        // Call callback with accumulated features so far
         if (callbackRef.current) {
           callbackRef.current([...accumulatedFeatures.current]);
         }
       }
 
-      // Handle completion
       if (type === 'PROCESSING_COMPLETE') {
         setStats(payload.stats);
         setProgress(100);
         setIsLoading(false);
       }
 
-      // Legacy support for non-chunked responses
       if (type === 'FEATURES_READY') {
         setFeatures(payload.features);
         setStats(payload.stats);
@@ -72,7 +70,6 @@ const usePositionWorker = () => {
 
     callbackRef.current = onComplete;
 
-    // Only reset progress on initial load
     if (!skipProgressiveLoad) {
       accumulatedFeatures.current = [];
       setProgress(0);
