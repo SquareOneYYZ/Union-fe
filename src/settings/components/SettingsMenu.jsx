@@ -9,6 +9,7 @@ import StorageIcon from '@mui/icons-material/Storage';
 import BuildIcon from '@mui/icons-material/Build';
 import PeopleIcon from '@mui/icons-material/People';
 import TodayIcon from '@mui/icons-material/Today';
+import PsychologyIcon from '@mui/icons-material/Psychology';
 import PublishIcon from '@mui/icons-material/Publish';
 import TapAndPlayIcon from '@mui/icons-material/TapAndPlay';
 import SmartphoneIcon from '@mui/icons-material/Smartphone';
@@ -131,6 +132,14 @@ const SettingsMenu = () => {
                 link="/settings/maintenances"
                 icon={<BuildIcon />}
                 selected={location.pathname.startsWith('/settings/maintenance')}
+              />
+            )}
+            {!features.disableDriversBehaviour && (
+              <MenuItem
+                title={t('sharedDriverBehaviour')}
+                link="/settings/behaviours"
+                icon={<PsychologyIcon />}
+                selected={location.pathname.startsWith('/settings/behaviours')}
               />
             )}
             {!features.disableSavedCommands && (
