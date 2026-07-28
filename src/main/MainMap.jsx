@@ -33,9 +33,12 @@ const MainMap = ({ filteredPositions, selectedPosition, onEventsClick }) => {
   const eventsAvailable = useSelector((state) => !!state.events.items.length);
   const features = useFeatures();
 
-  const onMarkerClick = useCallback((_, deviceId) => {
-    dispatch(devicesActions.selectId(deviceId));
-  }, [dispatch]);
+  const onMarkerClick = useCallback(
+    (_, deviceId) => {
+      dispatch(devicesActions.selectId(deviceId));
+    },
+    [dispatch],
+  );
 
   const onGeofenceAccessClick = useCallback(() => {
     navigate('/geofences');
@@ -72,7 +75,12 @@ const MainMap = ({ filteredPositions, selectedPosition, onEventsClick }) => {
       <MapZoomBar />
 
       {desktop && (
-        <MapPadding left={parseInt(theme.dimensions.drawerWidthDesktop, 10) + parseInt(theme.spacing(1.5), 10)} />
+        <MapPadding
+          left={
+            parseInt(theme.dimensions.drawerWidthDesktop, 10)
+            + parseInt(theme.spacing(1.5), 10)
+          }
+        />
       )}
     </>
   );

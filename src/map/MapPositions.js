@@ -10,6 +10,7 @@ import { mapIconKey } from './core/preloadImages';
 import { useAttributePreference } from '../common/util/preferences';
 import { useCatchCallback } from '../reactHelper';
 import { findFonts } from './core/mapUtil';
+import { eventsActions } from '../store';
 import { lerp, easeInOutCubic, interpolateRotation } from '../common/util/useAnimation';
 import { clustersActions } from '../store/cluster';
 import { logMapWrite, registerMapWriteDebugSource, unregisterMapWriteDebugSource } from './core/mapWriteDebug';
@@ -44,6 +45,9 @@ const DEFERRED_RECONCILE_INTERVAL_MS = 15000;
 const GLIDE_WRITE_INTERVAL_MS = 66;
 const GLIDE_VIEWPORT_PAD = 0.2;
 
+// How long a notification badge stays highlighted on a device's marker.
+const NOTIFICATION_HIGHLIGHT_MS = 5000;
+
 const hiddenWhenAnimating = (visible) => ['case', ['boolean', ['feature-state', 'animating'], false], 0, visible];
 
 // Render-relevant equality for the diff mirror. properties.id (per-fix
@@ -56,6 +60,7 @@ const propsRenderEqual = (a, b, titleKey) => a.properties.name === b.properties.
   && a.properties.category === b.properties.category
   && a.properties.color === b.properties.color
   && a.properties.direction === b.properties.direction
+  && a.properties.hasNotification === b.properties.hasNotification
   && a.properties[titleKey] === b.properties[titleKey];
 
 // Field-verification trigger taxonomy: writes caused by a selection change or
@@ -84,6 +89,7 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
 
   const devices = useSelector((state) => state.devices.items);
   const selectedDeviceId = useSelector((state) => state.devices.selectedId);
+  const notifications = useSelector((state) => state.events.items);
 
   const mapCluster = useAttributePreference('mapCluster', true);
   const directionType = useAttributePreference('mapDirection', 'selected');
@@ -97,6 +103,7 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
   const devicesRef = useRef(devices);
   const selectedDeviceIdRef = useRef(selectedDeviceId);
   const selectedPositionRef = useRef(selectedPosition);
+  const notificationsRef = useRef(notifications);
   const lastUpdateTimeRef = useRef({});
   const lastCoordRef = useRef({});
   const lastMapWriteRef = useRef(0);
@@ -115,6 +122,12 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
   const lastDeferredWriteRef = useRef(0);
   const updateMapDataRef = useRef(() => {});
   const onClickRef = useRef(onClick);
+  // notification event ids we've already scheduled a highlight for (so a
+  // re-render with the same event in the list doesn't re-trigger it), and
+  // deviceIds currently mid-highlight (so overlapping notifications for the
+  // same device don't stack/reset each other's timeout)
+  const processedNotificationIdsRef = useRef(new Set());
+  const highlightingDeviceIdsRef = useRef(new Set());
 
   useEffect(() => {
     onClickRef.current = onClick;
@@ -124,7 +137,8 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
     devicesRef.current = devices;
     selectedDeviceIdRef.current = selectedDeviceId;
     selectedPositionRef.current = selectedPosition;
-  }, [devices, selectedDeviceId, selectedPosition]);
+    notificationsRef.current = notifications;
+  }, [devices, selectedDeviceId, selectedPosition, notifications]);
 
   useEffect(() => {
     selectedDeviceIdRef.current = selectedDeviceId;
@@ -148,6 +162,9 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
       fixTimeEntry = { raw: position.fixTime, formatted: formatTime(position.fixTime, 'seconds') };
       cache[position.deviceId] = fixTimeEntry;
     }
+
+    const hasActiveNotification = notifications.some((n) => n.deviceId === position.deviceId);
+
     return {
       id: position.id,
       deviceId: position.deviceId,
@@ -157,8 +174,13 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
       color: showStatus ? position.attributes.color || getStatusColor(device.status) : 'neutral',
       rotation: position.course,
       direction: showDirection,
+      hasNotification: hasActiveNotification,
+      // always numeric: the notification-dot layer's opacity interpolation
+      // reads this, and a null/undefined value throws in maplibre's
+      // expression evaluator rather than silently no-oping
+      notificationAge: hasActiveNotification ? 0 : 999,
     };
-  }, [directionType, showStatus]);
+  }, [directionType, showStatus, notifications]);
 
   const calculateAnimationDuration = useCallback((deviceId, now) => {
     if (!useAdaptiveTiming) return baseAnimationDuration;
@@ -596,7 +618,12 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
     event.preventDefault();
     const { id: fId, deviceId } = event.features[0].properties;
     if (onClickRef.current) onClickRef.current(fId, deviceId);
-  }, []);
+    // Surface the notification behind this marker, if there is one — looked
+    // up from the real events list (not fabricated from position-feature
+    // properties, which don't carry event type/time/attributes at all).
+    const relatedNotification = notificationsRef.current.find((n) => n.deviceId === deviceId);
+    if (relatedNotification) dispatch(eventsActions.select(relatedNotification));
+  }, [dispatch]);
 
   const onClusterClick = useCatchCallback(async (event) => {
     event.preventDefault();
@@ -628,6 +655,34 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
       coordinates: clusterCoords,
     }));
   }, [clusters, dispatch]);
+
+  // Flashes a device's marker icon to the "notified" variant for
+  // NOTIFICATION_HIGHLIGHT_MS, then restores the normal per-device icon.
+  const handleNotification = useCatchCallback(async (deviceId) => {
+    if (highlightingDeviceIdsRef.current.has(deviceId)) return;
+    highlightingDeviceIdsRef.current.add(deviceId);
+
+    map.setLayoutProperty(id, 'icon-image', [
+      'case',
+      ['==', ['get', 'deviceId'], deviceId],
+      'background-notified',
+      ['concat', ['get', 'category'], '-', ['get', 'color']],
+    ]);
+
+    setTimeout(() => {
+      map.setLayoutProperty(id, 'icon-image', '{category}-{color}');
+      highlightingDeviceIdsRef.current.delete(deviceId);
+    }, NOTIFICATION_HIGHLIGHT_MS);
+  }, [id]);
+
+  useEffect(() => {
+    notifications.forEach((notification) => {
+      if (!processedNotificationIdsRef.current.has(notification.id) && devices[notification.deviceId]) {
+        processedNotificationIdsRef.current.add(notification.id);
+        handleNotification(notification.deviceId);
+      }
+    });
+  }, [notifications, devices, handleNotification]);
 
   useEffect(() => {
     map.addSource(id, {
@@ -765,6 +820,41 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
     map.on('mouseleave', animating, onMouseLeave);
     map.on('click', animating, onMarkerClick);
 
+    // Notification badges: added last so they stack above every marker layer
+    // (fleet, selected, and glide copies alike) rather than underneath them.
+    map.addLayer({
+      id: `${id}-notification`,
+      type: 'symbol',
+      source: id,
+      filter: ['all', ['!has', 'point_count'], ['==', ['get', 'hasNotification'], true]],
+      layout: {
+        'icon-image': 'notification-dot',
+        'icon-size': iconScale * 0.5,
+        'icon-offset': [15, -15],
+        'icon-allow-overlap': true,
+      },
+      paint: {
+        'icon-color': '#f44336',
+        'icon-opacity': ['interpolate', ['linear'], ['get', 'notificationAge'], 0, 1, 5, 0],
+      },
+    });
+    map.addLayer({
+      id: `${animating}-notification`,
+      type: 'symbol',
+      source: animating,
+      filter: ['==', ['get', 'hasNotification'], true],
+      layout: {
+        'icon-image': 'notification-dot',
+        'icon-size': iconScale * 0.5,
+        'icon-offset': [15, -15],
+        'icon-allow-overlap': true,
+      },
+      paint: {
+        'icon-color': '#f44336',
+        'icon-opacity': ['interpolate', ['linear'], ['get', 'notificationAge'], 0, 1, 5, 0],
+      },
+    });
+
     const onGlideSourceData = (event) => {
       if (!event.isSourceLoaded) return;
       const phases = glidePhaseRef.current;
@@ -839,12 +929,15 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
       map.off('mouseenter', animating, onMouseEnter);
       map.off('mouseleave', animating, onMouseLeave);
       map.off('click', animating, onMarkerClick);
+      if (map.getLayer(`${animating}-notification`)) map.removeLayer(`${animating}-notification`);
       if (map.getLayer(animating)) map.removeLayer(animating);
       if (map.getLayer(`direction-${animating}`)) map.removeLayer(`direction-${animating}`);
       if (map.getSource(animating)) map.removeSource(animating);
       glidePhaseRef.current = {};
       glideLastWriteRef.current = 0;
       lastWrittenRef.current = null;
+
+      if (map.getLayer(`${id}-notification`)) map.removeLayer(`${id}-notification`);
 
       [id, selected].forEach((source) => {
         map.off('mouseenter', source, onMouseEnter);

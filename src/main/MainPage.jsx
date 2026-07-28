@@ -10,7 +10,8 @@ import { map } from '../map/core/MapView';
 import DeviceList from './DeviceList';
 import BottomMenu from '../common/components/BottomMenu';
 import StatusCard from '../common/components/StatusCard';
-import { devicesActions } from '../store';
+import EventsInfoCard from '../common/components/EventInfoCard';
+import { devicesActions, eventsActions } from '../store';
 import usePersistedState from '../common/util/usePersistedState';
 import EventsDrawer from './EventsDrawer';
 import useFilter from './useFilter';
@@ -53,15 +54,16 @@ const MainPage = () => {
   const dispatch = useDispatch();
   const theme = useTheme();
   const desktop = useMediaQuery(theme.breakpoints.up('md'));
+  const selectedEvent = useSelector((state) => state.events.selected);
   const mapOnSelect = useAttributePreference('mapOnSelect', true);
   const selectedDeviceId = useSelector((state) => state.devices.selectedId);
   const positions = useSelector((state) => state.session.positions);
   const [filteredPositions, setFilteredPositions] = useState([]);
-  const [filteredDevices, setFilteredDevices] = useState([]);
   const selectedPosition = filteredPositions.find(
     (position) => selectedDeviceId && position.deviceId === selectedDeviceId,
   );
 
+  const [filteredDevices, setFilteredDevices] = useState([]);
   const [keyword, setKeyword] = useState('');
   const [filter, setFilter] = usePersistedState('filter', { statuses: [], groups: [] });
   const [filterSort, setFilterSort] = usePersistedState('filterSort', '');
@@ -79,7 +81,15 @@ const MainPage = () => {
     }
   }, [desktop, mapOnSelect, selectedDeviceId]);
 
-  useFilter(keyword, filter, filterSort, filterMap, positions, setFilteredDevices, setFilteredPositions);
+  useFilter(
+    keyword,
+    filter,
+    filterSort,
+    filterMap,
+    positions,
+    setFilteredDevices,
+    setFilteredPositions,
+  );
 
   useEffect(() => {
     const updateBounds = () => {
@@ -147,6 +157,7 @@ const MainPage = () => {
               />
             </div>
           )}
+
           <Paper square className={classes.contentList} style={devicesOpen ? {} : { visibility: 'hidden' }}>
             <DeviceList devices={viewportFilteredDevices} />
           </Paper>
@@ -165,6 +176,15 @@ const MainPage = () => {
           position={selectedPosition}
           onClose={() => dispatch(devicesActions.selectId(null))}
           desktopPadding={theme.dimensions.drawerWidthDesktop}
+        />
+      )}
+      {selectedEvent && (
+        <EventsInfoCard
+          onClose={() => dispatch(eventsActions.deselect())}
+          onShowAllEvents={(deviceId) => {
+            dispatch(devicesActions.selectId(deviceId));
+            setEventsOpen(true);
+          }}
         />
       )}
       <VinFAB />

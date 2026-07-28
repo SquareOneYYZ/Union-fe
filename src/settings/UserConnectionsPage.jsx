@@ -1,5 +1,5 @@
 import React from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import {
   Accordion,
   AccordionSummary,
@@ -28,6 +28,12 @@ const UserConnectionsPage = () => {
       breadcrumbs={['settingsTitle', 'settingsUser', 'sharedConnections']}
     >
       <Container maxWidth="xs" className={classes.container}>
+        <div style={{ textAlign: 'left', marginBottom: 16 }}>
+          <Button component={Link} to="/settings/users" variant="outlined">
+            {t('back') || 'Back'}
+          </Button>
+        </div>
+
         <Accordion defaultExpanded>
           <AccordionSummary expandIcon={<ExpandMoreIcon />}>
             <Typography variant="subtitle1">
