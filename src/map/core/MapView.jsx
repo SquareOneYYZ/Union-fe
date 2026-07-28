@@ -222,7 +222,6 @@ const MapView = ({ children }) => {
   }, [mapStyles, defaultMapStyle]);
 
   useEffect(() => {
-    const listener = (r) => setMapReady(r);
     const listener = (ready) => setMapReady(ready);
     addReadyListener(listener);
     return () => removeReadyListener(listener);
