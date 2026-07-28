@@ -141,6 +141,15 @@ const UserPage = () => {
 
     return `otpauth://totp/${label}?secret=${secret}&issuer=${issuer}`;
   };
+
+  const roundedFieldSx = {
+    '& .MuiOutlinedInput-root': {
+      borderRadius: '13px',
+      '& fieldset': { borderRadius: '13px', borderColor: 'rgba(255,255,255,0.23)' },
+      '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.5)' },
+      '&.Mui-focused fieldset': { borderColor: 'primary.main' },
+    },
+  };
   return (
     <EditItemView
       endpoint="users"
@@ -163,28 +172,39 @@ const UserPage = () => {
                 value={item.name || ''}
                 onChange={(e) => setItem({ ...item, name: e.target.value })}
                 label={t('sharedName')}
+                sx={roundedFieldSx}
+                MenuProps={{
+                  PaperProps: { sx: { borderRadius: '13px' } },
+                }}
               />
               <TextField
                 value={item.email || ''}
                 onChange={(e) => setItem({ ...item, email: e.target.value })}
                 label={t('userEmail')}
                 disabled={fixedEmail && item.id === currentUser.id}
+                sx={roundedFieldSx}
               />
               {!openIdForced && (
                 <TextField
                   type="password"
                   onChange={(e) => setItem({ ...item, password: e.target.value })}
                   label={t('userPassword')}
+                  sx={roundedFieldSx}
+
                 />
               )}
               {totpEnable && (
                 <Box>
-                  <FormControl fullWidth>
+                  <FormControl
+                    fullWidth
+                    sx={roundedFieldSx}
+                  >
                     <InputLabel>{t('loginTotpKey')}</InputLabel>
                     <OutlinedInput
                       readOnly
                       label={t('loginTotpKey')}
                       value={item.totpKey || ''}
+                      sx={roundedFieldSx}
                       endAdornment={(
                         <InputAdornment position="end">
                           {/* QR Code Toggle Button - only show if totpKey exists */}
@@ -270,8 +290,12 @@ const UserPage = () => {
                 value={item.phone || ''}
                 onChange={(e) => setItem({ ...item, phone: e.target.value })}
                 label={t('sharedPhone')}
+                sx={roundedFieldSx}
+
               />
-              <FormControl>
+              <FormControl
+                sx={roundedFieldSx}
+              >
                 <InputLabel>{t('mapDefault')}</InputLabel>
                 <Select
                   label={t('mapDefault')}
@@ -287,7 +311,9 @@ const UserPage = () => {
                     ))}
                 </Select>
               </FormControl>
-              <FormControl>
+              <FormControl
+                sx={roundedFieldSx}
+              >
                 <InputLabel>{t('settingsCoordinateFormat')}</InputLabel>
                 <Select
                   label={t('settingsCoordinateFormat')}
@@ -303,7 +329,9 @@ const UserPage = () => {
                   </MenuItem>
                 </Select>
               </FormControl>
-              <FormControl>
+              <FormControl
+                sx={roundedFieldSx}
+              >
                 <InputLabel>{t('settingsSpeedUnit')}</InputLabel>
                 <Select
                   label={t('settingsSpeedUnit')}
@@ -321,7 +349,9 @@ const UserPage = () => {
                   <MenuItem value="mph">{t('sharedMph')}</MenuItem>
                 </Select>
               </FormControl>
-              <FormControl>
+              <FormControl
+                sx={roundedFieldSx}
+              >
                 <InputLabel>{t('settingsDistanceUnit')}</InputLabel>
                 <Select
                   label={t('settingsDistanceUnit')}
@@ -341,7 +371,9 @@ const UserPage = () => {
                   <MenuItem value="nmi">{t('sharedNmi')}</MenuItem>
                 </Select>
               </FormControl>
-              <FormControl>
+              <FormControl
+                sx={roundedFieldSx}
+              >
                 <InputLabel>{t('settingsAltitudeUnit')}</InputLabel>
                 <Select
                   label={t('settingsAltitudeUnit')}
@@ -360,7 +392,9 @@ const UserPage = () => {
                   <MenuItem value="ft">{t('sharedFeet')}</MenuItem>
                 </Select>
               </FormControl>
-              <FormControl>
+              <FormControl
+                sx={roundedFieldSx}
+              >
                 <InputLabel>{t('settingsVolumeUnit')}</InputLabel>
                 <Select
                   label={t('settingsVolumeUnit')}
@@ -398,6 +432,7 @@ const UserPage = () => {
                 value={item.poiLayer || ''}
                 onChange={(e) => setItem({ ...item, poiLayer: e.target.value })}
                 label={t('mapPoiLayer')}
+                sx={roundedFieldSx}
               />
               {admin && (
                 <SelectField
@@ -405,6 +440,8 @@ const UserPage = () => {
                   onChange={(e) => setItem({ ...item, organizationId: e.target.value })}
                   endpoint="/api/organization"
                   label="Organization"
+                  sx={roundedFieldSx}
+
                 />
               )}
             </AccordionDetails>
@@ -419,18 +456,21 @@ const UserPage = () => {
                 value={item.latitude || 0}
                 onChange={(e) => setItem({ ...item, latitude: Number(e.target.value) })}
                 label={t('positionLatitude')}
+                sx={roundedFieldSx}
               />
               <TextField
                 type="number"
                 value={item.longitude || 0}
                 onChange={(e) => setItem({ ...item, longitude: Number(e.target.value) })}
                 label={t('positionLongitude')}
+                sx={roundedFieldSx}
               />
               <TextField
                 type="number"
                 value={item.zoom || 0}
                 onChange={(e) => setItem({ ...item, zoom: Number(e.target.value) })}
                 label={t('serverZoom')}
+                sx={roundedFieldSx}
               />
               <Button
                 variant="outlined"
@@ -473,6 +513,7 @@ const UserPage = () => {
                   }
                 }}
                 disabled={!manager}
+                sx={roundedFieldSx}
               />
               {admin && (
                 <>
@@ -481,12 +522,14 @@ const UserPage = () => {
                     value={item.deviceLimit || 0}
                     onChange={(e) => setItem({ ...item, deviceLimit: Number(e.target.value) })}
                     label={t('userDeviceLimit')}
+                    sx={roundedFieldSx}
                   />
                   <TextField
                     type="number"
                     value={item.userLimit || 0}
                     onChange={(e) => setItem({ ...item, userLimit: Number(e.target.value) })}
                     label={t('userUserLimit')}
+                    sx={roundedFieldSx}
                   />
                 </>
               )}

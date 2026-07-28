@@ -1,10 +1,25 @@
+import { execSync } from 'node:child_process';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import svgr from 'vite-plugin-svgr';
 import { VitePWA } from 'vite-plugin-pwa';
 
+// build-identity stamp: logged at boot so the deployed commit is always
+// answerable from the browser console (stale-service-worker incidents made
+// "which ref is this bundle" a recurring debugging cost)
+const gitCommit = (() => {
+  try {
+    return execSync('git rev-parse --short HEAD').toString().trim();
+  } catch {
+    return 'unknown';
+  }
+})();
+
 /* eslint-disable no-template-curly-in-string */
 export default defineConfig(() => ({
+  define: {
+    __GIT_COMMIT__: JSON.stringify(gitCommit),
+  },
   server: {
     port: 3000,
     proxy: {

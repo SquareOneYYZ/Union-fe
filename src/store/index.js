@@ -1,5 +1,4 @@
 import { combineReducers, configureStore } from '@reduxjs/toolkit';
-
 import { errorsReducer as errors } from './errors';
 import { sessionReducer as session } from './session';
 import { devicesReducer as devices } from './devices';
@@ -10,6 +9,8 @@ import { driversReducer as drivers } from './drivers';
 import { maintenancesReducer as maintenances } from './maintenances';
 import { calendarsReducer as calendars } from './calendars';
 import { reportsReducer as reports } from './reports';
+import { mapInteractionsReducer as mapInteractions } from './mapInteractions';
+import { clustersReducer as clusters } from './cluster';
 import throttleMiddleware from './throttleMiddleware';
 import { livestreamReducer as livestream } from './livestream';
 
@@ -24,6 +25,8 @@ const reducer = combineReducers({
   maintenances,
   calendars,
   reports,
+  mapInteractions,
+  clusters,
   livestream,
 });
 
@@ -37,6 +40,8 @@ export { driversActions } from './drivers';
 export { maintenancesActions } from './maintenances';
 export { calendarsActions } from './calendars';
 export { reportsActions } from './reports';
+export { mapInteractionsActions } from './mapInteractions';
+export { clustersActions } from './cluster';
 export { livestreamActions } from './livestream';
 
 export default configureStore({
