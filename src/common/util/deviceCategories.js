@@ -1,6 +1,7 @@
 export default [
   'default',
   // 'animal',
+  'dashcam',
   'bicycle',
   'boat',
   'bus',

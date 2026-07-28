@@ -148,7 +148,6 @@ const DevicesPage = () => {
     setGlobalSearch('');
     setPage(1);
   };
-
   const hasActiveFilters = Object.values(filters).some((value) => value !== '') || globalSearch !== '';
 
   const processedItems = useMemo(() => {

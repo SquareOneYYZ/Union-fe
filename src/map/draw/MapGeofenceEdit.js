@@ -168,31 +168,39 @@ const MapGeofenceEdit = ({
         return false;
       }
 
+      // Focus on the selected geofence
       const geofence = geofences[selectedId];
       if (geofence) {
+        // Change selection mode
         draw.changeMode('simple_select', { featureIds: [selectedId] });
 
+        // Get the feature from the draw instance
         const feature = draw.get(selectedId);
         if (feature && feature.geometry) {
           try {
+            // Calculate bounds for the feature
             const bounds = new maplibregl.LngLatBounds();
 
             if (feature.geometry.type === 'Polygon') {
+              // For polygons, use all coordinates
               feature.geometry.coordinates[0].forEach((coord) => {
                 bounds.extend(coord);
               });
             } else if (feature.geometry.type === 'LineString') {
+              // For line strings, use all coordinates
               feature.geometry.coordinates.forEach((coord) => {
                 bounds.extend(coord);
               });
             } else if (feature.geometry.type === 'Point') {
+              // For points, center on the point
               bounds.extend(feature.geometry.coordinates);
             }
 
+            // Fit the map to the bounds with some padding
             map.fitBounds(bounds, {
               padding: 50,
-              maxZoom: 16,
-              duration: 1000,
+              maxZoom: 16, // Don't zoom in too much
+              duration: 1000, // Smooth animation
             });
           } catch (error) {
             console.log('Error fitting bounds to geofence:', error);
@@ -232,10 +240,8 @@ const MapGeofenceEdit = ({
     window.geofenceEditor = {
       save: () => {
         if (
-          editedGeofenceId
-          && unsavedChangesRef.current
-          && pendingFeatureRef.current
-        ) {
+          editedGeofenceId && unsavedChangesRef.current
+          && pendingFeatureRef.current) {
           saveChanges(editedGeofenceId, pendingFeatureRef.current);
         }
       },
@@ -309,6 +315,7 @@ const MapGeofenceEdit = ({
           method: 'DELETE',
         });
         if (response.ok) {
+          // If we're deleting the currently edited geofence, reset state
           if (feature.id === editedGeofenceId) {
             unsavedChangesRef.current = false;
             setEditedGeofenceId(null);
@@ -335,8 +342,8 @@ const MapGeofenceEdit = ({
   }, [geofences]);
 
   useEffect(() => {
-    if (selectedGeofenceId) {
-      focusSelectedGeofence(selectedGeofenceId);
+    if (selectedGeofenceId && focusSelectedGeofence(selectedGeofenceId)) {
+      // Successfully focused on selected geofence
     }
   }, [selectedGeofenceId, focusSelectedGeofence]);
 

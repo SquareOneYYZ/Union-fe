@@ -139,9 +139,6 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
       case 'all': showDirection = position.course > 0; break;
       default: showDirection = selectedPositionId === position.id && position.course > 0; break;
     }
-    // formatTime parses the ISO string through dayjs and Intl on every call;
-    // at fleet scale this dominates the main thread, so only re-format when
-    // the device actually has a new fix time.
     const cache = fixTimeCacheRef.current;
     let fixTimeEntry = cache[position.deviceId];
     if (!fixTimeEntry || fixTimeEntry.raw !== position.fixTime) {
