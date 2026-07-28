@@ -47,6 +47,7 @@ import usePersistedState from '../common/util/usePersistedState';
 import DeviceBulkAssignGroupDialog from './components/DeviceBulkAssignGroupDialog';
 import DeviceBulkUpdateSettingsDialog from './components/DeviceBulkUpdateSettingsDialog';
 
+// Helper function to check if expiration is soon (within 30 days)
 const isExpiringSoon = (expirationTime) => {
   if (!expirationTime) return false;
   const expirationDate = new Date(expirationTime);
@@ -55,6 +56,7 @@ const isExpiringSoon = (expirationTime) => {
   return expirationDate <= thirtyDaysFromNow && expirationDate > new Date();
 };
 
+// Enhanced filter function for global search
 const filterByGlobalSearch = (keyword) => (item) => {
   if (!keyword) return true;
   const searchFields = [
@@ -241,20 +243,7 @@ const DevicesPage = () => {
   );
 
   const handleExport = () => {
-    const params = new URLSearchParams();
-
-    Object.entries(filters).forEach(([key, value]) => {
-      if (value) params.append(key, value);
-    });
-
-    if (globalSearch) {
-      params.append('search', globalSearch);
-    }
-
-    params.append('sortKey', sortConfig.key);
-    params.append('sortDir', sortConfig.direction);
-
-    window.location.assign(`/api/reports/devices/xlsx?${params.toString()}`);
+    window.location.assign('/api/reports/devices/xlsx');
   };
 
   const handlePageChange = (event, newPage) => {
@@ -507,7 +496,6 @@ const DevicesPage = () => {
             </Grid>
           </Grid>
 
-          {/* Column Filters */}
           <Grid container spacing={2}>
             <Grid item xs={12} sm={6} md={2}>
               <FormControl fullWidth size="small" sx={roundedFieldSx}>

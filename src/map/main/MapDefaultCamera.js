@@ -1,5 +1,5 @@
 import maplibregl from 'maplibre-gl';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useSelector } from 'react-redux';
 import { usePreference } from '../../common/util/preferences';
 import { map, restoredCamera } from '../core/MapView';
@@ -13,49 +13,73 @@ const MIN_RESTORED_ZOOM_TO_SKIP_FIT = 4;
 const MapDefaultCamera = ({ mapReady }) => {
   const selectedDeviceId = useSelector((state) => state.devices.selectedId);
   const positions = useSelector((state) => state.session.positions);
-
   const defaultLatitude = usePreference('latitude');
   const defaultLongitude = usePreference('longitude');
   const defaultZoom = usePreference('zoom', 0);
-
   const [initialized, setInitialized] = useState(false);
+
+  const markInitialized = useCallback(() => {
+    setInitialized(true);
+  }, []);
 
   useEffect(() => {
     if (!mapReady) return;
+    if (initialized) return;
+
     if (selectedDeviceId) {
-      setInitialized(true);
-    } else if (!initialized) {
-      if (defaultLatitude && defaultLongitude) {
-        map.jumpTo({
-          center: [defaultLongitude, defaultLatitude],
-          zoom: defaultZoom,
-        });
-        setInitialized(true);
-      } else if (restoredCamera && restoredCamera.zoom >= MIN_RESTORED_ZOOM_TO_SKIP_FIT) {
-        // Camera was already restored from persisted state when the map was
-        // created, so late position data must not re-fit the whole viewport.
-        setInitialized(true);
-      } else {
-        const coordinates = Object.values(positions).map((item) => [item.longitude, item.latitude]);
-        if (coordinates.length > 1) {
-          const bounds = coordinates.reduce((bounds, item) => bounds.extend(item), new maplibregl.LngLatBounds(coordinates[0], coordinates[1]));
-          const canvas = map.getCanvas();
-          map.fitBounds(bounds, {
-            duration: 0,
-            padding: Math.min(canvas.width, canvas.height) * 0.1,
-          });
-          setInitialized(true);
-        } else if (coordinates.length) {
-          const [individual] = coordinates;
-          map.jumpTo({
-            center: individual,
-            zoom: Math.max(map.getZoom(), 10),
-          });
-          setInitialized(true);
-        }
-      }
+      markInitialized();
+      return;
     }
-  }, [selectedDeviceId, initialized, defaultLatitude, defaultLongitude, defaultZoom, positions, mapReady]);
+
+    const hasDefaults = defaultLatitude && defaultLongitude;
+    if (hasDefaults) {
+      map.jumpTo({
+        center: [defaultLongitude, defaultLatitude],
+        zoom: defaultZoom,
+      });
+      markInitialized();
+      return;
+    }
+
+    if (restoredCamera && restoredCamera.zoom >= MIN_RESTORED_ZOOM_TO_SKIP_FIT) {
+      // Camera was already restored from persisted state when the map was
+      // created, so late position data must not re-fit the whole viewport.
+      markInitialized();
+      return;
+    }
+
+    const coords = Object.values(positions).map((p) => [p.longitude, p.latitude]);
+    if (coords.length > 1) {
+      const bounds = coords.reduce(
+        (acc, c) => acc.extend(c),
+        new maplibregl.LngLatBounds(coords[0], coords[0]),
+      );
+      const canvas = map.getCanvas();
+      map.fitBounds(bounds, {
+        duration: 0,
+        padding: Math.min(canvas.width, canvas.height) * 0.1,
+      });
+      markInitialized();
+      return;
+    }
+
+    if (coords.length === 1) {
+      map.jumpTo({
+        center: coords[0],
+        zoom: Math.max(map.getZoom(), 10),
+      });
+      markInitialized();
+    }
+  }, [
+    initialized,
+    mapReady,
+    selectedDeviceId,
+    defaultLatitude,
+    defaultLongitude,
+    defaultZoom,
+    positions,
+    markInitialized,
+  ]);
 
   return null;
 };

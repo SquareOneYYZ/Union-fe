@@ -25,6 +25,8 @@ const SocketController = () => {
   const socketRef = useRef(null);
   const reconnectTimerRef = useRef(null);
 
+  const positionBuffer = useRef([]);
+  const batchTimeout = useRef(null);
   const [notifications, setNotifications] = useState([]);
 
   const soundEvents = useAttributePreference('soundEvents', '');
@@ -58,6 +60,16 @@ const SocketController = () => {
 
     socket.onclose = async (event) => {
       dispatch(sessionActions.updateSocket(false));
+
+      if (batchTimeout.current) {
+        clearTimeout(batchTimeout.current);
+        batchTimeout.current = null;
+      }
+      if (positionBuffer.current.length > 0) {
+        dispatch(sessionActions.updatePositions(positionBuffer.current));
+        positionBuffer.current = [];
+      }
+
       if (event.code !== logoutCode) {
         try {
           const [devicesResponse, positionsResponse] = await Promise.all([
@@ -77,18 +89,34 @@ const SocketController = () => {
         } catch (error) {
           // ignore fetch errors during reconnect
         }
-        reconnectTimerRef.current = setTimeout(() => connectSocket(), 60000);
+        reconnectTimerRef.current = setTimeout(
+          connectSocket,
+          60000,
+        );
       }
     };
 
     socket.onmessage = (event) => {
       const data = JSON.parse(event.data);
+
       if (data.devices) {
         dispatch(devicesActions.update(data.devices));
       }
+
       if (data.positions) {
-        dispatch(sessionActions.updatePositions(data.positions));
+        positionBuffer.current.push(...data.positions);
+        if (batchTimeout.current) {
+          clearTimeout(batchTimeout.current);
+        }
+        batchTimeout.current = setTimeout(() => {
+          if (positionBuffer.current.length > 0) {
+            dispatch(sessionActions.updatePositions(positionBuffer.current));
+            positionBuffer.current = [];
+          }
+          batchTimeout.current = null;
+        }, 500);
       }
+
       if (data.events) {
         if (!features.disableEvents) {
           dispatch(eventsActions.add(data.events));
@@ -106,6 +134,7 @@ const SocketController = () => {
         });
         setNotifications(newNotifications);
       }
+
       if (data.logs) {
         dispatch(sessionActions.updateLogs(data.logs));
       }
@@ -155,10 +184,23 @@ const SocketController = () => {
       }
 
       connectSocket();
-      return () => closeSocket();
     }
     return null;
-  }, [authenticated]);
+  }, [
+    authenticated,
+    dispatch,
+    connectSocket,
+  ]);
+
+  useEffect(() => () => {
+    const socket = socketRef.current;
+    if (socket) {
+      closeSocket();
+    }
+    if (batchTimeout.current) {
+      clearTimeout(batchTimeout.current);
+    }
+  }, []);
 
   return (
     <>

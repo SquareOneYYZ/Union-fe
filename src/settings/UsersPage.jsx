@@ -1,23 +1,23 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Table,
-  TableRow,
-  TableCell,
-  TableHead,
-  TableBody,
-  Switch,
-  TableFooter,
-  FormControlLabel,
-  Select,
-  MenuItem,
-  TextField,
   Box,
   Grid,
+  Typography,
+  Chip,
+  TextField,
   FormControl,
   InputLabel,
-  Chip,
-  Typography,
+  Select,
+  MenuItem,
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
+  TableFooter,
+  Switch,
+  FormControlLabel,
 } from '@mui/material';
 import LoginIcon from '@mui/icons-material/Login';
 import LinkIcon from '@mui/icons-material/Link';
@@ -30,6 +30,7 @@ import CollectionFab from './components/CollectionFab';
 import CollectionActions from './components/CollectionActions';
 import TableShimmer from '../common/components/TableShimmer';
 import { useManager } from '../common/util/permissions';
+import { filterByKeyword } from './components/SearchHeader';
 import useSettingsStyles from './common/useSettingsStyles';
 
 const UsersPage = () => {
@@ -43,8 +44,6 @@ const UsersPage = () => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [temporary, setTemporary] = useState(false);
-
-  // Filter states
   const [globalSearch, setGlobalSearch] = useState('');
   const [adminFilter, setAdminFilter] = useState('');
   const [disabledFilter, setDisabledFilter] = useState('');
@@ -333,32 +332,24 @@ const UsersPage = () => {
           </TableRow>
         </TableHead>
         <TableBody>
-          {!loading ? (
-            filteredItems.map((item) => (
-              <TableRow key={item.id}>
-                <TableCell>{item.name}</TableCell>
-                <TableCell>{item.email}</TableCell>
-                <TableCell>{formatBoolean(item.administrator, t)}</TableCell>
-                <TableCell>{formatBoolean(item.disabled, t)}</TableCell>
-                <TableCell>{formatTime(item.expirationTime, 'date')}</TableCell>
-                <TableCell className={classes.columnAction} padding="none">
-                  <CollectionActions
-                    itemId={item.id}
-                    editPath="/settings/user"
-                    endpoint="users"
-                    setTimestamp={setTimestamp}
-                    customActions={
-                      manager
-                        ? [actionLogin, actionConnections]
-                        : [actionConnections]
-                    }
-                  />
-                </TableCell>
-              </TableRow>
-            ))
-          ) : (
-            <TableShimmer columns={6} endAction />
-          )}
+          {!loading ? filteredItems.map((item) => (
+            <TableRow key={item.id}>
+              <TableCell>{item.name}</TableCell>
+              <TableCell>{item.email}</TableCell>
+              <TableCell>{formatBoolean(item.administrator, t)}</TableCell>
+              <TableCell>{formatBoolean(item.disabled, t)}</TableCell>
+              <TableCell>{formatTime(item.expirationTime, 'date')}</TableCell>
+              <TableCell className={classes.columnAction} padding="none">
+                <CollectionActions
+                  itemId={item.id}
+                  editPath="/settings/user"
+                  endpoint="users"
+                  setTimestamp={setTimestamp}
+                  customActions={manager ? [actionLogin, actionConnections] : [actionConnections]}
+                />
+              </TableCell>
+            </TableRow>
+          )) : (<TableShimmer columns={6} endAction />)}
         </TableBody>
         <TableFooter>
           <TableRow>
@@ -366,7 +357,7 @@ const UsersPage = () => {
               <FormControlLabel
                 control={(
                   <Switch
-                    checked={temporary}
+                    value={temporary}
                     onChange={(e) => setTemporary(e.target.checked)}
                     size="small"
                   />

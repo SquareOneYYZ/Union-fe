@@ -1,5 +1,9 @@
 import {
-  useId, useCallback, useEffect, useMemo,
+  useId,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
 } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { map } from './core/MapView';
@@ -10,38 +14,73 @@ import { useTranslation } from '../common/components/LocalizationProvider';
 import { useAttributePreference } from '../common/util/preferences';
 import { mapInteractionsActions } from '../store';
 
-const MapRoutePoints = ({ positions, onClick, useGlobalExpansion = false }) => {
+const MapRoutePoints = ({
+  positions,
+  onClick,
+  useGlobalExpansion = false,
+}) => {
   const id = useId();
   const t = useTranslation();
   const speedUnit = useAttributePreference('speedUnit');
+
   const dispatch = useDispatch();
 
-  const shouldShowAllPoints = useSelector((state) => (useGlobalExpansion ? state.mapInteractions.showAllRoutePoints : false));
+  const shouldShowAllPoints = useSelector((state) => (
+    useGlobalExpansion ? state.mapInteractions.showAllRoutePoints : false
+  ));
 
-  const onMouseEnter = () => (map.getCanvas().style.cursor = 'pointer');
-  const onMouseLeave = () => (map.getCanvas().style.cursor = '');
+  const clickHandlerRef = useRef(null);
 
-  const { simplifiedPositions } = useMemo(() => {
-    if (!positions.length) return { simplifiedPositions: [] };
+  const { minSpeed, maxSpeed } = useMemo(() => {
+    if (!positions.length) {
+      return { minSpeed: 0, maxSpeed: 0 };
+    }
 
-    const simplified = positions.filter(
+    let min = Infinity;
+    let max = -Infinity;
+
+    for (let i = 0; i < positions.length; i += 1) {
+      const { speed } = positions[i];
+
+      if (speed < min) min = speed;
+      if (speed > max) max = speed;
+    }
+
+    return {
+      minSpeed: min,
+      maxSpeed: max,
+    };
+  }, [positions]);
+
+  const simplifiedPositions = useMemo(() => {
+    if (!positions.length) {
+      return [];
+    }
+
+    return positions.filter(
       (p, i) => i === 0 || i === positions.length - 1 || i % 4 === 0,
     );
-
-    return { simplifiedPositions: simplified };
   }, [positions]);
+
+  const onMouseEnter = useCallback(() => {
+    map.getCanvas().style.cursor = 'pointer';
+  }, []);
+
+  const onMouseLeave = useCallback(() => {
+    map.getCanvas().style.cursor = '';
+  }, []);
 
   const showAllPoints = useCallback(() => {
     if (!positions.length) return;
-
-    const maxSpeed = Math.max(...positions.map((pt) => pt.speed));
-    const minSpeed = Math.min(...positions.map((pt) => pt.speed));
 
     map.getSource(id)?.setData({
       type: 'FeatureCollection',
       features: positions.map((p, index) => ({
         type: 'Feature',
-        geometry: { type: 'Point', coordinates: [p.longitude, p.latitude] },
+        geometry: {
+          type: 'Point',
+          coordinates: [p.longitude, p.latitude],
+        },
         properties: {
           index,
           id: p.id,
@@ -51,19 +90,19 @@ const MapRoutePoints = ({ positions, onClick, useGlobalExpansion = false }) => {
         },
       })),
     });
-  }, [positions, id]);
+  }, [positions, id, minSpeed, maxSpeed]);
 
   const showSimplifiedPoints = useCallback(() => {
     if (!positions.length) return;
-
-    const maxSpeed = positions.reduce((a, b) => Math.max(a, b.speed), -Infinity);
-    const minSpeed = positions.reduce((a, b) => Math.min(a, b.speed), Infinity);
 
     map.getSource(id)?.setData({
       type: 'FeatureCollection',
       features: simplifiedPositions.map((p, index) => ({
         type: 'Feature',
-        geometry: { type: 'Point', coordinates: [p.longitude, p.latitude] },
+        geometry: {
+          type: 'Point',
+          coordinates: [p.longitude, p.latitude],
+        },
         properties: {
           index,
           id: p.id,
@@ -73,27 +112,29 @@ const MapRoutePoints = ({ positions, onClick, useGlobalExpansion = false }) => {
         },
       })),
     });
-  }, [positions, simplifiedPositions, id]);
+  }, [simplifiedPositions, id, minSpeed, maxSpeed]);
 
   const onMarkerClick = useCallback(
     (event) => {
       event.preventDefault();
-      const feature = event.features[0];
 
-      if (feature) {
-        if (onClick) {
-          onClick(feature.properties.id, feature.properties.index);
-        }
+      const feature = event.features?.[0];
+      if (!feature) return;
 
-        showAllPoints();
+      onClick?.(feature.properties.id, feature.properties.index);
 
-        if (useGlobalExpansion) {
-          dispatch(mapInteractionsActions.expandRoutePoints());
-        }
+      showAllPoints();
+
+      if (useGlobalExpansion) {
+        dispatch(mapInteractionsActions.expandRoutePoints());
       }
     },
     [onClick, showAllPoints, useGlobalExpansion, dispatch],
   );
+
+  useEffect(() => {
+    clickHandlerRef.current = onMarkerClick;
+  }, [onMarkerClick]);
 
   useEffect(() => {
     if (useGlobalExpansion) {
@@ -108,7 +149,10 @@ const MapRoutePoints = ({ positions, onClick, useGlobalExpansion = false }) => {
   useEffect(() => {
     map.addSource(id, {
       type: 'geojson',
-      data: { type: 'FeatureCollection', features: [] },
+      data: {
+        type: 'FeatureCollection',
+        features: [],
+      },
     });
 
     map.addLayer({
@@ -128,41 +172,37 @@ const MapRoutePoints = ({ positions, onClick, useGlobalExpansion = false }) => {
       },
     });
 
+    const onMapMarkerClick = (event) => clickHandlerRef.current?.(event);
+
     map.on('mouseenter', id, onMouseEnter);
     map.on('mouseleave', id, onMouseLeave);
-    map.on('click', id, onMarkerClick);
+    map.on('click', id, onMapMarkerClick);
 
     return () => {
       map.off('mouseenter', id, onMouseEnter);
       map.off('mouseleave', id, onMouseLeave);
-      map.off('click', id, onMarkerClick);
+      map.off('click', id, onMapMarkerClick);
 
-      if (map.getLayer(id)) map.removeLayer(id);
-      if (map.getSource(id)) map.removeSource(id);
+      if (map.getLayer(id)) {
+        map.removeLayer(id);
+      }
+
+      if (map.getSource(id)) {
+        map.removeSource(id);
+      }
     };
-  }, [onMarkerClick, id]);
+  }, [id, onMouseEnter, onMouseLeave]);
 
   useEffect(() => {
-    if (!positions.length) {
-      return () => {};
-    }
+    if (!positions.length) return undefined;
 
-    const maxSpeed = positions.reduce((a, b) => Math.max(a, b.speed), -Infinity);
-    const minSpeed = positions.reduce((a, b) => Math.min(a, b.speed), Infinity);
-
-    const control = new SpeedLegendControl(
-      positions,
-      speedUnit,
-      t,
-      maxSpeed,
-      minSpeed,
-    );
+    const control = new SpeedLegendControl(positions, speedUnit, t, maxSpeed, minSpeed);
     map.addControl(control, 'bottom-left');
 
     showSimplifiedPoints();
 
-    const handleMapClick = (e) => {
-      const features = map.queryRenderedFeatures(e.point, { layers: [id] });
+    const handleMapClick = (event) => {
+      const features = map.queryRenderedFeatures(event.point, { layers: [id] });
 
       if (!features.length) {
         if (useGlobalExpansion) {
@@ -176,10 +216,20 @@ const MapRoutePoints = ({ positions, onClick, useGlobalExpansion = false }) => {
     map.on('click', handleMapClick);
 
     return () => {
-      map.removeControl(control);
       map.off('click', handleMapClick);
+      map.removeControl(control);
     };
-  }, [positions, simplifiedPositions, speedUnit, t, id, showSimplifiedPoints, useGlobalExpansion, dispatch]);
+  }, [
+    positions,
+    speedUnit,
+    t,
+    id,
+    minSpeed,
+    maxSpeed,
+    showSimplifiedPoints,
+    useGlobalExpansion,
+    dispatch,
+  ]);
 
   return null;
 };

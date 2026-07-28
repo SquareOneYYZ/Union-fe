@@ -1,15 +1,19 @@
+import { batch } from 'react-redux';
 import { sessionActions } from './session';
 import { devicesActions } from './devices';
 import { eventsActions } from './events';
 
-const threshold = 3;
-const minInterval = 1500;
-const maxInterval = 5000;
-const scaleFactor = 20;
+const threshold = 200; // actions/sec that triggers throttling
+const minInterval = 200; // fastest flush tick, ms
+const maxInterval = 5000; // slowest flush tick under sustained load, ms
+const scaleFactor = 2; // next interval = last flush's processing time * this factor
 
-// eslint-disable-next-line no-console
-const debugMode = process.env.NODE_ENV === 'development';
-const debugLog = (message) => debugMode && console.log(message);
+const debugLog = (message) => {
+  if (process.env.NODE_ENV !== 'production') {
+    // eslint-disable-next-line no-console
+    console.log(`[throttleMiddleware] ${message}`);
+  }
+};
 
 export default () => (next) => {
   const buffer = [];
@@ -42,27 +46,28 @@ export default () => (next) => {
       });
 
       const mergedDeviceUpdates = Object.values(deviceUpdates);
-      if (mergedDeviceUpdates.length) {
-        next({
-          type: devicesActions.update.type,
-          payload: mergedDeviceUpdates,
-        });
-      }
-
       const mergedPositionUpdates = Object.values(positionUpdates);
-      if (mergedPositionUpdates.length) {
-        next({
-          type: sessionActions.updatePositions.type,
-          payload: mergedPositionUpdates,
-        });
-      }
 
-      if (eventUpdates.length) {
-        next({
-          type: eventsActions.add.type,
-          payload: eventUpdates,
-        });
-      }
+      batch(() => {
+        if (mergedDeviceUpdates.length) {
+          next({
+            type: devicesActions.update.type,
+            payload: mergedDeviceUpdates,
+          });
+        }
+        if (mergedPositionUpdates.length) {
+          next({
+            type: sessionActions.updatePositions.type,
+            payload: mergedPositionUpdates,
+          });
+        }
+        if (eventUpdates.length) {
+          next({
+            type: eventsActions.add.type,
+            payload: eventUpdates,
+          });
+        }
+      });
 
       const totalTime = performance.now() - start;
       const flushedCount = mergedDeviceUpdates.length
@@ -116,10 +121,8 @@ export default () => (next) => {
     }
 
     if (((counter * 1000) / currentInterval) > threshold) {
-      if (!throttled) {
-        debugLog('Throttling started');
-      }
       throttled = true;
+      debugLog('Throttling started');
     }
 
     return next(action);

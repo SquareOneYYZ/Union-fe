@@ -1,5 +1,5 @@
-import {
-  useId, useCallback, useEffect, useRef,
+import React, {
+  useId, useCallback, useEffect, useRef, useState,
 } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useMediaQuery } from '@mui/material';
@@ -13,6 +13,8 @@ import { findFonts } from './core/mapUtil';
 import { lerp, easeInOutCubic, interpolateRotation } from '../common/util/useAnimation';
 import { clustersActions } from '../store/cluster';
 import { logMapWrite, registerMapWriteDebugSource, unregisterMapWriteDebugSource } from './core/mapWriteDebug';
+import usePositionWorker from '../main/usePositionWorker';
+import MapLoadingIndicator from './MapLoadingIndicator';
 
 const CLUSTER_POPUP_MIN_ZOOM = 9;
 
@@ -34,13 +36,6 @@ const MIN_CHANGE_DEG = 0.000005;
 const PER_FRAME_WRITE_MAX_FLEET = 300;
 const ANIMATION_WRITE_INTERVAL_MS = 1000;
 const DEFERRED_RECONCILE_INTERVAL_MS = 15000;
-
-// Smooth glide for large fleets: devices with a fresh position glide through a
-// small dedicated GeoJSON source written at ~15fps (cost is O(gliding devices),
-// not fleet size), while their static twin in the full source is hidden via
-// feature-state — a paint-only change with no worker round-trip. Only devices
-// rendered individually inside the padded viewport participate; everything
-// else keeps stepping at the reconcile cadence.
 const GLIDE_WRITE_INTERVAL_MS = 66;
 const GLIDE_VIEWPORT_PAD = 0.2;
 
@@ -116,6 +111,15 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
   const updateMapDataRef = useRef(() => {});
   const onClickRef = useRef(onClick);
 
+  // First fleet load can mean building thousands of features on the main
+  // thread before anything paints. usePositionWorker does that work off-
+  // thread purely to drive MapLoadingIndicator's progress bar; the actual
+  // map writes still go through updateAnimationState/updateMapData below,
+  // unchanged from master, so the diff-mirror/glide pipeline stays intact.
+  const hasInitiallyLoadedRef = useRef(false);
+  const [showLoadingIndicator, setShowLoadingIndicator] = useState(false);
+  const { processPositions, isLoading, progress } = usePositionWorker();
+
   useEffect(() => {
     onClickRef.current = onClick;
   }, [onClick]);
@@ -148,6 +152,7 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
       fixTimeEntry = { raw: position.fixTime, formatted: formatTime(position.fixTime, 'seconds') };
       cache[position.deviceId] = fixTimeEntry;
     }
+
     return {
       id: position.id,
       deviceId: position.deviceId,
@@ -424,8 +429,8 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
       if (!ds.target) return;
       hasTargets = true;
 
-      const progress = Math.min((now - ds.startTime) / (ds.duration || baseAnimationDuration), 1);
-      const eased = easeInOutCubic(progress);
+      const progressVal = Math.min((now - ds.startTime) / (ds.duration || baseAnimationDuration), 1);
+      const eased = easeInOutCubic(progressVal);
 
       ds.current = {
         longitude: lerp(ds.start.longitude, ds.target.longitude, eased),
@@ -433,7 +438,7 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
         rotation: interpolateRotation(ds.start.rotation, ds.target.rotation, eased),
       };
 
-      if (progress >= 1) {
+      if (progressVal >= 1) {
         ds.current = { ...ds.target };
         ds.target = null;
         ds.start = null;
@@ -862,13 +867,36 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
 
   useEffect(() => {
     const filtered = positions.filter((p) => Object.prototype.hasOwnProperty.call(devices, p.deviceId));
-    updateAnimationState(filtered);
+
+    // Only the very first fleet load pays the worker's cost: it offloads the
+    // heavy feature-building work so MapLoadingIndicator has real progress to
+    // show. Actual map writes still flow through updateAnimationState /
+    // updateMapData below (master's diff-mirror/glide pipeline), so the
+    // worker result itself is discarded here — it exists purely to compute
+    // isLoading/progress for the indicator.
+    if (!hasInitiallyLoadedRef.current && filtered.length) {
+      setShowLoadingIndicator(true);
+      processPositions(
+        { positions: filtered, devices },
+        () => {},
+      );
+    }
+
     // Always push current state to the map sources. The animation loop only
     // runs for devices that moved, so with smoothing enabled the initial
     // positions would otherwise never reach the sources and no markers or
     // clusters would render until something else called updateMapData.
+    updateAnimationState(filtered);
     updateMapData();
-  }, [positions, devices, enableSmoothing, updateAnimationState, updateMapData]);
+  }, [positions, devices, enableSmoothing, updateAnimationState, updateMapData, processPositions]);
+
+  useEffect(() => {
+    if (hasInitiallyLoadedRef.current) return;
+    if (!isLoading && progress === 100) {
+      hasInitiallyLoadedRef.current = true;
+      setShowLoadingIndicator(false);
+    }
+  }, [isLoading, progress]);
 
   useEffect(() => {
     const faded = selectedPosition ? 0.5 : 1;

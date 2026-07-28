@@ -1,98 +1,170 @@
 import { useTheme } from '@mui/styles';
-import { useId, useEffect, useCallback } from 'react';
+import {
+  useId, useEffect, useMemo, useCallback,
+} from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { map } from './core/MapView';
 import getSpeedColor from '../common/util/colors';
 import { useAttributePreference } from '../common/util/preferences';
-import { mapInteractionsActions } from '../store';
+import { mapInteractionsActions } from '../store/index';
 
-const MapRoutePath = ({ positions, onClick, expandPointsOnClick = false }) => {
+const MapRoutePath = ({
+  positions,
+  onClick,
+  expandPointsOnClick = false,
+}) => {
   const id = useId();
   const theme = useTheme();
   const dispatch = useDispatch();
 
-  const reportColor = useSelector((state) => {
-    const position = positions?.find(() => true);
-    if (position) {
-      const attributes = state.devices.items[position.deviceId]?.attributes;
-      if (attributes) {
-        const color = attributes['web.reportColor'];
-        if (color) {
-          return color;
-        }
-      }
-    }
-    return null;
-  });
-
   const mapLineWidth = useAttributePreference('mapLineWidth', 2);
   const mapLineOpacity = useAttributePreference('mapLineOpacity', 1);
 
-  const onLineClick = useCallback((event) => {
-    event.preventDefault();
-    const feature = event.features[0];
+  const reportColor = useSelector((state) => {
+    if (!positions?.length) return null;
 
-    if (feature) {
-      if (onClick) {
-        const clickedLngLat = event.lngLat;
-        let closestIndex = 0;
-        let minDistance = Infinity;
+    const position = positions[0];
+    const attributes = state.devices.items[position.deviceId]?.attributes;
 
-        positions.forEach((pos, index) => {
-          if (index >= positions.length - 1) return;
+    return attributes?.['web.reportColor'] || null;
+  });
 
-          const distance = Math.sqrt(
-            (pos.longitude - clickedLngLat.lng) ** 2
-            + (pos.latitude - clickedLngLat.lat) ** 2,
-          );
-
-          if (distance < minDistance) {
-            minDistance = distance;
-            closestIndex = index;
-          }
-        });
-
-        onClick(positions[closestIndex].id, closestIndex);
-      }
-
-      if (expandPointsOnClick) {
-        dispatch(mapInteractionsActions.expandRoutePoints());
-      }
+  const { minSpeed, maxSpeed } = useMemo(() => {
+    if (!positions?.length) {
+      return { minSpeed: 0, maxSpeed: 0 };
     }
-  }, [positions, onClick, expandPointsOnClick, dispatch]);
 
-  useEffect(() => {
-    map.addSource(id, {
-      type: 'geojson',
-      data: {
+    let min = Infinity;
+    let max = -Infinity;
+
+    for (let i = 0; i < positions.length; i += 1) {
+      const { speed } = positions[i];
+
+      if (speed < min) min = speed;
+      if (speed > max) max = speed;
+    }
+
+    return {
+      minSpeed: min,
+      maxSpeed: max,
+    };
+  }, [positions]);
+
+  const routeFeatures = useMemo(() => {
+    if (!positions?.length) return [];
+
+    const features = [];
+
+    for (let i = 0; i < positions.length - 1; i += 1) {
+      const current = positions[i];
+      const next = positions[i + 1];
+
+      features.push({
         type: 'Feature',
         geometry: {
           type: 'LineString',
-          coordinates: [],
+          coordinates: [
+            [current.longitude, current.latitude],
+            [next.longitude, next.latitude],
+          ],
         },
-      },
-    });
+        properties: {
+          color: reportColor || getSpeedColor(
+            next.speed,
+            minSpeed,
+            maxSpeed,
+          ),
+          width: mapLineWidth,
+          opacity: mapLineOpacity,
+        },
+      });
+    }
 
-    map.addLayer({
-      source: id,
-      id: `${id}-line`,
-      type: 'line',
-      layout: {
-        'line-join': 'round',
-        'line-cap': 'round',
-      },
-      paint: {
-        'line-color': ['get', 'color'],
-        'line-width': ['get', 'width'],
-        'line-opacity': ['get', 'opacity'],
-      },
-    });
+    return features;
+  }, [
+    positions,
+    reportColor,
+    minSpeed,
+    maxSpeed,
+    mapLineWidth,
+    mapLineOpacity,
+  ]);
+
+  const onLineClick = useCallback((event) => {
+    event.preventDefault();
+
+    if (!event.features?.length) {
+      return;
+    }
+
+    if (onClick) {
+      const clickedLngLat = event.lngLat;
+
+      let closestIndex = 0;
+      let minDistance = Infinity;
+
+      positions.forEach((position, index) => {
+        if (index >= positions.length - 1) return;
+
+        const distance = Math.sqrt(
+          (position.longitude - clickedLngLat.lng) ** 2
+          + (position.latitude - clickedLngLat.lat) ** 2,
+        );
+
+        if (distance < minDistance) {
+          minDistance = distance;
+          closestIndex = index;
+        }
+      });
+
+      onClick(positions[closestIndex].id, closestIndex);
+    }
+
+    if (expandPointsOnClick) {
+      dispatch(mapInteractionsActions.expandRoutePoints());
+    }
+  }, [
+    positions,
+    onClick,
+    expandPointsOnClick,
+    dispatch,
+  ]);
+
+  useEffect(() => {
+    if (!map.getSource(id)) {
+      map.addSource(id, {
+        type: 'geojson',
+        data: {
+          type: 'FeatureCollection',
+          features: [],
+        },
+      });
+    }
+
+    if (!map.getLayer(`${id}-line`)) {
+      map.addLayer({
+        id: `${id}-line`,
+        source: id,
+        type: 'line',
+        layout: {
+          'line-join': 'round',
+          'line-cap': 'round',
+        },
+        paint: {
+          'line-color': ['get', 'color'],
+          'line-width': ['get', 'width'],
+          'line-opacity': ['get', 'opacity'],
+        },
+      });
+    }
 
     if (expandPointsOnClick) {
       map.on('click', `${id}-line`, onLineClick);
+
       map.on('mouseenter', `${id}-line`, () => {
         map.getCanvas().style.cursor = 'pointer';
       });
+
       map.on('mouseleave', `${id}-line`, () => {
         map.getCanvas().style.cursor = '';
       });
@@ -105,12 +177,10 @@ const MapRoutePath = ({ positions, onClick, expandPointsOnClick = false }) => {
         map.off('mouseleave', `${id}-line`);
       }
 
-      if (map.getLayer(`${id}-title`)) {
-        map.removeLayer(`${id}-title`);
-      }
       if (map.getLayer(`${id}-line`)) {
         map.removeLayer(`${id}-line`);
       }
+
       if (map.getSource(id)) {
         map.removeSource(id);
       }
@@ -118,36 +188,17 @@ const MapRoutePath = ({ positions, onClick, expandPointsOnClick = false }) => {
   }, [id, expandPointsOnClick, onLineClick]);
 
   useEffect(() => {
-    if (!positions || positions.length === 0) return;
+    const source = map.getSource(id);
 
-    const minSpeed = positions.map((p) => p.speed).reduce((a, b) => Math.min(a, b), Infinity);
-    const maxSpeed = positions.map((p) => p.speed).reduce((a, b) => Math.max(a, b), -Infinity);
-    const features = [];
+    if (!source) return;
 
-    for (let i = 0; i < positions.length - 1; i += 1) {
-      features.push({
-        type: 'Feature',
-        geometry: {
-          type: 'LineString',
-          coordinates: [[positions[i].longitude, positions[i].latitude], [positions[i + 1].longitude, positions[i + 1].latitude]],
-        },
-        properties: {
-          color: reportColor || getSpeedColor(
-            positions[i + 1].speed,
-            minSpeed,
-            maxSpeed,
-          ),
-          width: mapLineWidth,
-          opacity: mapLineOpacity,
-        },
+    requestAnimationFrame(() => {
+      source.setData({
+        type: 'FeatureCollection',
+        features: routeFeatures,
       });
-    }
-
-    map.getSource(id)?.setData({
-      type: 'FeatureCollection',
-      features,
     });
-  }, [theme, positions, reportColor, id, mapLineWidth, mapLineOpacity]);
+  }, [id, routeFeatures, theme]);
 
   return null;
 };

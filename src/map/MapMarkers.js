@@ -7,30 +7,10 @@ import { map } from './core/MapView';
 import { useAttributePreference } from '../common/util/preferences';
 import { findFonts } from './core/mapUtil';
 
-const throttle = (func, delay) => {
-  let timeoutId;
-  let lastExecTime = 0;
-
-  return function throttled(...args) {
-    const currentTime = Date.now();
-
-    if (currentTime - lastExecTime > delay) {
-      func.apply(this, args);
-      lastExecTime = currentTime;
-    } else {
-      clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => {
-        func.apply(this, args);
-        lastExecTime = Date.now();
-      }, delay - (currentTime - lastExecTime));
-    }
-  };
-};
-
 const MapMarkers = ({ markers, showTitles }) => {
   const id = useId();
-  const layerInitialized = useRef(false);
-  const lastZoomLevel = useRef(null);
+  const initialized = useRef(false);
+  const lastZoom = useRef(null);
 
   const theme = useTheme();
   const desktop = useMediaQuery(theme.breakpoints.up('md'));
@@ -38,13 +18,9 @@ const MapMarkers = ({ markers, showTitles }) => {
 
   const features = useMemo(() => {
     if (!markers?.length) return [];
-
     return markers.map(({ latitude, longitude, image, title }) => ({
       type: 'Feature',
-      geometry: {
-        type: 'Point',
-        coordinates: [longitude, latitude],
-      },
+      geometry: { type: 'Point', coordinates: [longitude, latitude] },
       properties: {
         image: image || 'default-neutral',
         title: title || '',
@@ -52,29 +28,20 @@ const MapMarkers = ({ markers, showTitles }) => {
     }));
   }, [markers]);
 
-  const updateTextVisibility = useCallback(
-    throttle(() => {
-      const zoom = map.getZoom();
-      const roundedZoom = Math.round(zoom * 2) / 2;
+  const syncZoomTitleVisibility = useCallback(() => {
+    if (!map.getLayer(id)) return;
 
-      if (lastZoomLevel.current === roundedZoom) return;
+    const zoom = Math.round(map.getZoom() * 2) / 2;
+    if (lastZoom.current === zoom) return;
 
-      const shouldShowTitles = roundedZoom >= 14;
+    lastZoom.current = zoom;
+    const show = zoom >= 14;
 
-      if (map.getLayer(id)) {
-        try {
-          map.setLayoutProperty(id, 'text-field', shouldShowTitles ? '{title}' : '');
-          lastZoomLevel.current = roundedZoom;
-        } catch (error) {
-          console.warn('Failed to update text visibility:', error);
-        }
-      }
-    }, 100),
-    [id],
-  );
+    map.setLayoutProperty(id, 'text-field', show ? '{title}' : '');
+  }, [id]);
 
   useEffect(() => {
-    if (layerInitialized.current) return () => { };
+    if (initialized.current) return;
 
     try {
       if (!map.getSource(id)) {
@@ -108,66 +75,67 @@ const MapMarkers = ({ markers, showTitles }) => {
         });
       }
 
-      layerInitialized.current = true;
-      map.on('zoom', updateTextVisibility);
-      updateTextVisibility();
-    } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error('Failed to initialize map layer:', error);
-    }
+      initialized.current = true;
 
-    return () => {
+      map.on('zoom', syncZoomTitleVisibility);
+      syncZoomTitleVisibility();
+    } catch (err) {
+      console.error('Layer initialization failed:', err);
+    }
+  }, [id, iconScale, showTitles, syncZoomTitleVisibility]);
+
+  useEffect(
+    () => () => {
       try {
-        map.off('zoom', updateTextVisibility);
+        map.off('zoom', syncZoomTitleVisibility);
         if (map.getLayer(id)) map.removeLayer(id);
         if (map.getSource(id)) map.removeSource(id);
-        layerInitialized.current = false;
-      } catch (error) {
-        // eslint-disable-next-line no-console
-        console.warn('Cleanup error:', error);
+        initialized.current = false;
+      } catch (cleanupErr) {
+        console.error('Cleanup error:', cleanupErr);
       }
-    };
-  }, [id]);
-
+    },
+    [id, syncZoomTitleVisibility],
+  );
   useEffect(() => {
-    if (!layerInitialized.current || !map.getLayer(id)) return;
+    if (!initialized.current || !map.getLayer(id)) return;
 
     try {
       map.setLayoutProperty(id, 'icon-size', iconScale);
       map.setLayoutProperty(id, 'text-offset', [0, -2 * iconScale]);
-    } catch (error) {
-      console.warn('Failed to update icon scale:', error);
+    } catch (err) {
+      console.warn('Failed to update scale:', err);
     }
   }, [id, iconScale]);
 
   useEffect(() => {
-    if (!layerInitialized.current || !map.getLayer(id)) return;
+    if (!initialized.current || !map.getLayer(id)) return;
 
     try {
-      const currentZoom = map.getZoom();
-      const shouldShowTitles = showTitles && currentZoom >= 14;
-      map.setLayoutProperty(id, 'text-field', shouldShowTitles ? ['get', 'title'] : '');
-    } catch (error) {
-      console.warn('Failed to update title visibility:', error);
+      const zoom = map.getZoom();
+      const show = showTitles && zoom >= 14;
+      map.setLayoutProperty(id, 'text-field', show ? ['get', 'title'] : '');
+    } catch (err) {
+      console.warn('Title visibility update failed:', err);
     }
   }, [id, showTitles]);
 
   useEffect(() => {
-    if (!layerInitialized.current) return;
+    if (!initialized.current) return;
 
     const source = map.getSource(id);
-    if (source && features) {
+    if (!source) return;
+
+    requestAnimationFrame(() => {
       try {
-        requestAnimationFrame(() => {
-          source.setData({
-            type: 'FeatureCollection',
-            features,
-          });
+        source.setData({
+          type: 'FeatureCollection',
+          features,
         });
-      } catch (error) {
-        console.warn('Failed to update map data:', error);
+      } catch (err) {
+        console.warn('GeoJSON update failed:', err);
       }
-    }
+    });
   }, [id, features]);
 
   return null;
