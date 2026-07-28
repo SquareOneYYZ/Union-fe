@@ -1,9 +1,12 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, {
+  useState, useCallback, useEffect, useMemo,
+} from 'react';
 import { Paper } from '@mui/material';
 import { makeStyles } from '@mui/styles';
 import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useDispatch, useSelector } from 'react-redux';
+import { map } from '../map/core/MapView';
 import DeviceList from './DeviceList';
 import BottomMenu from '../common/components/BottomMenu';
 import StatusCard from '../common/components/StatusCard';
@@ -14,12 +17,13 @@ import EventsDrawer from './EventsDrawer';
 import useFilter from './useFilter';
 import MainToolbar from './MainToolbar';
 import MainMap from './MainMap';
+import ClusterPopup from './ClusterPopUp';
 import { useAttributePreference } from '../common/util/preferences';
+import WhatsNewPopup from '../common/components/WhatsNewPopup';
+import VinFAB from '../settings/VinFab';
 
 const useStyles = makeStyles((theme) => ({
-  root: {
-    height: '100%',
-  },
+  root: { height: '100%' },
   sidebar: {
     pointerEvents: 'none',
     display: 'flex',
@@ -38,34 +42,17 @@ const useStyles = makeStyles((theme) => ({
       width: '100%',
     },
   },
-  header: {
-    pointerEvents: 'auto',
-    zIndex: 6,
-  },
-  footer: {
-    pointerEvents: 'auto',
-    zIndex: 5,
-  },
-  middle: {
-    flex: 1,
-    display: 'grid',
-  },
-  contentMap: {
-    pointerEvents: 'auto',
-    gridArea: '1 / 1',
-  },
-  contentList: {
-    pointerEvents: 'auto',
-    gridArea: '1 / 1',
-    zIndex: 4,
-  },
+  header: { pointerEvents: 'auto', zIndex: 6 },
+  footer: { pointerEvents: 'auto', zIndex: 5 },
+  middle: { flex: 1, display: 'grid' },
+  contentMap: { pointerEvents: 'auto', gridArea: '1 / 1' },
+  contentList: { pointerEvents: 'auto', gridArea: '1 / 1', zIndex: 4 },
 }));
 
 const MainPage = () => {
   const classes = useStyles();
   const dispatch = useDispatch();
   const theme = useTheme();
-
   const desktop = useMediaQuery(theme.breakpoints.up('md'));
   const selectedEvent = useSelector((state) => state.events.selected);
   const mapOnSelect = useAttributePreference('mapOnSelect', true);
@@ -77,19 +64,16 @@ const MainPage = () => {
   );
 
   const [filteredDevices, setFilteredDevices] = useState([]);
-
   const [keyword, setKeyword] = useState('');
-  const [filter, setFilter] = usePersistedState('filter', {
-    statuses: [],
-    groups: [],
-  });
+  const [filter, setFilter] = usePersistedState('filter', { statuses: [], groups: [] });
   const [filterSort, setFilterSort] = usePersistedState('filterSort', '');
   const [filterMap, setFilterMap] = usePersistedState('filterMap', false);
-
+  const [filterByViewport, setFilterByViewport] = usePersistedState('filterByViewport', false);
+  const [viewportBounds, setViewportBounds] = useState(null);
   const [devicesOpen, setDevicesOpen] = useState(desktop);
   const [eventsOpen, setEventsOpen] = useState(false);
 
-  const onEventsClick = useCallback(() => setEventsOpen(true), [setEventsOpen]);
+  const onEventsClick = useCallback(() => setEventsOpen(true), []);
 
   useEffect(() => {
     if (!desktop && mapOnSelect && selectedDeviceId) {
@@ -106,6 +90,35 @@ const MainPage = () => {
     setFilteredDevices,
     setFilteredPositions
   );
+
+  useEffect(() => {
+    const updateBounds = () => {
+      const bounds = map.getBounds();
+      setViewportBounds(bounds);
+
+      const devicesInBounds = filteredDevices.filter((device) => {
+        const position = positions[device.id];
+        if (!position) return false;
+        return bounds.contains([position.longitude, position.latitude]);
+      });
+    };
+    map.on('moveend', updateBounds);
+    map.on('load', updateBounds);
+    if (map.loaded()) updateBounds();
+    return () => {
+      map.off('moveend', updateBounds);
+      map.off('load', updateBounds);
+    };
+  }, [filteredDevices, positions]);
+
+  const viewportFilteredDevices = useMemo(() => {
+    if (!filterByViewport || !viewportBounds) return filteredDevices;
+    return filteredDevices.filter((device) => {
+      const position = positions[device.id];
+      if (!position) return false;
+      return viewportBounds.contains([position.longitude, position.latitude]);
+    });
+  }, [filteredDevices, positions, viewportBounds, filterByViewport]);
 
   return (
     <div className={classes.root}>
@@ -130,6 +143,8 @@ const MainPage = () => {
             setFilterSort={setFilterSort}
             filterMap={filterMap}
             setFilterMap={setFilterMap}
+            filterByViewport={filterByViewport}
+            setFilterByViewport={setFilterByViewport}
           />
         </Paper>
         <div className={classes.middle}>
@@ -142,12 +157,9 @@ const MainPage = () => {
               />
             </div>
           )}
-          <Paper
-            square
-            className={classes.contentList}
-            style={devicesOpen ? {} : { visibility: 'hidden' }}
-          >
-            <DeviceList devices={filteredDevices} />
+
+          <Paper square className={classes.contentList} style={devicesOpen ? {} : { visibility: 'hidden' }}>
+            <DeviceList devices={viewportFilteredDevices} />
           </Paper>
         </div>
         {desktop && (
@@ -157,6 +169,7 @@ const MainPage = () => {
         )}
       </div>
       <EventsDrawer open={eventsOpen} onClose={() => setEventsOpen(false)} />
+      <WhatsNewPopup />
       {selectedDeviceId && (
         <StatusCard
           deviceId={selectedDeviceId}
@@ -174,6 +187,8 @@ const MainPage = () => {
           }}
         />
       )}
+      <VinFAB />
+      <ClusterPopup />
     </div>
   );
 };

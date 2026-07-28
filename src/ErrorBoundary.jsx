@@ -19,11 +19,9 @@ class ErrorBoundary extends React.Component {
     if (error) {
       return (
         <Alert severity="error">
-          <code
-            dangerouslySetInnerHTML={{
-              __html: error.stack.replaceAll('\n', '<br>').replaceAll(' ', '&nbsp;'),
-            }}
-          />
+          <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+            {error.stack}
+          </pre>
         </Alert>
       );
     }

@@ -33,7 +33,14 @@ const GeofencePage = () => {
   };
 
   const validate = () => item && item.name;
-
+  const roundedFieldSx = {
+    '& .MuiOutlinedInput-root': {
+      borderRadius: '13px',
+      '& fieldset': { borderRadius: '13px', borderColor: 'rgba(255,255,255,0.23)' },
+      '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.5)' },
+      '&.Mui-focused fieldset': { borderColor: 'primary.main' },
+    },
+  };
   return (
     <EditItemView
       endpoint="geofences"
@@ -48,29 +55,27 @@ const GeofencePage = () => {
         <>
           <Accordion defaultExpanded>
             <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography variant="subtitle1">
-                {t('sharedRequired')}
-              </Typography>
+              <Typography variant="subtitle1">{t('sharedRequired')}</Typography>
             </AccordionSummary>
             <AccordionDetails className={classes.details}>
               <TextField
                 value={item.name || ''}
                 onChange={(event) => setItem({ ...item, name: event.target.value })}
                 label={t('sharedName')}
+                sx={roundedFieldSx}
               />
             </AccordionDetails>
           </Accordion>
           <Accordion>
             <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography variant="subtitle1">
-                {t('sharedExtra')}
-              </Typography>
+              <Typography variant="subtitle1">{t('sharedExtra')}</Typography>
             </AccordionSummary>
             <AccordionDetails className={classes.details}>
               <TextField
                 value={item.description || ''}
                 onChange={(event) => setItem({ ...item, description: event.target.value })}
                 label={t('sharedDescription')}
+                sx={roundedFieldSx}
               />
               <SelectField
                 value={item.calendarId}
@@ -79,7 +84,18 @@ const GeofencePage = () => {
                 label={t('sharedCalendar')}
               />
               <FormControlLabel
-                control={<Checkbox checked={item.attributes.hide} onChange={(e) => setItem({ ...item, attributes: { ...item.attributes, hide: e.target.checked } })} />}
+                control={(
+                  <Checkbox
+                    checked={item.attributes.hide}
+                    onChange={(e) => setItem({
+                      ...item,
+                      attributes: {
+                        ...item.attributes,
+                        hide: e.target.checked,
+                      },
+                    })}
+                  />
+                )}
                 label={t('sharedFilterMap')}
               />
             </AccordionDetails>

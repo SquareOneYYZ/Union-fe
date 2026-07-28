@@ -26,4 +26,8 @@ export default (t) => useMemo(() => ({
     name: t('attributeDeviceInactivityPeriod'),
     type: 'number',
   },
+  customRoadEvent: {
+    name: t('attributeCustomRoadEvent'),
+    type: 'string',
+  },
 }), [t]);

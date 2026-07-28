@@ -3,6 +3,9 @@
   "env": {
     "browser": true
   },
+  "globals": {
+    "__GIT_COMMIT__": "readonly"
+  },
   "parserOptions": {
     "ecmaVersion": 2020
   },
@@ -16,8 +19,10 @@
   "rules": {
     "max-len": [0],
     "no-shadow": [0],
+    "no-unused-vars":"off",
     "no-return-assign": [0],
     "no-param-reassign": [0],
+    "no-console":[1],
     "no-prototype-builtins": [0],
     "object-curly-newline": [1, {
       "ObjectExpression": { "minProperties": 8, "multiline": true, "consistent": true },

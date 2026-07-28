@@ -1,6 +1,8 @@
-import { Autocomplete, TextField } from '@mui/material';
+import { Autocomplete, Snackbar, TextField } from '@mui/material';
 import React, { useEffect, useState } from 'react';
 import { useEffectAsync } from '../../reactHelper';
+import { snackBarDurationShortMs } from '../util/duration';
+import { useTranslation } from './LocalizationProvider';
 
 const LinkField = ({
   label,
@@ -13,15 +15,15 @@ const LinkField = ({
   titleGetter = (item) => item.name,
 }) => {
   const localStorageKey = `linked_${baseId}_${keyLink}`;
+  const t = useTranslation();
 
   const [active, setActive] = useState(true);
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState([]);
-  const [linked, setLinked] = useState(JSON.parse(localStorage.getItem(localStorageKey)) || []);
-
-  useEffect(() => {
-    setActive(true);
-  }, []);
+  const [updated, setUpdated] = useState(false);
+  const [linkedIds, setLinkedIds] = useState(
+    () => JSON.parse(localStorage.getItem(localStorageKey)) || [],
+  );
 
   useEffectAsync(async () => {
     if (active) {
@@ -39,31 +41,31 @@ const LinkField = ({
       const response = await fetch(endpointLinked);
       if (response.ok) {
         const linkedData = await response.json();
-        setLinked(linkedData);
-        // save to local storage on refresh
-        localStorage.setItem(localStorageKey, JSON.stringify(linkedData));
+        const ids = linkedData.map((it) => keyGetter(it));
+        setLinkedIds(ids);
+        localStorage.setItem(localStorageKey, JSON.stringify(ids));
       } else {
         throw Error(await response.text());
       }
     }
   }, [active]);
 
-  const createBody = (linkId) => {
-    const body = {};
-    body[keyBase] = baseId;
-    body[keyLink] = linkId;
-    return body;
-  };
-
   useEffect(() => {
-    localStorage.setItem(localStorageKey, JSON.stringify(linked));
-  }, [linked]);
+    localStorage.setItem(localStorageKey, JSON.stringify(linkedIds));
+  }, [linkedIds]);
+
+  const createBody = (linkId) => ({
+    [keyBase]: baseId,
+    [keyLink]: linkId,
+  });
 
   const onChange = async (value) => {
-    const oldValue = linked.map((it) => keyGetter(it));
+    const oldValue = linkedIds;
     const newValue = value.map((it) => keyGetter(it));
+
     if (!newValue.find((it) => it < 0)) {
       const results = [];
+
       newValue
         .filter((it) => !oldValue.includes(it))
         .forEach((added) => {
@@ -75,6 +77,7 @@ const LinkField = ({
             }),
           );
         });
+
       oldValue
         .filter((it) => !newValue.includes(it))
         .forEach((removed) => {
@@ -86,28 +89,42 @@ const LinkField = ({
             }),
           );
         });
+
       await Promise.all(results);
-      setLinked(value);
+      setLinkedIds(newValue);
+      setUpdated(results.length > 0);
     }
   };
 
+  const linkedItems = items.filter((it) => linkedIds.includes(keyGetter(it)));
+
   return (
-    <Autocomplete
-      loading={active && !items}
-      isOptionEqualToValue={(i1, i2) => keyGetter(i1) === keyGetter(i2)}
-      options={items || []}
-      getOptionLabel={(item) => titleGetter(item)}
-      renderInput={(params) => <TextField {...params} label={label} />}
-      value={(items && linked) || []}
-      onChange={(_, value) => onChange(value)}
-      open={open}
-      onOpen={() => {
-        setOpen(true);
-        setActive(true);
-      }}
-      onClose={() => setOpen(false)}
-      multiple
-    />
+    <>
+      <Autocomplete
+        loading={active && !items}
+        isOptionEqualToValue={(i1, i2) => keyGetter(i1) === keyGetter(i2)}
+        options={items}
+        getOptionLabel={(item) => titleGetter(item)}
+        renderInput={(params) => <TextField {...params} label={label} />}
+        value={linkedItems}
+        onChange={(_, value) => onChange(value)}
+        open={open}
+        onOpen={() => {
+          setOpen(true);
+          setActive(true);
+        }}
+        onClose={() => {
+          setOpen(false);
+        }}
+        multiple
+      />
+      <Snackbar
+        open={Boolean(updated)}
+        onClose={() => setUpdated(false)}
+        autoHideDuration={snackBarDurationShortMs}
+        message={t('sharedSaved')}
+      />
+    </>
   );
 };
 

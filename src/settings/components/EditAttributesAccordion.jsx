@@ -185,6 +185,13 @@ const EditAttributesAccordion = ({ attribute, attributes, setAttributes, definit
                 value={getDisplayValue(value, subtype)}
                 onChange={(e) => updateAttribute(key, e.target.value, type, subtype)}
                 autoFocus={focusAttribute === key}
+                sx={{
+                  borderRadius: '13px',
+                  '& .MuiOutlinedInput-notchedOutline': { borderRadius: '13px' },
+                }}
+                MenuProps={{
+                  PaperProps: { sx: { borderRadius: '13px' } },
+                }}
                 endAdornment={(
                   <InputAdornment position="end">
                     <IconButton size="small" edge="end" onClick={() => deleteAttribute(key)}>

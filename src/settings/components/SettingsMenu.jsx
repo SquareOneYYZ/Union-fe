@@ -1,7 +1,5 @@
 import React from 'react';
-import {
-  Divider, List,
-} from '@mui/material';
+import { Divider, List } from '@mui/material';
 import SettingsIcon from '@mui/icons-material/Settings';
 import CreateIcon from '@mui/icons-material/Create';
 import NotificationsIcon from '@mui/icons-material/Notifications';
@@ -12,14 +10,18 @@ import BuildIcon from '@mui/icons-material/Build';
 import PeopleIcon from '@mui/icons-material/People';
 import TodayIcon from '@mui/icons-material/Today';
 import PublishIcon from '@mui/icons-material/Publish';
+import TapAndPlayIcon from '@mui/icons-material/TapAndPlay';
 import SmartphoneIcon from '@mui/icons-material/Smartphone';
 import HelpIcon from '@mui/icons-material/Help';
 import CampaignIcon from '@mui/icons-material/Campaign';
+import CorporateFareIcon from '@mui/icons-material/CorporateFare';
 import { useLocation } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { useTranslation } from '../../common/components/LocalizationProvider';
 import {
-  useAdministrator, useManager, useRestriction,
+  useAdministrator,
+  useManager,
+  useRestriction,
 } from '../../common/util/permissions';
 import useFeatures from '../../common/util/useFeatures';
 import MenuItem from '../../common/components/MenuItem';
@@ -32,7 +34,9 @@ const SettingsMenu = () => {
   const admin = useAdministrator();
   const manager = useManager();
   const userId = useSelector((state) => state.session.user.id);
-  const supportLink = useSelector((state) => state.session.server.attributes.support);
+  const supportLink = useSelector(
+    (state) => state.session.server.attributes.support,
+  );
 
   const features = useFeatures();
 
@@ -79,6 +83,24 @@ const SettingsMenu = () => {
                 selected={location.pathname.startsWith('/settings/group')}
               />
             )}
+            {admin && (
+              <MenuItem
+                title={t('settingsOrganization')}
+                link="/settings/organizations"
+                icon={<CorporateFareIcon />}
+                selected={location.pathname.startsWith(
+                  '/settings/organization',
+                )}
+              />
+            )}
+            <MenuItem
+              title={t('settingsVins')}
+              link="/settings/vins"
+              icon={<TapAndPlayIcon />}
+              selected={location.pathname.startsWith(
+                '/settings/vins',
+              )}
+            />
             {!features.disableDrivers && (
               <MenuItem
                 title={t('sharedDrivers')}
@@ -129,6 +151,7 @@ const SettingsMenu = () => {
           </>
         )}
       </List>
+
       {manager && (
         <>
           <Divider />
@@ -151,7 +174,10 @@ const SettingsMenu = () => {
               title={t('settingsUsers')}
               link="/settings/users"
               icon={<PeopleIcon />}
-              selected={location.pathname.startsWith('/settings/user') && location.pathname !== `/settings/user/${userId}`}
+              selected={
+                location.pathname.startsWith('/settings/user')
+                && location.pathname !== `/settings/user/${userId}`
+              }
             />
           </List>
         </>

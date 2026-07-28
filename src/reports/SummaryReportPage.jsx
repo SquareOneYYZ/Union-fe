@@ -1,9 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import {
-  FormControl, InputLabel, Select, MenuItem, Table, TableHead, TableRow, TableBody, TableCell,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Table,
+  TableHead,
+  TableRow,
+  TableBody,
+  TableCell,
+  TableSortLabel,
+  Box,
+  Pagination,
+  Typography,
 } from '@mui/material';
+import { visuallyHidden } from '@mui/utils';
 import {
   formatDistance, formatSpeed, formatVolume, formatTime, formatNumericHours,
 } from '../common/util/formatter';
@@ -49,6 +62,80 @@ const SummaryReportPage = () => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
 
+  const [order, setOrder] = useState('asc');
+  const [orderBy, setOrderBy] = useState('deviceName');
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
+
+  const handleRequestSort = (property) => {
+    const isAsc = orderBy === property && order === 'asc';
+    setOrder(isAsc ? 'desc' : 'asc');
+    setOrderBy(property);
+    setPage(0);
+  };
+
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage - 1);
+  };
+
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  const preparedData = useMemo(() => items.map((item) => ({
+    ...item,
+    deviceName: devices[item.deviceId]?.name || '',
+  })), [items, devices]);
+
+  const sortedAndPaginatedData = useMemo(() => {
+    if (!preparedData || preparedData.length === 0) return [];
+
+    const comparator = (a, b) => {
+      let aVal = a[orderBy];
+      let bVal = b[orderBy];
+
+      if (aVal == null) return 1;
+      if (bVal == null) return -1;
+
+      if (orderBy.toLowerCase().includes('time') || orderBy.toLowerCase().includes('date')) {
+        aVal = new Date(aVal).getTime();
+        bVal = new Date(bVal).getTime();
+      } else if (typeof aVal === 'number' && typeof bVal === 'number') {
+        return order === 'asc' ? aVal - bVal : bVal - aVal;
+      } else if (typeof aVal === 'string') {
+        aVal = aVal.toLowerCase();
+        bVal = String(bVal).toLowerCase();
+      }
+
+      if (order === 'asc') {
+        if (aVal < bVal) {
+          return -1;
+        }
+        if (aVal > bVal) {
+          return 1;
+        }
+        return 0;
+      }
+
+      if (aVal > bVal) {
+        return -1;
+      }
+      if (aVal < bVal) {
+        return 1;
+      }
+      return 0;
+    };
+
+    const sorted = [...preparedData].sort(comparator);
+    return sorted.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+  }, [preparedData, order, orderBy, page, rowsPerPage]);
+
+  const totalCount = preparedData.length;
+  const totalPages = Math.ceil(totalCount / rowsPerPage);
+  const startRow = totalCount === 0 ? 0 : page * rowsPerPage + 1;
+  const endRow = Math.min((page + 1) * rowsPerPage, totalCount);
+
   const handleSubmit = useCatch(async ({ deviceIds, groupIds, from, to, type }) => {
     const query = new URLSearchParams({ from, to, daily });
     deviceIds.forEach((deviceId) => query.append('deviceId', deviceId));
@@ -68,6 +155,7 @@ const SummaryReportPage = () => {
         });
         if (response.ok) {
           setItems(await response.json());
+          setPage(0);
         } else {
           throw Error(await response.text());
         }
@@ -113,6 +201,33 @@ const SummaryReportPage = () => {
     }
   };
 
+  let tableBodyContent;
+
+  if (loading) {
+    tableBodyContent = <TableShimmer columns={columns.length + 1} />;
+  } else if (sortedAndPaginatedData.length === 0) {
+    tableBodyContent = (
+      <TableRow>
+        <TableCell colSpan={columns.length + 1} align="center">
+          <Typography variant="body2" color="text.secondary" sx={{ py: 3 }}>
+            {t('sharedNoData') || 'No data available'}
+          </Typography>
+        </TableCell>
+      </TableRow>
+    );
+  } else {
+    tableBodyContent = sortedAndPaginatedData.map((item) => (
+      <TableRow key={`${item.deviceId}_${Date.parse(item.startTime)}`} hover>
+        <TableCell>{devices[item.deviceId].name}</TableCell>
+        {columns.map((key) => (
+          <TableCell key={key}>
+            {formatValue(item, key)}
+          </TableCell>
+        ))}
+      </TableRow>
+    ));
+  }
+
   return (
     <PageLayout menu={<ReportsMenu />} breadcrumbs={['reportTitle', 'reportSummary']}>
       <div className={classes.header}>
@@ -120,7 +235,18 @@ const SummaryReportPage = () => {
           <div className={classes.filterItem}>
             <FormControl fullWidth>
               <InputLabel>{t('sharedType')}</InputLabel>
-              <Select label={t('sharedType')} value={daily} onChange={(e) => setDaily(e.target.value)}>
+              <Select
+                label={t('sharedType')}
+                value={daily}
+                onChange={(e) => setDaily(e.target.value)}
+                sx={{ // ← ADD THIS
+                  borderRadius: '13px',
+                  '& .MuiOutlinedInput-notchedOutline': { borderRadius: '13px' },
+                }}
+                MenuProps={{ // ← ADD THIS
+                  PaperProps: { sx: { borderRadius: '13px' } },
+                }}
+              >
                 <MenuItem value={false}>{t('reportSummary')}</MenuItem>
                 <MenuItem value>{t('reportDaily')}</MenuItem>
               </Select>
@@ -129,26 +255,103 @@ const SummaryReportPage = () => {
           <ColumnSelect columns={columns} setColumns={setColumns} columnsArray={columnsArray} />
         </ReportFilter>
       </div>
-      <Table>
+      <Table stickyHeader>
         <TableHead>
           <TableRow>
-            <TableCell>{t('sharedDevice')}</TableCell>
-            {columns.map((key) => (<TableCell key={key}>{t(columnsMap.get(key))}</TableCell>))}
+            <TableCell>
+              <TableSortLabel
+                active={orderBy === 'deviceName'}
+                direction={orderBy === 'deviceName' ? order : 'asc'}
+                onClick={() => handleRequestSort('deviceName')}
+              >
+                {t('sharedDevice')}
+                {orderBy === 'deviceName' ? (
+                  <Box component="span" sx={visuallyHidden}>
+                    {order === 'desc' ? 'sorted descending' : 'sorted ascending'}
+                  </Box>
+                ) : null}
+              </TableSortLabel>
+            </TableCell>
+            {columns.map((key) => {
+              const isSortable = key === 'startTime' || key === 'distance' || key === 'averageSpeed' || key === 'maxSpeed' || key === 'engineHours';
+              if (isSortable) {
+                return (
+                  <TableCell key={key}>
+                    <TableSortLabel
+                      active={orderBy === key}
+                      direction={orderBy === key ? order : 'asc'}
+                      onClick={() => handleRequestSort(key)}
+                    >
+                      {t(columnsMap.get(key))}
+                      {orderBy === key ? (
+                        <Box component="span" sx={visuallyHidden}>
+                          {order === 'desc' ? 'sorted descending' : 'sorted ascending'}
+                        </Box>
+                      ) : null}
+                    </TableSortLabel>
+                  </TableCell>
+                );
+              }
+              return (
+                <TableCell key={key}>{t(columnsMap.get(key))}</TableCell>
+              );
+            })}
           </TableRow>
         </TableHead>
-        <TableBody>
-          {!loading ? items.map((item) => (
-            <TableRow key={(`${item.deviceId}_${Date.parse(item.startTime)}`)}>
-              <TableCell>{devices[item.deviceId].name}</TableCell>
-              {columns.map((key) => (
-                <TableCell key={key}>
-                  {formatValue(item, key)}
-                </TableCell>
-              ))}
-            </TableRow>
-          )) : (<TableShimmer columns={columns.length + 1} />)}
-        </TableBody>
+        <TableBody>{tableBodyContent}</TableBody>
       </Table>
+      {!loading && sortedAndPaginatedData.length > 0 && (
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-evenly',
+            alignItems: 'center',
+            p: 2,
+            borderTop: '1px solid rgba(224, 224, 224, 1)',
+            flexWrap: 'wrap',
+            gap: 2,
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography variant="body2">
+              {t('sharedRowsPerPage') || 'Rows per page'}
+              :
+            </Typography>
+            <FormControl size="small">
+              <Select
+                value={rowsPerPage}
+                onChange={handleChangeRowsPerPage}
+                sx={{ minWidth: 80 }}
+              >
+                <MenuItem value={10}>10</MenuItem>
+                <MenuItem value={25}>25</MenuItem>
+                <MenuItem value={50}>50</MenuItem>
+                <MenuItem value={100}>100</MenuItem>
+              </Select>
+            </FormControl>
+            <Typography variant="body2" color="text.secondary" sx={{ ml: 2 }}>
+              {startRow}
+              -
+              {endRow}
+              {' '}
+              {t('sharedOf') || 'of'}
+              {' '}
+              {totalCount}
+            </Typography>
+          </Box>
+
+          <Pagination
+            count={totalPages}
+            page={page + 1}
+            onChange={handleChangePage}
+            color="primary"
+            showFirstButton
+            showLastButton
+            siblingCount={1}
+            boundaryCount={1}
+          />
+        </Box>
+      )}
     </PageLayout>
   );
 };

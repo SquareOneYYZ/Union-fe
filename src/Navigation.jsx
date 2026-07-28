@@ -14,9 +14,12 @@ import NotificationsPage from './settings/NotificationsPage';
 import NotificationPage from './settings/NotificationPage';
 import GroupsPage from './settings/GroupsPage';
 import GroupPage from './settings/GroupPage';
+import OrganizationsPage from './settings/OrganizationsPage';
+import OrganizationPage from './settings/OrganizationPage';
 import PositionPage from './other/PositionPage';
 import NetworkPage from './other/NetworkPage';
 import EventReportPage from './reports/EventReportPage';
+import GeofenceActivityReportPage from './reports/GeofenceActivityReportPage';
 import ReplayPage from './other/ReplayPage';
 import TripReportPage from './reports/TripReportPage';
 import StopReportPage from './reports/StopReportPage';
@@ -38,6 +41,8 @@ import RegisterPage from './login/RegisterPage';
 import ResetPasswordPage from './login/ResetPasswordPage';
 import GeofencesPage from './other/GeofencesPage';
 import GeofencePage from './settings/GeofencePage';
+import VinPage from './settings/VinPage';
+import VinsPage from './settings/VinsPage';
 import useQuery from './common/util/useQuery';
 import { useEffectAsync } from './reactHelper';
 import { devicesActions } from './store';
@@ -59,10 +64,12 @@ import AnnouncementPage from './settings/AnnouncementPage';
 import EmulatorPage from './other/EmulatorPage';
 import Loader from './common/components/Loader';
 import { generateLoginToken } from './common/components/NativeInterface';
+import { useLocalization } from './common/components/LocalizationProvider';
 
 const Navigation = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const { setLanguage } = useLocalization();
 
   const [redirectsHandled, setRedirectsHandled] = useState(false);
 
@@ -70,10 +77,13 @@ const Navigation = () => {
   const query = useQuery();
 
   useEffectAsync(async () => {
+    if (query.get('locale')) {
+      setLanguage(query.get('locale'));
+    }
     if (query.get('token')) {
       const token = query.get('token');
       await fetch(`/api/session?token=${encodeURIComponent(token)}`);
-      navigate(pathname);
+      navigate(pathname, { replace: true });
     } else if (query.get('deviceId')) {
       const deviceId = query.get('deviceId');
       const response = await fetch(`/api/devices?uniqueId=${deviceId}`);
@@ -100,11 +110,12 @@ const Navigation = () => {
   }, [query]);
 
   if (!redirectsHandled) {
-    return (<Loader />);
+    return <Loader />;
   }
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/change-server" element={<ChangeServerPage />} />
@@ -117,6 +128,9 @@ const Navigation = () => {
         <Route path="replay" element={<ReplayPage />} />
         <Route path="geofences" element={<GeofencesPage />} />
         <Route path="emulator" element={<EmulatorPage />} />
+        <Route path="/settings/vins" element={<VinsPage />} />
+        <Route path="/vin" element={<VinPage />} />
+        <Route path="/vin/:id" element={<VinPage />} />
 
         <Route path="settings">
           <Route path="accumulators/:deviceId" element={<AccumulatorsPage />} />
@@ -131,7 +145,10 @@ const Navigation = () => {
           <Route path="attribute/:id" element={<ComputedAttributePage />} />
           <Route path="attribute" element={<ComputedAttributePage />} />
           <Route path="devices" element={<DevicesPage />} />
-          <Route path="device/:id/connections" element={<DeviceConnectionsPage />} />
+          <Route
+            path="device/:id/connections"
+            element={<DeviceConnectionsPage />}
+          />
           <Route path="device/:id/command" element={<CommandDevicePage />} />
           <Route path="device/:id/share" element={<SharePage />} />
           <Route path="device/:id" element={<DevicePage />} />
@@ -142,10 +159,18 @@ const Navigation = () => {
           <Route path="geofence/:id" element={<GeofencePage />} />
           <Route path="geofence" element={<GeofencePage />} />
           <Route path="groups" element={<GroupsPage />} />
-          <Route path="group/:id/connections" element={<GroupConnectionsPage />} />
+          <Route
+            path="group/:id/connections"
+            element={<GroupConnectionsPage />}
+          />
           <Route path="group/:id/command" element={<CommandGroupPage />} />
           <Route path="group/:id" element={<GroupPage />} />
           <Route path="group" element={<GroupPage />} />
+
+          <Route path="organizations" element={<OrganizationsPage />} />
+          <Route path="organization/:id" element={<OrganizationPage />} />
+          <Route path="organization" element={<OrganizationPage />} />
+
           <Route path="maintenances" element={<MaintenancesPage />} />
           <Route path="maintenance/:id" element={<MaintenancePage />} />
           <Route path="maintenance" element={<MaintenancePage />} />
@@ -155,7 +180,10 @@ const Navigation = () => {
           <Route path="preferences" element={<PreferencesPage />} />
           <Route path="server" element={<ServerPage />} />
           <Route path="users" element={<UsersPage />} />
-          <Route path="user/:id/connections" element={<UserConnectionsPage />} />
+          <Route
+            path="user/:id/connections"
+            element={<UserConnectionsPage />}
+          />
           <Route path="user/:id" element={<UserPage />} />
           <Route path="user" element={<UserPage />} />
         </Route>
@@ -164,6 +192,7 @@ const Navigation = () => {
           <Route path="combined" element={<CombinedReportPage />} />
           <Route path="chart" element={<ChartReportPage />} />
           <Route path="event" element={<EventReportPage />} />
+          <Route path="geofence-activity" element={<GeofenceActivityReportPage />} />
           <Route path="route" element={<RouteReportPage />} />
           <Route path="stop" element={<StopReportPage />} />
           <Route path="summary" element={<SummaryReportPage />} />

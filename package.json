@@ -15,6 +15,7 @@
     "@mui/lab": "^5.0.0-alpha.173",
     "@mui/material": "^5.16.14",
     "@mui/styles": "^5.16.14",
+    "@mui/utils": "^7.3.6",
     "@reduxjs/toolkit": "^2.5.0",
     "@tmcw/togeojson": "^5.8.1",
     "@turf/circle": "^7.2.0",
@@ -26,6 +27,7 @@
     "maplibre-gl": "^4.7.1",
     "maplibre-google-maps": "^1.1.0",
     "posthog-js": "^1.217.2",
+    "qrcode.react": "^4.2.0",
     "react": "^18.3.1",
     "react-country-flag": "3.1.0",
     "react-dom": "^18.3.1",
@@ -37,6 +39,7 @@
     "react-window": "^1.8.11",
     "recharts": "^2.15.0",
     "redux": "^5.0.1",
+    "simplify-js": "^1.2.4",
     "stylis": "^4.3.4",
     "stylis-plugin-rtl": "^2.1.1",
     "vite": "^5.4.14",
@@ -49,7 +52,10 @@
     "build": "vite build",
     "generate-pwa-assets": "pwa-assets-generator --preset minimal public/logo.svg",
     "lint": "eslint .",
-    "lint:fix": "eslint --fix ."
+    "lint:fix": "eslint --fix .",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage"
   },
   "browserslist": {
     "production": [
@@ -64,11 +70,14 @@
   },
   "devDependencies": {
     "@vite-pwa/assets-generator": "^0.2.6",
+    "@vitest/coverage-v8": "^4.1.6",
     "eslint": "^8.57.1",
     "eslint-config-airbnb": "^19.0.4",
     "eslint-plugin-import": "^2.31.0",
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "eslint-plugin-react": "^7.37.3",
-    "eslint-plugin-react-hooks": "^4.6.2"
+    "eslint-plugin-react-hooks": "^4.6.2",
+    "jsdom": "^29.1.1",
+    "vitest": "^4.1.6"
   }
 }

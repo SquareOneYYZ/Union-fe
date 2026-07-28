@@ -6,9 +6,12 @@ import {
   AccordionDetails,
   Typography,
   Container,
+  Button,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import LinkField from '../common/components/LinkField';
+import LocationSelector from './components/LocationSelector';
 import { useTranslation } from '../common/components/LocalizationProvider';
 import SettingsMenu from './components/SettingsMenu';
 import { formatNotificationTitle } from '../common/util/formatter';
@@ -19,9 +22,7 @@ import useSettingsStyles from './common/useSettingsStyles';
 const GroupConnectionsPage = () => {
   const classes = useSettingsStyles();
   const t = useTranslation();
-
   const { id } = useParams();
-
   const features = useFeatures();
 
   return (
@@ -30,13 +31,16 @@ const GroupConnectionsPage = () => {
       breadcrumbs={['settingsTitle', 'groupDialog', 'sharedConnections']}
     >
       <Container maxWidth="xs" className={classes.container}>
+        {/* Zone Violation Connections */}
         <Accordion defaultExpanded>
           <AccordionSummary expandIcon={<ExpandMoreIcon />}>
             <Typography variant="subtitle1">
-              {t('sharedConnections')}
+              Zone Violation Connections
             </Typography>
           </AccordionSummary>
+
           <AccordionDetails className={classes.details}>
+            {/* Geofences */}
             <LinkField
               endpointAll="/api/geofences"
               endpointLinked={`/api/geofences?groupId=${id}`}
@@ -45,6 +49,20 @@ const GroupConnectionsPage = () => {
               keyLink="geofenceId"
               label={t('sharedGeofences')}
             />
+
+            <LocationSelector groupId={id} />
+          </AccordionDetails>
+        </Accordion>
+
+        {/* Standard Connections */}
+        <Accordion>
+          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+            <Typography variant="subtitle1">
+              {t('sharedConnections')}
+            </Typography>
+          </AccordionSummary>
+
+          <AccordionDetails className={classes.details}>
             <LinkField
               endpointAll="/api/notifications"
               endpointLinked={`/api/notifications?groupId=${id}`}
@@ -54,6 +72,7 @@ const GroupConnectionsPage = () => {
               titleGetter={(it) => formatNotificationTitle(t, it)}
               label={t('sharedNotifications')}
             />
+
             {!features.disableDrivers && (
               <LinkField
                 endpointAll="/api/drivers"
@@ -65,6 +84,7 @@ const GroupConnectionsPage = () => {
                 label={t('sharedDrivers')}
               />
             )}
+
             {!features.disableComputedAttributes && (
               <LinkField
                 endpointAll="/api/attributes/computed"
@@ -76,6 +96,7 @@ const GroupConnectionsPage = () => {
                 label={t('sharedComputedAttributes')}
               />
             )}
+
             {!features.disableSavedCommands && (
               <LinkField
                 endpointAll="/api/commands"
@@ -87,6 +108,7 @@ const GroupConnectionsPage = () => {
                 label={t('sharedSavedCommands')}
               />
             )}
+
             {!features.disableMaintenance && (
               <LinkField
                 endpointAll="/api/maintenance"
@@ -99,6 +121,15 @@ const GroupConnectionsPage = () => {
             )}
           </AccordionDetails>
         </Accordion>
+
+        <Button
+          variant="outlined"
+          startIcon={<ArrowBackIcon />}
+          onClick={() => window.history.back()}
+          sx={{ mt: 2 }}
+        >
+          {t('back') || 'Back'}
+        </Button>
       </Container>
     </PageLayout>
   );

@@ -7,8 +7,10 @@ export default makeStyles((theme) => ({
     flexDirection: 'column',
   },
   containerMap: {
-    flexBasis: '40%',
-    flexShrink: 0,
+    flex: 'none',
+    height: '70%',
+    minHeight: 150,
+    overflow: 'hidden',
   },
   containerMain: {
     overflow: 'auto',
@@ -45,5 +47,11 @@ export default makeStyles((theme) => ({
   chart: {
     flexGrow: 1,
     overflow: 'hidden',
+  },
+  actionCellPadding: {
+    '&.MuiTableCell-body': {
+      paddingTop: 0,
+      paddingBottom: 0,
+    },
   },
 }));

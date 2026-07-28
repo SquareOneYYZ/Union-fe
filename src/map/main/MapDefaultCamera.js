@@ -2,9 +2,15 @@ import maplibregl from 'maplibre-gl';
 import { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { usePreference } from '../../common/util/preferences';
-import { map } from '../core/MapView';
+import { map, restoredCamera } from '../core/MapView';
 
-const MapDefaultCamera = () => {
+// A restored camera only suppresses fit-to-devices when it is an actual
+// place the user was looking at; below this zoom it is a world/continent
+// view (e.g. a session that ended before any camera fit), and fitting to
+// the devices is strictly better than restoring it.
+const MIN_RESTORED_ZOOM_TO_SKIP_FIT = 4;
+
+const MapDefaultCamera = ({ mapReady }) => {
   const selectedDeviceId = useSelector((state) => state.devices.selectedId);
   const positions = useSelector((state) => state.session.positions);
 
@@ -15,6 +21,7 @@ const MapDefaultCamera = () => {
   const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
+    if (!mapReady) return;
     if (selectedDeviceId) {
       setInitialized(true);
     } else if (!initialized) {
@@ -23,6 +30,10 @@ const MapDefaultCamera = () => {
           center: [defaultLongitude, defaultLatitude],
           zoom: defaultZoom,
         });
+        setInitialized(true);
+      } else if (restoredCamera && restoredCamera.zoom >= MIN_RESTORED_ZOOM_TO_SKIP_FIT) {
+        // Camera was already restored from persisted state when the map was
+        // created, so late position data must not re-fit the whole viewport.
         setInitialized(true);
       } else {
         const coordinates = Object.values(positions).map((item) => [item.longitude, item.latitude]);
@@ -44,9 +55,11 @@ const MapDefaultCamera = () => {
         }
       }
     }
-  }, [selectedDeviceId, initialized, defaultLatitude, defaultLongitude, defaultZoom, positions]);
+  }, [selectedDeviceId, initialized, defaultLatitude, defaultLongitude, defaultZoom, positions, mapReady]);
 
   return null;
 };
+
+MapDefaultCamera.handlesMapReady = true;
 
 export default MapDefaultCamera;

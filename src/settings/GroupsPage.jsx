@@ -1,7 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Table, TableRow, TableCell, TableHead, TableBody,
+  Table,
+  TableRow,
+  TableCell,
+  TableHead,
+  TableBody,
 } from '@mui/material';
 import LinkIcon from '@mui/icons-material/Link';
 import PublishIcon from '@mui/icons-material/Publish';
@@ -57,7 +61,10 @@ const GroupsPage = () => {
   };
 
   return (
-    <PageLayout menu={<SettingsMenu />} breadcrumbs={['settingsTitle', 'settingsGroups']}>
+    <PageLayout
+      menu={<SettingsMenu />}
+      breadcrumbs={['settingsTitle', 'settingsGroups']}
+    >
       <SearchHeader keyword={searchKeyword} setKeyword={setSearchKeyword} />
       <Table className={classes.table}>
         <TableHead>
@@ -67,20 +74,28 @@ const GroupsPage = () => {
           </TableRow>
         </TableHead>
         <TableBody>
-          {!loading ? items.filter(filterByKeyword(searchKeyword)).map((item) => (
-            <TableRow key={item.id}>
-              <TableCell>{item.name}</TableCell>
-              <TableCell className={classes.columnAction} padding="none">
-                <CollectionActions
-                  itemId={item.id}
-                  editPath="/settings/group"
-                  endpoint="groups"
-                  setTimestamp={setTimestamp}
-                  customActions={limitCommands ? [actionConnections] : [actionConnections, actionCommand]}
-                />
-              </TableCell>
-            </TableRow>
-          )) : (<TableShimmer columns={2} endAction />)}
+          {!loading ? (
+            items.filter(filterByKeyword(searchKeyword)).map((item) => (
+              <TableRow key={item.id}>
+                <TableCell>{item.name}</TableCell>
+                <TableCell className={classes.columnAction} padding="none">
+                  <CollectionActions
+                    itemId={item.id}
+                    editPath="/settings/group"
+                    endpoint="groups"
+                    setTimestamp={setTimestamp}
+                    customActions={
+                      limitCommands
+                        ? [actionConnections]
+                        : [actionConnections, actionCommand]
+                    }
+                  />
+                </TableCell>
+              </TableRow>
+            ))
+          ) : (
+            <TableShimmer columns={2} endAction />
+          )}
         </TableBody>
       </Table>
       <CollectionFab editPath="/settings/group" />
