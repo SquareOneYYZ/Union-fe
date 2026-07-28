@@ -131,31 +131,31 @@ const MapPositions = ({ positions, onClick, showStatus, selectedPosition, titleF
     if (map.getSource(id)) updateMapData(undefined, 'selection'); // eslint-disable-line no-use-before-define
   }, [selectedDeviceId]);
 
- const createFeature = useCallback((devs, position, selectedPositionId) => {
-  const device = devs[position.deviceId];
-  let showDirection;
-  switch (directionType) {
-    case 'none': showDirection = false; break;
-    case 'all': showDirection = position.course > 0; break;
-    default: showDirection = selectedPositionId === position.id && position.course > 0; break;
-  }
-  const cache = fixTimeCacheRef.current;
-  let fixTimeEntry = cache[position.deviceId];
-  if (!fixTimeEntry || fixTimeEntry.raw !== position.fixTime) {
-    fixTimeEntry = { raw: position.fixTime, formatted: formatTime(position.fixTime, 'seconds') };
-    cache[position.deviceId] = fixTimeEntry;
-  }
-  return {
-    id: position.id,
-    deviceId: position.deviceId,
-    name: device.name,
-    fixTime: fixTimeEntry.formatted,
-    category: mapIconKey(device.category),
-    color: showStatus ? position.attributes.color || getStatusColor(device.status) : 'neutral',
-    rotation: position.course,
-    direction: showDirection,
-  };
-}, [directionType, showStatus]);
+  const createFeature = useCallback((devs, position, selectedPositionId) => {
+    const device = devs[position.deviceId];
+    let showDirection;
+    switch (directionType) {
+      case 'none': showDirection = false; break;
+      case 'all': showDirection = position.course > 0; break;
+      default: showDirection = selectedPositionId === position.id && position.course > 0; break;
+    }
+    const cache = fixTimeCacheRef.current;
+    let fixTimeEntry = cache[position.deviceId];
+    if (!fixTimeEntry || fixTimeEntry.raw !== position.fixTime) {
+      fixTimeEntry = { raw: position.fixTime, formatted: formatTime(position.fixTime, 'seconds') };
+      cache[position.deviceId] = fixTimeEntry;
+    }
+    return {
+      id: position.id,
+      deviceId: position.deviceId,
+      name: device.name,
+      fixTime: fixTimeEntry.formatted,
+      category: mapIconKey(device.category),
+      color: showStatus ? position.attributes.color || getStatusColor(device.status) : 'neutral',
+      rotation: position.course,
+      direction: showDirection,
+    };
+  }, [directionType, showStatus]);
 
   const calculateAnimationDuration = useCallback((deviceId, now) => {
     if (!useAdaptiveTiming) return baseAnimationDuration;

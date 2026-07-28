@@ -64,10 +64,6 @@ const MainPage = () => {
   );
 
   const [filteredDevices, setFilteredDevices] = useState([]);
-  const selectedPosition = filteredPositions.find(
-    (position) => selectedDeviceId && position.deviceId === selectedDeviceId,
-  );
-
   const [keyword, setKeyword] = useState('');
   const [filter, setFilter] = usePersistedState('filter', { statuses: [], groups: [] });
   const [filterSort, setFilterSort] = usePersistedState('filterSort', '');
