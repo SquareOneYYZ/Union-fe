@@ -364,7 +364,8 @@ const EventReportPage = () => {
         return value > 0 ? value : null;
 
       case 'speedLimit': {
-        if (item.type === 'deviceOverspeed' && item.attributes?.speedLimit) {
+        // Both event types carry speedLimit in knots (Traccar's unit), so one formatter serves both.
+        if ((item.type === 'deviceOverspeed' || item.type === 'speedCamera') && item.attributes?.speedLimit) {
           return formatSpeed(item.attributes.speedLimit, speedUnit, t);
         }
         return null;
@@ -376,6 +377,17 @@ const EventReportPage = () => {
         }
         if (item.type === 'deviceOverspeed') {
           return formatSpeed(item.attributes.speed, speedUnit, t);
+        }
+        if (item.type === 'speedCamera') {
+          // Events since the stage A fix carry `speed` in knots like deviceOverspeed. Events written
+          // before it carry only `deviceSpeed` in km/h; read both shapes until history is tagged.
+          if (item.attributes?.speed != null) {
+            return formatSpeed(item.attributes.speed, speedUnit, t);
+          }
+          if (item.attributes?.deviceSpeed != null) {
+            return formatSpeed(item.attributes.deviceSpeed / 1.852, speedUnit, t);
+          }
+          return null;
         }
         if (item.type === 'driverChanged') {
           return item.attributes.driverUniqueId;
