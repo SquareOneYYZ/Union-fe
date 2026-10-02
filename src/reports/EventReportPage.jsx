@@ -30,6 +30,7 @@ import {
   formatTime,
   formatDistance,
 } from '../common/util/formatter';
+import { speedToKnots } from '../common/util/converter';
 import ReportFilter from './components/ReportFilter';
 import { prefixString, unprefixString } from '../common/util/stringUtils';
 import {
@@ -385,7 +386,7 @@ const EventReportPage = () => {
             return formatSpeed(item.attributes.speed, speedUnit, t);
           }
           if (item.attributes?.deviceSpeed != null) {
-            return formatSpeed(item.attributes.deviceSpeed / 1.852, speedUnit, t);
+            return formatSpeed(speedToKnots(item.attributes.deviceSpeed, 'kmh'), speedUnit, t);
           }
           return null;
         }
